@@ -131,6 +131,31 @@ class MRIimage:
         self.__img = None
         self.__roi = None
 
+    def __compute_roi_measure(self):
+        """
+        Compute some usefull statistics and measure about
+        """
+        roi = self.get_roi()
+
+        # We sum all voxel intensity in each sagittal, coronal, axial slice
+        slice_lists = [roi.sum(axis=(1, 2)), roi.sum(axis=(0, 2)), roi.sum(axis=(0, 1))]
+        coord = []
+
+        # We detect the first and the last slice that have at least one voxel with non zero intensity along each axis.
+        for _list in slice_lists:
+            non_zero_slices = np.where(_list >= 0.9)
+            coord.append([np.min(non_zero_slices), np.max(non_zero_slices)])
+
+        # compute the lenght of roi along each axis in term of mm and number of voxel
+        self.__roi_measure['length_voxel'] = [x[1] - x[0] + 1 for x in coord]
+        self.__roi_measure['length_mm'] = [self.__metadata['voxel_spacing'][i] * self.__roi_measure['length_voxel'][i]
+                                           for i in range(3)]
+
+        # compute the roi center coordinate along each axis in term of mm and number of voxel
+        self.__roi_measure['center_voxel'] = [round((x[1] + x[0])/2) for x in coord]
+        self.__roi_measure['center_mm'] = [self.__metadata['voxel_spacing'][i] * (coord[i][1] + coord[i][0])/2
+                                           for i in range(3)]
+
     def get_nifti(self, roi: bool = False):
         if (self.__img is None and not roi) or (self.__roi is None and roi):
             return self._read_image(roi)
@@ -237,31 +262,6 @@ class MRIimage:
 
         if self.__keep_mem:
             self.load_img()
-
-    def __compute_roi_measure(self):
-        """
-        Compute some usefull statistics and measure about
-        """
-        roi = self.get_roi()
-
-        # We sum all voxel intensity in each sagittal, coronal, axial slice
-        slice_lists = [roi.sum(axis=(1, 2)), roi.sum(axis=(0, 2)), roi.sum(axis=(0, 1))]
-        coord = []
-
-        # We detect the first and the last slice that have at least one voxel with non zero intensity along each axis.
-        for _list in slice_lists:
-            non_zero_slices = np.where(_list >= 0.9)
-            coord.append([np.min(non_zero_slices), np.max(non_zero_slices)])
-
-        # compute the lenght of roi along each axis in term of mm and number of voxel
-        self.__roi_measure['length_voxel'] = [x[1] - x[0] + 1 for x in coord]
-        self.__roi_measure['length_mm'] = [self.__metadata['voxel_spacing'][i] * self.__roi_measure['length_voxel'][i]
-                                           for i in range(3)]
-
-        # compute the roi center coordinate along each axis in term of mm and number of voxel
-        self.__roi_measure['center_voxel'] = [round((x[1] + x[0])/2) for x in coord]
-        self.__roi_measure['center_mm'] = [self.__metadata['voxel_spacing'][i] * (coord[i][1] + coord[i][0])/2
-                                           for i in range(3)]
 
     def save_image(self, path: str = "", with_roi: bool = False):
         """
