@@ -212,7 +212,7 @@ class MRIimage:
         self.__roi = nib.Nifti1Image(roi, affine=self.__img.affine, header=self.__img.header)
 
         if save or not self.__keep_mem:
-            self.save_image(path=save_path)
+            self.save_image(path=save_path, with_roi=True)
 
         if not self.__keep_mem:
             self.detach()
@@ -351,12 +351,23 @@ class MRIimage:
             ants_img = ants.image_read(self._get_path())
         else:
             ants_img = from_nibabel(self.__img)
+
+        if self.__roi is None:
+            ants_roi = ants.image_read(self._get_path(roi=True))
+        else:
+            ants_roi = from_nibabel(self.__roi)
+
         corrected_img = to_nibabel(resample_image(ants_img, resample_params, False, interp_type))
+        corrected_roi = to_nibabel(resample_image(ants_roi, resample_params, False, interp_type))
 
         self.__img = corrected_img
+        self.__roi = corrected_roi
+
+        # Update self.roi_measure
+        self.__compute_roi_measure()
 
         if save or not self.__keep_mem:
-            self.save_image(path=save_path)
+            self.save_image(path=save_path, with_roi=True)
 
         if not self.__keep_mem:
             self.detach()
