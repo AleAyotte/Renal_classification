@@ -49,23 +49,27 @@ class MRIimage:
         Apply the n4_bias_feild_correction on the image with Antspy and save it if requested.
     apply_znorm(save: bool= False, save_path="")
         Apply the z normalization on the image and save it if requested.
+    crop(crop_shape, save: bool = False, save_path: str = "")
+        Crop a part of the image and the ROI and save the image and the ROI if requested.
     detach()
         Release memory taken by the image and its ROI.
     load_image()
         Load the image and its ROI in memory.
     plot(_slice, axis: str = "all", roi: bool = False)
         Load and plot the image (ROI) along a given axis or along each axis.
+    resample(resample_params, interp_type: int = 1, save: bool = False, save_path: str = "")
+        Resample an image using antspy according to the new voxel dimension given.
     save_image(path: str = "", with_roi: bool = False)
         Save the image (ROI) in a NIFTI file and update reading path.
     """
-    def __init__(self, path_image: str, path_roi: str, modality: str, keep_mem: bool = True):
+
+    def __init__(self, path_image: str, path_roi: str, keep_mem: bool = True):
 
         self.__path = os.path.dirname(path_image)
         self.__path_roi = os.path.dirname(path_roi)
         self.__filename = os.path.splitext(os.path.basename(path_image))[0]
         self.__filename_roi = os.path.splitext(os.path.basename(path_roi))[0]
         self.__keep_mem = keep_mem
-        self.__modality = modality
         self.__img = None
         self.__roi = None
         self.__metadata = {'img_shape': [],
@@ -329,6 +333,35 @@ class MRIimage:
 
         if self.__keep_mem:
             self.load_img()
+
+    def resample(self, resample_params, interp_type: int = 1, save: bool = False, save_path: str = ""):
+        """
+        Resample an image using antspy according to the new voxel dimension given.
+
+        :param resample_params: List or tuple that indicate the new voxel dimension in mm.
+        :param interp_type: The interpolation algorithm that will be used to resample the image.
+                            (0: Linear, 1: nearest neighbor, 2: gaussian, 3: windowed sinc, 4: bspline)
+        :param save: A boolean that indicate if we need to save the image after this operation.
+                     If keep memory is false, than the image will be saved either if save is true or false.
+        :param save_path: A string that indicate the path where the images will be save
+        """
+        import ants
+        from ants.registration import resample_image
+        from ants.utils.convert_nibabel import to_nibabel, from_nibabel
+
+        if self.__img is None:
+            ants_img = ants.image_read(self._get_path())
+        else:
+            ants_img = from_nibabel(self.__img)
+        corrected_img = to_nibabel(resample_image(ants_img, resample_params, False, interp_type))
+
+        self.__img = corrected_img
+
+        if save or not self.__keep_mem:
+            self.save_image(path=save_path)
+
+        if not self.__keep_mem:
+            self.detach()
 
     def save_image(self, path: str = "", with_roi: bool = False):
         """
