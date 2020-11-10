@@ -7,7 +7,7 @@ patient_id = "Kidney-TCGA-008"
 
 path_image = str(path + "/" + patient_id) + "__T1C"
 
-my_image = MRIimage(path_image=path_image, path_roi=path_image + "_ROI", modality="T1C", keep_mem=True)
+my_image = MRIimage(path_image=path_image, path_roi=path_image + "_ROI", keep_mem=True)
 
 print(my_image.get_roi_measure())
 my_image.plot([45, 130, 90], axis="all")
