@@ -19,8 +19,6 @@ class MRIimage:
         The filename of the nifti image. (Exemple: "Kidney-TCGA-008__T1C")
     __keep_mem : bool
         Indicate if the image and its ROI is keep in memory.
-    __modality : string
-        Modality of the image. (Exemple: T1C or T2WI)
     __img : nib.nifti1.Nifti1Image
         The nifti image.
     __roi : nib.nifti1.Nifti1Image
