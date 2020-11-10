@@ -70,7 +70,7 @@ class MRIimage:
         self.__roi = None
         self.__metadata = {'img_shape': [],
                            'voxel_spacing': [],
-                           'image_spacing': []}
+                           'img_spacing': []}
         self.__roi_measure = {'length_mm': [],
                               'length_voxel': [],
                               'center_mm': [],
@@ -123,14 +123,6 @@ class MRIimage:
         if not self.__keep_mem:
             self.detach()
 
-    def detach(self):
-        """
-        Release memory taken by the image and its ROI.
-        """
-        self.__keep_mem = False
-        self.__img = None
-        self.__roi = None
-
     def __compute_roi_measure(self):
         """
         Compute some usefull statistics and measure about
@@ -155,6 +147,81 @@ class MRIimage:
         self.__roi_measure['center_voxel'] = [round((x[1] + x[0])/2) for x in coord]
         self.__roi_measure['center_mm'] = [self.__metadata['voxel_spacing'][i] * (coord[i][1] + coord[i][0])/2
                                            for i in range(3)]
+
+    def crop(self, crop_shape, save: bool = False, save_path: str = ""):
+        """
+        Crop a part of the image and the ROI and save the image and the ROI if requested.
+
+        :param crop_shape: The dimension of the region to crop in term of number of voxel.
+        :param save: A boolean that indicate if we need to save the image after this operation.
+                     If keep memory is false, than the image will be saved either if save is true or false.
+        :param save_path: A string that indicate the path where the images will be save
+        """
+        assert np.sum(np.array(crop_shape) % 2) == 3, "All element of crop_shape should be odd number."
+
+        self.__img = self.get_nifti()  # Ensure that the image is loaded in memory
+        self.__compute_roi_measure()
+
+        radius = [int((x - 1) / 2) for x in crop_shape]
+        center = self.__roi_measure['center_voxel']
+        img_shape = self.__metadata['img_shape']
+
+        # Pad the image and the ROI if its necessary
+        padding = []
+        for rad, cent, shape in zip(radius, center, img_shape):
+            padding.append(
+                [abs(min(cent - rad, 0)), max(cent + rad - shape, 0)]
+            )
+
+        img = self.get_img()
+        roi = self.get_roi()
+
+        img = np.pad(img, tuple([tuple(x) for x in padding]))
+        roi = np.pad(roi, tuple([tuple(x) for x in padding]))
+        center = [center[i] + padding[i][0] for i in range(3)]
+
+        img = img[center[0]-radius[0]:center[0]+radius[0] + 1,
+                  center[1]-radius[1]:center[1]+radius[1] + 1,
+                  center[2]-radius[2]:center[2]+radius[2] + 1]
+        roi = roi[center[0] - radius[0]:center[0] + radius[0] + 1,
+                  center[1] - radius[1]:center[1] + radius[1] + 1,
+                  center[2] - radius[2]:center[2] + radius[2] + 1]
+
+        # Update self.__metadata and self.__roi_measure
+        self.__metadata['img_shape'] = crop_shape
+        self.__metadata['img_spacing'] = [crop_shape[i] * self.__metadata['voxel_spacing'][i]
+                                          for i in range(3)]
+
+        self.__roi_measure['center_voxel'] = radius
+        self.__roi_measure['center_mm'] = [self.__metadata['voxel_spacing'][i] * radius[i]
+                                           for i in range(3)]
+
+        self.__roi_measure['length_mm'] = [
+            min(self.__roi_measure['length_mm'][i], self.__metadata['img_spacing'][i])
+            for i in range(3)
+        ]
+        self.__roi_measure['length_voxel'] = [
+            min(self.__roi_measure['length_voxel'][i], self.__metadata['img_shape'][i])
+            for i in range(3)
+        ]
+
+        # Save the image and the ROI
+        self.__img = nib.Nifti1Image(img, affine=self.__img.affine, header=self.__img.header)
+        self.__roi = nib.Nifti1Image(roi, affine=self.__img.affine, header=self.__img.header)
+
+        if save or not self.__keep_mem:
+            self.save_image(path=save_path)
+
+        if not self.__keep_mem:
+            self.detach()
+
+    def detach(self):
+        """
+        Release memory taken by the image and its ROI.
+        """
+        self.__keep_mem = False
+        self.__img = None
+        self.__roi = None
 
     def get_nifti(self, roi: bool = False):
         if (self.__img is None and not roi) or (self.__roi is None and roi):
@@ -256,7 +323,7 @@ class MRIimage:
 
         self.__metadata['img_shape'] = header['dim'][1:4]
         self.__metadata['voxel_spacing'] = header['pixdim'][1:4]
-        self.__metadata['image_spacing'] = [
+        self.__metadata['imge_spcing'] = [
             header['dim'][i]*header['pixdim'][i] for i in range(1, 4)
         ]
 
