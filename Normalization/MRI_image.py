@@ -332,8 +332,8 @@ class MRIimage:
         """
         Read the header of the NIFTI image and get some major metadata about the image like voxel dimension.
         """
-        img = self.get_nifti()
-        header = img.header
+        self.__img = self.get_nifti()
+        header = self.__img.header
 
         self.__metadata['img_shape'] = header['dim'][1:4]
         self.__metadata['voxel_spacing'] = header['pixdim'][1:4]
@@ -341,8 +341,8 @@ class MRIimage:
             header['dim'][i]*header['pixdim'][i] for i in range(1, 4)
         ]
 
-        if self.__keep_mem and self.__img is None:
-            self.load_img()
+        if not self.__keep_mem:
+            self.detach()
 
     def __read_study_time(self, npy_dir: str, medomics_code_path: str) -> str:
         """
