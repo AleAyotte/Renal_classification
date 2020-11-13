@@ -55,7 +55,7 @@ class MRIimage:
         Crop a part of the image and the ROI and save the image and the ROI if requested.
     detach()
         Release memory taken by the image and its ROI.
-    load_image()
+    load_img()
         Load the image and its ROI in memory.
     plot(_slice, axis: str = "all", roi: bool = False)
         Load and plot the image (ROI) along a given axis or along each axis.
@@ -337,11 +337,11 @@ class MRIimage:
 
         self.__metadata['img_shape'] = header['dim'][1:4]
         self.__metadata['voxel_spacing'] = header['pixdim'][1:4]
-        self.__metadata['imge_spcing'] = [
+        self.__metadata['image_spcing'] = [
             header['dim'][i]*header['pixdim'][i] for i in range(1, 4)
         ]
 
-        if self.__keep_mem:
+        if self.__keep_mem and self.__img is None:
             self.load_img()
 
     def __read_study_time(self, npy_dir: str, medomics_code_path: str) -> str:
@@ -450,14 +450,14 @@ class MRIimage:
                 plt.set_cmap(plt.gray())
 
                 fig.add_subplot(1, 2, 1, title="Image 1")
-                plt.imshow(rotated_img[:, :, 27])
+                plt.imshow(rotated_img[:, :, 10])
 
                 fig.add_subplot(1, 2, 2, title="Image 2")
-                plt.imshow(ref_img[:, :, 27])
+                plt.imshow(ref_img[:, :, 10])
 
                 plt.show()
 
-            return rotated_img, (diff < 1e-3).all()
+            return rotated_img, (diff < 1e-2).all()
 
     def save_image(self, path: str = "", with_roi: bool = False):
         """
@@ -503,7 +503,6 @@ class MRIimage:
                 self.__img = nib.Nifti1Image(new_img, affine=ref_img.affine, header=ref_img.header)
                 self.__read_metadata()
                 self.update_roi(new_roi, save=save, save_path=save_path)
-
                 break
         else:
             raise Exception("No corresponding image find for patient {}".format(
