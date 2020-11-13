@@ -75,7 +75,9 @@ class Patient:
                           "t1_shape": [],
                           "t2_shape": [],
                           "t1_roi_shape": [],
-                          "t2_roi_shape": []}
+                          "t2_roi_shape": [],
+                          "t1_voxel_spacing": [],
+                          "t2_voxel_spacing": []}
         self.__roi_merged = False
 
     def apply_n4(self, save: bool = False, save_path=""):
@@ -174,10 +176,12 @@ class Patient:
                           max(t1_roi_measure["length_mm"][2], t2_roi_measure["length_mm"][2])]
 
         self.__measure["roi_size"] = tumor_max_size
-        self.__measure["t1_roi_shape"] = t1_roi_measure["lenght_voxel"]
-        self.__measure["t2_roi_shape"] = t2_roi_measure["lenght_voxel"]
-        self.__measure['t1_shape'] = self.__t1.get_metadata["img_shape"]
-        self.__measure['t2_shape'] = self.__t2.get_metadata["img_shape"]
+        self.__measure["t1_roi_shape"] = t1_roi_measure["length_voxel"]
+        self.__measure["t2_roi_shape"] = t2_roi_measure["length_voxel"]
+        self.__measure['t1_shape'] = self.__t1.get_metadata()["img_shape"]
+        self.__measure['t2_shape'] = self.__t2.get_metadata()["img_shape"]
+        self.__measure['t1_voxel_spacing'] = self.__t1.get_metadata()["voxel_spacing"]
+        self.__measure['t2_voxel_spacing'] = self.__t2.get_metadata()["voxel_spacing"]
 
     def save_images(self, modality: str = "both", save_path: str = "", with_roi: bool = False):
         """
