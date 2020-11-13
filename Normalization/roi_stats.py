@@ -4,7 +4,7 @@ from scipy import stats
 from tqdm import trange
 
 
-_path = save_path = "E:/WORKSPACE_RadiomicsComputation/Kidney/Corrected"
+_path = "E:/WORKSPACE_RadiomicsComputation/Kidney/Corrected"
 institution = ["Kidney-XY2", "Kidney-Penn", "Kidney-CH", "Kidney-TCGA", "Kidney-Mayo", "Kidney-HP"]
 nb_patient = [25, 833, 112, 56, 118, 50]
 

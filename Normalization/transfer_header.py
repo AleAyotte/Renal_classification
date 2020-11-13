@@ -29,17 +29,16 @@ for i in range(len(institution)):
                 continue
             else:
                 try:
-                    if not p.exists(save_path + "/" + patient_id + "__" + moda + ".MRscan__VOL.nii.gz"):
-                        path_image = str(path + "/" + patient_id) + "__" + moda
-                        my_image = MRIimage(modality=moda,
-                                            path_image=path_image + ".MRscan__VOL",
-                                            path_roi=path_image + ".MRscan__ROI",
-                                            keep_mem=True)
-                        my_image.transfer_header(npy_dir=path_npy,
-                                                 nifti_dir=path_nifti,
-                                                 medomics_code_path=pythonCodePATH,
-                                                 save=True,
-                                                 save_path=save_path)
+                    path_image = str(path + "/" + patient_id) + "__" + moda
+                    my_image = MRIimage(modality=moda,
+                                        path_image=path_image + ".MRscan__VOL",
+                                        path_roi=path_image + ".MRscan__ROI",
+                                        keep_mem=True)
+                    my_image.transfer_header(npy_dir=path_npy,
+                                             nifti_dir=path_nifti,
+                                             medomics_code_path=pythonCodePATH,
+                                             save=True,
+                                             save_path=save_path)
                 except Exception as e:
                     print("problem with patient {}, {}, {}, \n {}".format(institution[i], j, moda, e))
                     continue
