@@ -182,7 +182,7 @@ class MRIimage:
         padding = []
         for rad, cent, shape in zip(radius, center, img_shape):
             padding.append(
-                [abs(min(cent - rad, 0)), max(cent + rad - shape, 0)]
+                [abs(min(cent - rad, 0)), max(cent + rad + 1 - shape, 0)]
             )
 
         img = self.get_img()
@@ -390,16 +390,8 @@ class MRIimage:
         corrected_roi = to_nibabel(resample_image(ants_roi, resample_params, False, 1))
 
         self.__img = corrected_img
-        self.__roi = corrected_roi
-
-        # Update self.roi_measure
-        self.__compute_roi_measure()
-
-        if save or not self.__keep_mem:
-            self.save_image(path=save_path, with_roi=True)
-
-        if not self.__keep_mem:
-            self.detach()
+        self.__read_metadata()
+        self.update_roi(new_roi=np.array(corrected_roi.dataobj), save=save, save_path=save_path)
 
     def __rotate_and_compare(self, img: np.array, ref_img: np.array,
                              rotation_set: int = 0, plot: bool = False):
@@ -492,7 +484,7 @@ class MRIimage:
         study_time = self.__read_study_time(npy_dir=npy_dir, medomics_code_path=medomics_code_path)
         path_begin = os.path.join(nifti_dir, "DICOM_" + self.__modality + "_" + study_time)
         filenames = glob.glob(str(path_begin) + '*.nii.gz')
-
+        print(filenames)
         for file in filenames:
             ref_img = nib.load(file)
             ref_img = nib.as_closest_canonical(ref_img)
