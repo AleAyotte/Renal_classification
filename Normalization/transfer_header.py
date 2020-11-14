@@ -12,6 +12,7 @@ save_path = "E:/WORKSPACE_RadiomicsComputation/Kidney/Corrected"
 institution = ["Kidney-XY2", "Kidney-Penn", "Kidney-CH", "Kidney-TCGA", "Kidney-Mayo", "Kidney-HP"]
 nb_patient = [25, 833, 112, 56, 118, 50]
 modality = ["T1C", "T2WI"]
+exclude = ["Kidney-Penn-238", "Kidney-Penn-254", "Kidney-Penn-337", "Kidney-Penn-357"]
 
 for i in range(len(institution)):
     for j in trange(1, nb_patient[i]+1):
@@ -25,9 +26,7 @@ for i in range(len(institution)):
         patient_id = institution[i] + "-" + _nb
 
         for moda in modality:
-            if institution[i] == "Kidney-Penn" and j == 238 and moda == "T1C":
-                continue
-            else:
+            if patient_id not in exclude:
                 try:
                     path_image = str(path + "/" + patient_id) + "__" + moda
                     my_image = MRIimage(modality=moda,
