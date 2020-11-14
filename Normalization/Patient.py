@@ -120,6 +120,9 @@ class Patient:
         self.__t1.resample(resample_params=resample_params, interp_type=interp_type, save=False)
         self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False)
 
+        self.__t1.to_canonical(save=False)
+        self.__t2.to_canonical(save=False)
+
         self.__t1.crop(crop_shape=crop_shape, save=False if merge_roi else save, save_path=save_path)
         self.__t2.crop(crop_shape=crop_shape, save=False if merge_roi else save, save_path=save_path)
 
