@@ -85,7 +85,8 @@ class MRIimage:
         self.__roi = None
         self.__metadata = {'img_shape': [],
                            'voxel_spacing': [],
-                           'img_spacing': []}
+                           'img_spacing': [],
+                           'orientation': ""}
         self.__roi_measure = {'length_mm': [],
                               'length_voxel': [],
                               'center_mm': [],
@@ -332,6 +333,9 @@ class MRIimage:
         """
         Read the header of the NIFTI image and get some major metadata about the image like voxel dimension.
         """
+        AXIAL_ORIENTATION = [('R', 'A', 'S'), ('L', 'A', 'S')]
+        CORONAL_ORIENTATION = [('L', 'S', 'P')]
+
         self.__img = self.get_nifti()
         header = self.__img.header
 
@@ -340,6 +344,14 @@ class MRIimage:
         self.__metadata['image_spcing'] = [
             header['dim'][i]*header['pixdim'][i] for i in range(1, 4)
         ]
+
+        if nib.aff2axcodes(self.__img.affine) in AXIAL_ORIENTATION:
+            self.__metadata['orientation'] = "axial"
+        elif nib.aff2axcodes(self.__img.affine) in CORONAL_ORIENTATION:
+            self.__metadata['orientation'] = "coronal"
+        else:
+            raise Exception("ERROR for patient {}, unknow orientation {}".format(self.__filename,
+                                                                                 nib.aff2axcodes(self.__img.affine)))
 
         if not self.__keep_mem:
             self.detach()
@@ -366,6 +378,7 @@ class MRIimage:
         Resample an image using antspy according to the new voxel dimension given.
 
         :param resample_params: List or tuple that indicate the new voxel dimension in mm.
+                                (In orientation ('L', 'A', 'S') or ('R', 'A', 'S'))
         :param interp_type: The interpolation algorithm that will be used to resample the image.
                             (0: Linear, 1: nearest neighbor, 2: gaussian, 3: windowed sinc, 4: bspline)
         :param save: A boolean that indicate if we need to save the image after this operation.
@@ -385,6 +398,10 @@ class MRIimage:
             ants_roi = ants.image_read(self._get_path(roi=True))
         else:
             ants_roi = from_nibabel(self.__roi)
+
+        # Check the orientation and change the order of the resample parameters if needed.
+        if self.__metadata["orientation"] == "coronal":
+            resample_params = [resample_params[0], resample_params[2], resample_params[1]]
 
         corrected_img = to_nibabel(resample_image(ants_img, resample_params, False, interp_type))
         corrected_roi = to_nibabel(resample_image(ants_roi, resample_params, False, 1))
