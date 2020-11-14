@@ -387,7 +387,7 @@ class MRIimage:
             ants_roi = from_nibabel(self.__roi)
 
         corrected_img = to_nibabel(resample_image(ants_img, resample_params, False, interp_type))
-        corrected_roi = to_nibabel(resample_image(ants_roi, resample_params, False, interp_type))
+        corrected_roi = to_nibabel(resample_image(ants_roi, resample_params, False, 1))
 
         self.__img = corrected_img
         self.__roi = corrected_roi
