@@ -499,7 +499,7 @@ class MRIimage:
         :param save_path: A string that indicate the path where the images will be save
         """
         img = self.get_nifti()
-        roi = self.get_nifti()
+        roi = self.get_nifti(roi=True)
 
         self.__img = nib.as_closest_canonical(img)
         roi = nib.as_closest_canonical(roi)

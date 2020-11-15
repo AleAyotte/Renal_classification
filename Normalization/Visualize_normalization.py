@@ -1,4 +1,4 @@
-From Patient import Patient
+from Patient import Patient
 import argparse
 
 def argument_parser():
