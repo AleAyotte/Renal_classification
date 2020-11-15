@@ -29,7 +29,7 @@ for i in range(len(institution)):
 
         if patient_id not in exclude:
             pat = Patient(patient_id, _path, institution[i], "Train")
-            pat.apply_n4(save=False, save_path=temp_path)
+            pat.apply_n4(save=True, save_path=temp_path)
 
 
 # *************************************************
