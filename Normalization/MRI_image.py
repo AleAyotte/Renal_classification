@@ -25,10 +25,12 @@ class MRIimage:
         A dictionnary that contain the major metadata that will be used to normalize the image.
             img_shape : List(int)
                 Number of voxel along each dimension.
+            img_spacing : List(float)
+                The images dimensions in mm.
+            orientation : str
+                Indicate the orientation of the original DICOM file. (Option: "axial", "coronal", "sagittal")
             voxel_spacing : List(float)
                 The voxels dimensions in mm.
-            image_spacing : List(float)
-                The images dimensions in mm.
     __modality: string
         Indicate the modality of the image. (Option: T1C, T2WI)
     __path : string
