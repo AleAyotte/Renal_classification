@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 from MRI_image import MRIimage
 from os import path
 
@@ -46,11 +47,15 @@ class Patient:
         Apply the n4_bias_feild_correction on the image with Antspy and save it if requested.
     apply_znorm(save: bool= False, save_path="")
         Apply the z normalization on the image and save it if requested.
+    detach()
+        Release memory taken by the images and their ROI.
+    merge_roi(save: bool = False, save_path: str = "")
+        Merge the ROI of the t1 image and the t2 image and set the new ROI to the images T1 and T2.
+    plot_image_and_roi(slice_t1: int = -1, slice_t2: int = -1)
+        Plot the images and their corresponding ROI in axial view.
     resample_and_crop(resample_params, crop_shape, interp_type: int = 1, merge_roi: bool = False,
                       save: bool = False, save_path: str = "")
          Resample both images and their ROI, crop them and if requested merge the ROI together.
-    detach()
-        Release memory taken by the images and their ROI.
     save_images(path: str = "", with_roi: bool = False)
         Save one or both images with their ROI if requested.
     set_roi_merged()
@@ -102,33 +107,6 @@ class Patient:
         self.__t1.apply_znorm(save=save, save_path=save_path)
         self.__t2.apply_znorm(save=save, save_path=save_path)
 
-    def resample_and_crop(self,  resample_params, crop_shape, interp_type: int = 1, merge_roi: bool = False,
-                          save: bool = False, save_path: str = ""):
-        """
-        Resample both images and their ROI, crop them and if requested merge the ROI together.
-
-        :param resample_params: List or tuple that indicate the new voxel dimension in mm.
-        :param crop_shape: The dimension of the region to crop in term of number of voxel.
-        :param interp_type: The interpolation algorithm that will be used to resample the image.
-                            (0: Linear, 1: nearest neighbor, 2: gaussian, 3: windowed sinc, 4: bspline)
-        :param merge_roi: A boolean that indicate if the ROI will be merge at the end of the process.
-        :param save: A boolean that indicate if we need to save the image after this operation.
-                     If keep memory is false, than the image will be saved either if save is true or false.
-        :param save_path: A string that indicate the path where the images will be save
-        """
-
-        self.__t1.resample(resample_params=resample_params, interp_type=interp_type, save=False)
-        self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False)
-
-        self.__t1.to_canonical(save=False)
-        self.__t2.to_canonical(save=False)
-
-        self.__t1.crop(crop_shape=crop_shape, save=False if merge_roi else save, save_path=save_path)
-        self.__t2.crop(crop_shape=crop_shape, save=False if merge_roi else save, save_path=save_path)
-
-        if merge_roi:
-            self.merge_roi(save=save, save_path=save_path)
-
     def detach(self):
         """
         Release memory taken by the images and their ROI.
@@ -166,6 +144,63 @@ class Patient:
         self.__t1.update_roi(new_roi=new_roi, save=save, save_path=save_path)
         self.__t2.update_roi(new_roi=new_roi, save=save, save_path=save_path)
         self.__roi_merged = True
+
+    def plot_image_and_roi(self, slice_t1: int = -1, slice_t2: int = -1):
+        """
+        Plot the images and their corresponding ROI in axial view.
+
+        :param slice_t1: A positive integer that represent the axial slice to visualize for the T1C image and its ROI.
+                         (If = -1 the selected slice will be choose according the center of the ROI.)
+        :param slice_t2: A positive integer that represent the axial slice to visualize for the T2WI image and its ROI.
+                         (If = -1 the selected slice will be choose according the center of the ROI.)
+        """
+        assert slice_t1 >= -1 and slice_t2 >= -1, "The slices parameters should be a positive integer"
+
+        slice_t1 = slice_t1 if slice_t1 > -1 else self.__t1.get_roi_measure()["center_voxel"][2]
+        slice_t2 = slice_t2 if slice_t2 > -1 else self.__t2.get_roi_measure()["center_voxel"][2]
+
+        slices = [slice_t1, slice_t1, slice_t2, slice_t2]
+        titles = ["Image T1C", "ROI T1C", "Image T2WI", "ROI T2WI"]
+        imgs = [self.__t1.get_img(),
+                self.__t1.get_roi(),
+                self.__t2.get_img(),
+                self.__t2.get_roi()]
+
+        fig = plt.figure(figsize=(24, 30))
+
+        for i in range(len(imgs)):
+            fig.add_subplot(2, 2, i + 1, title=titles[i])
+            plt.set_cmap(plt.gray())
+            plt.imshow(imgs[i][:, :, slices[i]])
+
+        plt.show()
+
+    def resample_and_crop(self,  resample_params, crop_shape, interp_type: int = 1, merge_roi: bool = False,
+                          save: bool = False, save_path: str = ""):
+        """
+        Resample both images and their ROI, crop them and if requested merge the ROI together.
+
+        :param resample_params: List or tuple that indicate the new voxel dimension in mm.
+        :param crop_shape: The dimension of the region to crop in term of number of voxel.
+        :param interp_type: The interpolation algorithm that will be used to resample the image.
+                            (0: Linear, 1: nearest neighbor, 2: gaussian, 3: windowed sinc, 4: bspline)
+        :param merge_roi: A boolean that indicate if the ROI will be merge at the end of the process.
+        :param save: A boolean that indicate if we need to save the image after this operation.
+                     If keep memory is false, than the image will be saved either if save is true or false.
+        :param save_path: A string that indicate the path where the images will be save
+        """
+
+        self.__t1.resample(resample_params=resample_params, interp_type=interp_type, save=False)
+        self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False)
+
+        self.__t1.to_canonical(save=False)
+        self.__t2.to_canonical(save=False)
+
+        self.__t1.crop(crop_shape=crop_shape, save=False if merge_roi else save, save_path=save_path)
+        self.__t2.crop(crop_shape=crop_shape, save=False if merge_roi else save, save_path=save_path)
+
+        if merge_roi:
+            self.merge_roi(save=save, save_path=save_path)
 
     def __read_measure(self):
         """
