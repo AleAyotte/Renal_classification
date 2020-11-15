@@ -404,11 +404,13 @@ class MRIimage:
             resample_params = [resample_params[0], resample_params[2], resample_params[1]]
 
         corrected_img = to_nibabel(resample_image(ants_img, resample_params, False, interp_type))
-        corrected_roi = to_nibabel(resample_image(ants_roi, resample_params, False, 1))
+        corrected_roi = to_nibabel(resample_image(ants_roi, resample_params, False, 0))
+
+        new_roi = np.where(np.array(corrected_roi.dataobj) >= 0.5, 1, 0)
 
         self.__img = corrected_img
         self.__read_metadata()
-        self.update_roi(new_roi=np.array(corrected_roi.dataobj), save=save, save_path=save_path)
+        self.update_roi(new_roi=new_roi, save=save, save_path=save_path)
 
     def __rotate_and_compare(self, img: np.array, ref_img: np.array,
                              rotation_set: int = 0, plot: bool = False):
