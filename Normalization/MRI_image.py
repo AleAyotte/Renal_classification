@@ -343,7 +343,7 @@ class MRIimage:
 
         self.__metadata['img_shape'] = header['dim'][1:4]
         self.__metadata['voxel_spacing'] = header['pixdim'][1:4]
-        self.__metadata['image_spcing'] = [
+        self.__metadata['img_spacing'] = [
             header['dim'][i]*header['pixdim'][i] for i in range(1, 4)
         ]
 
