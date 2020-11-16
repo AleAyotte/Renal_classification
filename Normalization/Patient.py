@@ -1,6 +1,7 @@
-import numpy as np
+import h5py
 from matplotlib import pyplot as plt
 from MRI_image import MRIimage
+import numpy as np
 from os import path
 
 
@@ -134,13 +135,15 @@ class Patient:
         :param save_path: A string that indicate the path where the images will be save.
         """
         _ = self.get_measure()
-        assert (self.__measure["t1_roi_shape"] == self.__measure["t2_roi_shape"]).all(), \
-            "The ROI do not have the same shape. You should resample and crop the two ROI before merging them."
+        assert (self.__measure["t1_shape"] == self.__measure["t2_shape"]).all(), \
+            "The ROI do not have the same shape. You should resample and crop the two ROI before merging them." \
+            "\n{}, {}".format(self.__measure["t1_shape"], self.__measure["t2_shape"])
 
         roi_t1 = self.__t1.get_roi()
         roi_t2 = self.__t2.get_roi()
+        roi = roi_t1 + roi_t2
 
-        new_roi = np.where(roi_t1 > 0.9 or roi_t2 > 0.9, 1, 0)
+        new_roi = np.where(roi > 0.9, 1, 0)
         self.__t1.update_roi(new_roi=new_roi, save=save, save_path=save_path)
         self.__t2.update_roi(new_roi=new_roi, save=save, save_path=save_path)
         self.__roi_merged = True
@@ -235,6 +238,53 @@ class Patient:
 
         if modality.lower() in ["t2", "t2wi", "both"]:
             self.__t2.save_image(path=save_path, with_roi=with_roi)
+
+    def save_in_hdf5(self, filepath: str, modality: str = "both", merged_roi: bool = True, metadata: dict = None):
+        """
+
+        :param filepath:
+        :param modality:
+        :param merged_roi:
+        :param metadata: A dictionnary that contain metadata to save in hdf5 file.
+        """
+        f = h5py.File(filepath, 'a')
+        if self.__dataset in list(f.keys()):
+            dts = f[self.__dataset]
+
+            if self.__id in list(dts.keys()):
+                pat = dts[self.__id]
+            else:
+                pat = dts.create_group(self.__id)
+        else:
+            dts = f.create_group(self.__dataset)
+            pat = dts.create_group(self.__id)
+
+        if modality.lower() in ["t1", "t1c", "both"]:
+            if "t1" in list(pat.keys()):
+                pat["t1"][:] = self.__t1.get_img()
+            else:
+                pat.create_dataset("t1", data=self.__t1.get_img())
+
+        if modality.lower() in ["t2", "t2wi", "both"]:
+            if "t2" in list(pat.keys()):
+                pat["t2"][:] = self.__t2.get_img()
+            else:
+                pat.create_dataset("t2", data=self.__t2.get_img())
+
+        self.merge_roi()
+
+        if "roi" in list(pat.keys()):
+            pat["roi"][:] = self.__t1.get_roi()
+        else:
+            pat.create_dataset("roi", data=self.__t1.get_roi())
+
+        if metadata is not None:
+            for key, value in metadata.items():
+                if key in list(pat.attrs.keys()):
+                    pat.attrs[key] = value
+                else:
+                    pat.attrs.create(key, value)
+        f.close()
 
     def set_roi_merged(self):
         """
