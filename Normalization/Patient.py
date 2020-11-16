@@ -178,6 +178,22 @@ class Patient:
 
         plt.show()
 
+    def __get_ponderate_center(self):
+        """
+        Measure the ponderate mean of the center of mass of both ROI modality.
+        """
+        t1_roi_measure = self.__t1.get_roi_measure()
+        t2_roi_measure = self.__t2.get_roi_measure()
+
+        roi_center_t1 = np.array(t1_roi_measure["center_mm"])
+        roi_center_t2 = np.array(t2_roi_measure["center_mm"])
+        t1_weight = self.__t1.get_roi().sum()
+        t2_weight = self.__t2.get_roi().sum()
+
+        roi_center = ((roi_center_t1 * t1_weight) + (roi_center_t2 * t2_weight)) / (t1_weight + t2_weight)
+
+        return roi_center
+
     def resample_and_crop(self,  resample_params, crop_shape, interp_type: int = 1, merge_roi: bool = False,
                           save: bool = False, save_path: str = ""):
         """
@@ -199,10 +215,7 @@ class Patient:
         self.__t1.to_canonical(save=False)
         self.__t2.to_canonical(save=False)
 
-        t1_roi_measure = self.__t1.get_roi_measure()
-        t2_roi_measure = self.__t2.get_roi_measure()
-
-        roi_center = (np.array(t1_roi_measure["center_mm"]) + np.array(t2_roi_measure["center_mm"])) / 2
+        roi_center = self.__get_ponderate_center()
 
         center_t1 = self.__t1.spatial_to_voxel(roi_center).astype(int)
         center_t2 = self.__t2.spatial_to_voxel(roi_center).astype(int)
