@@ -22,18 +22,24 @@ class Patient:
         Indicate the is part of which institution.
     __keep_mem : bool
         Indicate if the image and its ROI is keep in memory.
-    __measure: Dict
+    __measure : Dict
         A dictionnary that contain usefull statistic about the images and their ROI.
-            roi_size: List[float]
+            roi_size : List[float]
                 A list that indicate the maximum dimension of the two ROI in mm for each axis.
-            t1_shape: List[int]
+            t1_shape : List[int]
                 A list that indicate the dimension of the T1C image in term of number of voxel.
-            t2_shape: List[int]
+            t2_shape : List[int]
                 A list that indicate the dimension of the T2WI image in term of number of voxel.
-            t1_roi_shape: List[int]
+            t1_roi_shape : List[int]
                 A list that indicate the shape of the T1C ROI in term of number of voxel.
-            t2_roi_shape: List[int]
+            t2_roi_shape : List[int]
                 A list that indicate the shape of the T2WI ROI in term of number of voxel.
+            t1_voxel_spacing : List[int]
+                The voxels dimensions in mm of the T1 image.
+            t2_voxel_spacing : List[int]
+                The voxels dimensions in mm of the T2 image.
+            roi_distance : List[float]
+                The distance between the two center of mass.
     __path : string
         The directory name that contain the images and their ROI.
     __roi_merged : bool
@@ -59,6 +65,8 @@ class Patient:
          Resample both images and their ROI, crop them and if requested merge the ROI together.
     save_images(path: str = "", with_roi: bool = False)
         Save one or both images with their ROI if requested.
+    save_in_hdf5(filepath: str, modality: str = "both", merged_roi: bool = True, metadata: dict = None):
+        Save the images and their merged ROI into an hdf5 file with the clinical data
     set_roi_merged()
         Change the state of the attribute self.roi_merged to True. Usefull if the user know that
         the ROI has been merge in another
@@ -83,7 +91,8 @@ class Patient:
                           "t1_roi_shape": [],
                           "t2_roi_shape": [],
                           "t1_voxel_spacing": [],
-                          "t2_voxel_spacing": []}
+                          "t2_voxel_spacing": [],
+                          "roi_distance": []}
         self.__roi_merged = False
 
     def apply_n4(self, save: bool = False, save_path=""):
@@ -194,8 +203,8 @@ class Patient:
 
         return roi_center
 
-    def resample_and_crop(self,  resample_params, crop_shape, interp_type: int = 1, merge_roi: bool = False,
-                          save: bool = False, save_path: str = ""):
+    def resample_and_crop(self,  resample_params, crop_shape, interp_type: int = 1, threshold: float = 50,
+                          merge_roi: bool = False, save: bool = False, save_path: str = ""):
         """
         Resample both images and their ROI, crop them and if requested merge the ROI together.
 
@@ -203,6 +212,7 @@ class Patient:
         :param crop_shape: The dimension of the region to crop in term of number of voxel.
         :param interp_type: The interpolation algorithm that will be used to resample the image.
                             (0: Linear, 1: nearest neighbor, 2: gaussian, 3: windowed sinc, 4: bspline)
+        :param threshold: Maximum distance between the two center of mass before cropping.
         :param merge_roi: A boolean that indicate if the ROI will be merge at the end of the process.
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
@@ -215,8 +225,11 @@ class Patient:
         self.__t1.to_canonical(save=False)
         self.__t2.to_canonical(save=False)
 
-        roi_center = self.__get_ponderate_center()
+        self.__read_measure()
+        if np.linalg.norm(self.__measure["roi_distance"]) > threshold:
+            raise Exception("The distance between the ")
 
+        roi_center = self.__get_ponderate_center()
         center_t1 = self.__t1.spatial_to_voxel(roi_center).astype(int)
         center_t2 = self.__t2.spatial_to_voxel(roi_center).astype(int)
 
@@ -244,6 +257,9 @@ class Patient:
                           max(t1_roi_measure["length_mm"][1], t2_roi_measure["length_mm"][1]),
                           max(t1_roi_measure["length_mm"][2], t2_roi_measure["length_mm"][2])]
 
+        distance = t1_roi_measure["center_mm"] - t2_roi_measure["center_mm"]
+
+        self.__measure["roi_distance"] = distance
         self.__measure["roi_size"] = tumor_max_size
         self.__measure["t1_roi_shape"] = t1_roi_measure["length_voxel"]
         self.__measure["t2_roi_shape"] = t2_roi_measure["length_voxel"]
@@ -269,12 +285,17 @@ class Patient:
 
     def save_in_hdf5(self, filepath: str, modality: str = "both", merged_roi: bool = True, metadata: dict = None):
         """
+        Save the images and their merged ROI into an hdf5 file with the clinical data
 
-        :param filepath:
-        :param modality:
-        :param merged_roi:
+        :param filepath: The filepath of the hdf5 file.
+        :param modality: The modality to save into the hdf5 file.
+        :param merged_roi: If true, save the merged ROI instead of the 2 ROI.
         :param metadata: A dictionnary that contain metadata to save in hdf5 file.
         """
+
+        if merged_roi is False:
+            raise NotImplementedError
+
         f = h5py.File(filepath, 'a')
         if self.__dataset in list(f.keys()):
             dts = f[self.__dataset]
