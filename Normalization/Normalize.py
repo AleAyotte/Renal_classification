@@ -53,6 +53,6 @@ for k in range(4):
                 pat.resample_and_crop(resample_params=voxel_size,
                                       crop_shape=crop_shape[k],
                                       interp_type=0,
-                                      save=False,
+                                      save=True,
                                       save_path=save_path[k])
                 pat.apply_znorm(save=True, save_path=save_path[k])
