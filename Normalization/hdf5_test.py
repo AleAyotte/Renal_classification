@@ -10,13 +10,6 @@ exception = ["Kidney-Penn-238", "Kidney-Penn-254", "Kidney-Penn-337", "Kidney-Pe
              "Kidney-CH-075", "Kidney-Penn-775", "Kidney-Penn-788"]
 dtset = ["train", "test", "test2"]
 
-"""
-conne = {"ma valeur": 12345,
-         "ma valeur 2": "asdf"}
-
-pat = Patient("Kidney-Penn-005", path_images, "CH", dtset)
-pat.save_in_hdf5("malignant_train.hdf5", metadata=conne)
-"""
 
 for t in task:
     for d in dtset:

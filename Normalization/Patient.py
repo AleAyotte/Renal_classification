@@ -226,8 +226,10 @@ class Patient:
         self.__t2.to_canonical(save=False)
 
         self.__read_measure()
-        if np.linalg.norm(self.__measure["roi_distance"]) > threshold:
-            raise Exception("The distance between the ")
+
+        distance = np.linalg.norm(self.__measure["roi_distance"])
+        if distance > threshold:
+            raise Exception("The distance between the two center of mass is too high.".format(distance))
 
         roi_center = self.__get_ponderate_center()
         center_t1 = self.__t1.spatial_to_voxel(roi_center).astype(int)
