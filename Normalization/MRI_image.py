@@ -1,8 +1,10 @@
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.linalg as npl
 import nibabel as nib
 import os.path
+from scipy.ndimage import center_of_mass
 import sys
 
 
@@ -146,6 +148,7 @@ class MRIimage:
         Compute some usefull statistics and measure about
         """
         roi = self.get_roi()
+        roi = np.rint(roi)
 
         # We sum all voxel intensity in each sagittal, coronal, axial slice
         slice_lists = [roi.sum(axis=(1, 2)), roi.sum(axis=(0, 2)), roi.sum(axis=(0, 1))]
@@ -162,15 +165,16 @@ class MRIimage:
                                            for i in range(3)]
 
         # compute the roi center coordinate along each axis in term of mm and number of voxel
-        self.__roi_measure['center_voxel'] = [round((x[1] + x[0])/2) for x in coord]
-        self.__roi_measure['center_mm'] = [self.__metadata['voxel_spacing'][i] * (coord[i][1] + coord[i][0])/2
-                                           for i in range(3)]
+        center_voxel = list(center_of_mass(roi))
+        self.__roi_measure['center_voxel'] = list(np.array(center_voxel).astype(int))
+        self.__roi_measure['center_mm'] = self.voxel_to_spatial(center_voxel)
 
-    def crop(self, crop_shape, save: bool = False, save_path: str = ""):
+    def crop(self, crop_shape, center = None, save: bool = False, save_path: str = ""):
         """
         Crop a part of the image and the ROI and save the image and the ROI if requested.
 
         :param crop_shape: The dimension of the region to crop in term of number of voxel.
+        :param center: A list that indicate the center of the cropping box in term of voxel position.
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
@@ -181,7 +185,7 @@ class MRIimage:
         self.__compute_roi_measure()
 
         radius = [int((x - 1) / 2) for x in crop_shape]
-        center = self.__roi_measure['center_voxel']
+        center = self.__roi_measure['center_voxel'] if center is None else np.array(center).astype(int)
         img_shape = self.__metadata['img_shape']
 
         # Pad the image and the ROI if its necessary
@@ -488,6 +492,30 @@ class MRIimage:
         if with_roi:
             self.__path_roi = self.__path_roi if not path else path  # Update the roi path
             self.__roi.to_filename(self._get_path(roi=True))
+
+    def voxel_to_spatial(self, voxel_pos: list) -> np.array:
+        """
+        Convert voxel position into spatial position.
+
+        :param voxel_pos: A list that indicate the voxel position to convert into mm position.
+        """
+
+        affine = self.get_nifti().affine
+        m = affine[:3, :3]
+        translation = affine[:3, 3]
+        return m.dot(voxel_pos) + translation
+
+    def spatial_to_voxel(self, spatial_pos: list) -> np.array:
+        """
+        Convert spatial position into voxel position
+        """
+
+        affine = self.get_nifti().affine
+        affine = npl.inv(affine)
+
+        m = affine[:3, :3]
+        translation = affine[:3, 3]
+        return m.dot(spatial_pos) + translation
 
     def to_canonical(self, save: bool = False, save_path: str = ""):
         """
