@@ -199,8 +199,23 @@ class Patient:
         self.__t1.to_canonical(save=False)
         self.__t2.to_canonical(save=False)
 
-        self.__t1.crop(crop_shape=crop_shape, save=False if merge_roi else save, save_path=save_path)
-        self.__t2.crop(crop_shape=crop_shape, save=False if merge_roi else save, save_path=save_path)
+        t1_roi_measure = self.__t1.get_roi_measure()
+        t2_roi_measure = self.__t2.get_roi_measure()
+
+        roi_center = (np.array(t1_roi_measure["center_mm"]) + np.array(t2_roi_measure["center_mm"])) / 2
+
+        center_t1 = self.__t1.spatial_to_voxel(roi_center).astype(int)
+        center_t2 = self.__t2.spatial_to_voxel(roi_center).astype(int)
+
+        self.__t1.crop(crop_shape=crop_shape,
+                       center=center_t1,
+                       save=False if merge_roi else save,
+                       save_path=save_path)
+
+        self.__t2.crop(crop_shape=crop_shape,
+                       center=center_t2,
+                       save=False if merge_roi else save,
+                       save_path=save_path)
 
         if merge_roi:
             self.merge_roi(save=save, save_path=save_path)
