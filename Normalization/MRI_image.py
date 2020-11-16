@@ -67,6 +67,10 @@ class MRIimage:
         Resample an image using antspy according to the new voxel dimension given.
     save_image(path: str = "", with_roi: bool = False)
         Save the image (ROI) in a NIFTI file and update reading path.
+    spatial_to_voxel(spatial_pos: list) : np.array
+        Convert spatial position into voxel position
+    voxel_to_spatial(voxel_pos: list) : np.array
+        Convert voxel position into spatial position.
     to_canonical(save: bool = False, save_path: str = "")
         Modify the orientation of the image and the ROI to be as closest canonical possible. So the orientation
         will be set to RAS (Left to Right, Posterior to Anterior, Inferior to Superior).
@@ -169,7 +173,7 @@ class MRIimage:
         self.__roi_measure['center_voxel'] = list(np.array(center_voxel).astype(int))
         self.__roi_measure['center_mm'] = self.voxel_to_spatial(center_voxel)
 
-    def crop(self, crop_shape, center = None, save: bool = False, save_path: str = ""):
+    def crop(self, crop_shape, center=None, save: bool = False, save_path: str = ""):
         """
         Crop a part of the image and the ROI and save the image and the ROI if requested.
 
@@ -493,29 +497,31 @@ class MRIimage:
             self.__path_roi = self.__path_roi if not path else path  # Update the roi path
             self.__roi.to_filename(self._get_path(roi=True))
 
-    def voxel_to_spatial(self, voxel_pos: list) -> np.array:
-        """
-        Convert voxel position into spatial position.
-
-        :param voxel_pos: A list that indicate the voxel position to convert into mm position.
-        """
-
-        affine = self.get_nifti().affine
-        m = affine[:3, :3]
-        translation = affine[:3, 3]
-        return m.dot(voxel_pos) + translation
-
     def spatial_to_voxel(self, spatial_pos: list) -> np.array:
         """
         Convert spatial position into voxel position
-        """
 
+        :param spatial_pos: A list that correspond to the spatial location in mm.
+        :return: A numpy array that correspond to the position in the voxel.
+        """
         affine = self.get_nifti().affine
         affine = npl.inv(affine)
 
         m = affine[:3, :3]
         translation = affine[:3, 3]
         return m.dot(spatial_pos) + translation
+
+    def voxel_to_spatial(self, voxel_pos: list) -> np.array:
+        """
+        Convert voxel position into spatial position.
+
+        :param voxel_pos: A list that correspond to the location in voxel.
+        :return: A numpy array that correspond to the spatial position in mm.
+        """
+        affine = self.get_nifti().affine
+        m = affine[:3, :3]
+        translation = affine[:3, 3]
+        return m.dot(voxel_pos) + translation
 
     def to_canonical(self, save: bool = False, save_path: str = ""):
         """
