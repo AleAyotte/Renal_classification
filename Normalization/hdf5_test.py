@@ -1,30 +1,34 @@
 import numpy as np
 import pandas as pd
 from Patient import Patient
+from tqdm.auto import tqdm
 
 
-path_images = "E:/WORKSPACE_RadiomicsComputation/Kidney/Option1_with_N4/"
+path_images = "E:/WORKSPACE_RadiomicsComputation/Kidney/"
 path_csv = "C:/Users/Alexandre/Desktop/Maitrise/Renal_classification/CSV/"
+folder = ["Option1_with_N4/", "Option2_with_N4/", "Option1_without_N4/", "Option2_without_N4/"]
 task = ["malignant", "subtype", "grade"]
-exception = ["Kidney-Penn-238", "Kidney-Penn-254", "Kidney-Penn-337", "Kidney-Penn-357",
-             "Kidney-CH-075", "Kidney-Penn-775", "Kidney-Penn-788"]
 dtset = ["train", "test", "test2"]
 
+for f in tqdm(folder):
+    for t in tqdm(task, leave=False):
+        # print("\nfolder: {}, task: {}".format(f, t))
+        for d in tqdm(dtset, leave=False):
 
-for t in task:
-    for d in dtset:
+            csv_file = d + "_" + t + "_info.csv"
+            data = pd.read_csv(path_csv + d + "/" + csv_file)
+            other_col = list(data.columns)[2:]
 
-        csv_file = d + "_" + t + "_info.csv"
-        data = pd.read_csv(path_csv + d + "/" + csv_file)
-        other_col = list(data.columns)[2:]
-        print(t, d)
-        for index, row in data.iterrows():
-            patient_id, inst = row["PatientID"], row["Institution"]
+            for index, row in tqdm(data.iterrows(), total=data.shape[0], leave=False):
+                patient_id, inst = row["PatientID"], row["Institution"]
 
-            if patient_id not in exception:
-                metadata = {}
-                for col in other_col:
-                    metadata[col] = row[col]
+                try:
+                    metadata = {}
+                    for col in other_col:
+                        metadata[col] = row[col]
 
-                pat = Patient(patient_id, path_images, inst, d)
-                pat.save_in_hdf5(t + ".hdf5", metadata=metadata)
+                    pat = Patient(patient_id, path_images + f, inst, d)
+                    pat.save_in_hdf5(path_images + "final_dtset/" + f + t + ".hdf5", metadata=metadata)
+                except Exception as e:
+                    continue
+
