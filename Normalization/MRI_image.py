@@ -251,16 +251,16 @@ class MRIimage:
         else:
             return False, None, None
 
-    def get_nifti(self, roi: bool = False):
+    def get_nifti(self, roi: bool = False) -> nib.nifti1.Nifti1Image:
         if (self.__img is None and not roi) or (self.__roi is None and roi):
             return self._read_image(roi)
         else:
             return self.__roi if roi else self.__img
 
-    def get_img(self):
+    def get_img(self) -> np.array:
         return np.array(self.get_nifti().dataobj)
 
-    def get_roi(self):
+    def get_roi(self) -> np.array:
         return np.array(self.get_nifti(roi=True).dataobj)
 
     def _get_path(self, roi: bool = False):
@@ -276,10 +276,10 @@ class MRIimage:
             file_path = os.path.join(self.__path_roi, self.__filename_roi) + ".MRscan__ROI.nii.gz"
         return file_path
 
-    def get_metadata(self):
+    def get_metadata(self) -> dict:
         return self.__metadata
 
-    def get_roi_measure(self):
+    def get_roi_measure(self) -> dict:
         if len(self.__roi_measure['length_mm']) == 0:
             self.__compute_roi_measure()
         return self.__roi_measure

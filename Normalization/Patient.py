@@ -130,7 +130,7 @@ class Patient:
     def get_t2(self) -> MRIimage:
         return self.__t2
 
-    def get_measure(self):
+    def get_measure(self) -> dict:
         if len(self.__measure["roi_size"]) == 0:
             self.__read_measure()
         return self.__measure
@@ -187,9 +187,11 @@ class Patient:
 
         plt.show()
 
-    def __get_ponderate_center(self):
+    def __get_ponderate_center(self) -> np.array:
         """
         Measure the ponderate mean of the center of mass of both ROI modality.
+
+        :return: A numpy array that represent the ponderate center of mass in mm.
         """
         t1_roi_measure = self.__t1.get_roi_measure()
         t2_roi_measure = self.__t2.get_roi_measure()
