@@ -21,8 +21,6 @@ class MRIimage:
         The filename of the nifti image. (Exemple: "Kidney-TCGA-008__T1C")
     __img : nib.nifti1.Nifti1Image
         The nifti image.
-    __keep_mem : bool
-        Indicate if the image and its ROI is keep in memory.
     __metadata : Dict
         A dictionnary that contain the major metadata that will be used to normalize the image.
             img_shape : List(int)
@@ -57,10 +55,6 @@ class MRIimage:
         Apply the z normalization on the image and save it if requested.
     crop(crop_shape, save: bool = False, save_path: str = "")
         Crop a part of the image and the ROI and save the image and the ROI if requested.
-    detach()
-        Release memory taken by the image and its ROI.
-    load_img()
-        Load the image and its ROI in memory.
     plot(_slice, axis: str = "all", roi: bool = False)
         Load and plot the image (ROI) along a given axis or along each axis.
     resample(resample_params, interp_type: int = 1, save: bool = False, save_path: str = "")
@@ -81,13 +75,12 @@ class MRIimage:
         Change the dataobj of the ROI and update the roi_measure.
     """
 
-    def __init__(self, modality: str, path_image: str, path_roi: str, keep_mem: bool = True):
+    def __init__(self, modality: str, path_image: str, path_roi: str):
 
         self.__path = os.path.dirname(path_image)
         self.__path_roi = os.path.dirname(path_roi)
         self.__filename = os.path.splitext(os.path.basename(path_image))[0]
         self.__filename_roi = os.path.splitext(os.path.basename(path_roi))[0]
-        self.__keep_mem = keep_mem
         self.__modality = modality
         self.__img = None
         self.__roi = None
@@ -121,11 +114,8 @@ class MRIimage:
 
         self.__img = corrected_img
 
-        if save or not self.__keep_mem:
+        if save:
             self.save_image(path=save_path)
-
-        if not self.__keep_mem:
-            self.detach()
 
     def apply_znorm(self, save: bool = False, save_path=""):
         """
@@ -141,11 +131,8 @@ class MRIimage:
 
         self.__img = nib.Nifti1Image(img, affine=self.__img.affine, header=self.__img.header)
 
-        if save or not self.__keep_mem:
+        if save:
             self.save_image(path=save_path)
-
-        if not self.__keep_mem:
-            self.detach()
 
     def __compute_roi_measure(self):
         """
@@ -206,6 +193,7 @@ class MRIimage:
         roi = np.pad(roi, tuple([tuple(x) for x in padding]))
         center = [center[i] + padding[i][0] for i in range(3)]
 
+        # Crop the image
         img = img[center[0]-radius[0]:center[0]+radius[0] + 1,
                   center[1]-radius[1]:center[1]+radius[1] + 1,
                   center[2]-radius[2]:center[2]+radius[2] + 1]
@@ -221,14 +209,6 @@ class MRIimage:
         # Update the image and the ROI
         self.__img = nib.Nifti1Image(img, affine=self.__img.affine, header=self.__img.header)
         self.update_roi(new_roi=roi, save=save, save_path=save_path)
-
-    def detach(self):
-        """
-        Release memory taken by the image and its ROI.
-        """
-        self.__keep_mem = False
-        self.__img = None
-        self.__roi = None
 
     def __find_rotation(self, ref_img: np.array):
         """
@@ -253,7 +233,7 @@ class MRIimage:
 
     def get_nifti(self, roi: bool = False) -> nib.nifti1.Nifti1Image:
         if (self.__img is None and not roi) or (self.__roi is None and roi):
-            return self._read_image(roi)
+            return nib.load(self._get_path(roi))
         else:
             return self.__roi if roi else self.__img
 
@@ -283,14 +263,6 @@ class MRIimage:
         if len(self.__roi_measure['length_mm']) == 0:
             self.__compute_roi_measure()
         return self.__roi_measure
-
-    def load_img(self):
-        """
-        Load the nifti image and its ROI in memory
-        """
-        self.__keep_mem = True
-        self.__img = self._read_image()
-        self.__roi = self._read_image(roi=True)
 
     def plot(self, _slice, axis: str = "all", roi: bool = False):
         """
@@ -328,17 +300,6 @@ class MRIimage:
 
         plt.show()
 
-    def _read_image(self, roi: bool = False) -> nib.nifti1.Nifti1Image:
-        """
-        Read the image (ROI) NIFTI file and adjust the image orientation according to the NIFTI standard.
-
-        :param roi: A boolean that indicate if we want to read the ROI nifti file instead of the image.
-        :return: A nib.nifti1.Nifti1Image object that reprensent the image (ROI) with its metadata.
-        """
-        img = nib.load(self._get_path(roi))
-
-        return img
-
     def __read_metadata(self):
         """
         Read the header of the NIFTI image and get some major metadata about the image like voxel dimension.
@@ -362,9 +323,6 @@ class MRIimage:
         else:
             raise Exception("ERROR for patient {}, unknow orientation {}".format(self.__filename,
                                                                                  nib.aff2axcodes(self.__img.affine)))
-
-        if not self.__keep_mem:
-            self.detach()
 
     def __read_study_time(self, npy_dir: str, medomics_code_path: str) -> str:
         """
@@ -588,8 +546,5 @@ class MRIimage:
 
         self.__roi = nib.Nifti1Image(new_roi, affine=self.__img.affine, header=self.__img.header)
         self.__compute_roi_measure()
-        if save or not self.__keep_mem:
+        if save:
             self.save_image(path=save_path, with_roi=True)
-
-        if not self.__keep_mem:
-            self.detach()
