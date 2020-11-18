@@ -20,8 +20,6 @@ class Patient:
         The patient identificator. (Exemple: "Kidney-TCGA-008")
     __inst : string
         Indicate the is part of which institution.
-    __keep_mem : bool
-        Indicate if the image and its ROI is keep in memory.
     __measure : Dict
         A dictionnary that contain usefull statistic about the images and their ROI.
             roi_size : List[float]
@@ -71,12 +69,11 @@ class Patient:
         Change the state of the attribute self.roi_merged to True. Usefull if the user know that
         the ROI has been merge in another
     """
-    def __init__(self, patient_id: str, _path: str, institution: str, dataset: str, keep_mem: bool = True):
+    def __init__(self, patient_id: str, _path: str, institution: str, dataset: str):
         self.__id = patient_id
         self.__path = _path
         self.__inst = institution
         self.__dataset = dataset
-        self.__keep_mem = keep_mem
         self.__t1 = MRIimage(modality="T1C",
                              path_image=path.join(self.__path, patient_id + "__T1C" + ".MRscan__VOL"),
                              path_roi=path.join(self.__path, patient_id + "__T1C" + ".MRscan__ROI"),

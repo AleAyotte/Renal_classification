@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 from Patient import Patient
 from tqdm.auto import tqdm
@@ -12,7 +11,6 @@ dtset = ["train", "test", "test2"]
 
 for f in tqdm(folder):
     for t in tqdm(task, leave=False):
-        # print("\nfolder: {}, task: {}".format(f, t))
         for d in tqdm(dtset, leave=False):
 
             csv_file = d + "_" + t + "_info.csv"
