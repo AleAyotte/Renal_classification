@@ -231,16 +231,14 @@ class Patient:
             raise Exception("The distance between the two center of mass is too high.".format(distance))
 
         roi_center = self.__get_ponderate_center()
-        center_t1 = self.__t1.spatial_to_voxel(roi_center).astype(int)
-        center_t2 = self.__t2.spatial_to_voxel(roi_center).astype(int)
 
         self.__t1.crop(crop_shape=crop_shape,
-                       center=center_t1,
+                       center=roi_center,
                        save=False if merge_roi else save,
                        save_path=save_path)
 
         self.__t2.crop(crop_shape=crop_shape,
-                       center=center_t2,
+                       center=roi_center,
                        save=False if merge_roi else save,
                        save_path=save_path)
 

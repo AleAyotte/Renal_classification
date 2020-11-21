@@ -166,25 +166,27 @@ class MRIimage:
         Crop a part of the image and the ROI and save the image and the ROI if requested.
 
         :param crop_shape: The dimension of the region to crop in term of number of voxel.
-        :param center: A list that indicate the center of the cropping box in term of voxel position.
+        :param center: A list that indicate the center of the cropping box in term of spatial position.
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
         """
-        assert np.sum(np.array(crop_shape) % 2) == 3, "All element of crop_shape should be odd number."
+        assert np.sum(np.array(crop_shape) % 2) == 0, "All element of crop_shape should be even number."
 
         self.__img = self.get_nifti()  # Ensure that the image is loaded in memory
         self.__compute_roi_measure()
 
-        radius = [int((x - 1) / 2) for x in crop_shape]
-        center = self.__roi_measure['center_voxel'] if center is None else np.array(center).astype(int)
+        radius = [int(x / 2) - 1 for x in crop_shape]
+        center = self.__roi_measure['center_mm'] if center is None else center
+        center_min = self.spatial_to_voxel(np.floor(center))
+        center_max = self.spatial_to_voxel(np.ceil(center))
         img_shape = self.__metadata['img_shape']
 
         # Pad the image and the ROI if its necessary
         padding = []
-        for rad, cent, shape in zip(radius, center, img_shape):
+        for rad, cent_min, cent_max, shape in zip(radius, center_min, center_max, img_shape):
             padding.append(
-                [abs(min(cent - rad, 0)), max(cent + rad + 1 - shape, 0)]
+                [abs(min(cent_min - rad, 0)), max(cent_max + rad + 1 - shape, 0)]
             )
 
         img = self.get_img()
@@ -192,15 +194,16 @@ class MRIimage:
 
         img = np.pad(img, tuple([tuple(x) for x in padding]))
         roi = np.pad(roi, tuple([tuple(x) for x in padding]))
-        center = [center[i] + padding[i][0] for i in range(3)]
+        center_min = [center_min[i] + padding[i][0] for i in range(3)]
+        center_max = [center_max[i] + padding[i][0] for i in range(3)]
 
         # Crop the image
-        img = img[center[0]-radius[0]:center[0]+radius[0] + 1,
-                  center[1]-radius[1]:center[1]+radius[1] + 1,
-                  center[2]-radius[2]:center[2]+radius[2] + 1]
-        roi = roi[center[0] - radius[0]:center[0] + radius[0] + 1,
-                  center[1] - radius[1]:center[1] + radius[1] + 1,
-                  center[2] - radius[2]:center[2] + radius[2] + 1]
+        img = img[center_min[0]-radius[0]:center_max[0]+radius[0] + 1,
+                  center_min[1]-radius[1]:center_max[1]+radius[1] + 1,
+                  center_min[2]-radius[2]:center_max[2]+radius[2] + 1]
+        roi = roi[center_min[0] - radius[0]:center_max[0] + radius[0] + 1,
+                  center_min[1] - radius[1]:center_max[1] + radius[1] + 1,
+                  center_min[2] - radius[2]:center_max[2] + radius[2] + 1]
 
         # Update self.__metadata and self.__roi_measure
         self.__metadata['img_shape'] = crop_shape
