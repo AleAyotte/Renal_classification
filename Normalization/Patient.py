@@ -289,9 +289,9 @@ class Patient:
         """
 
         self.__t1.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
-                           reoriented=True)
+                           reorient=True)
         self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
-                           reoriented=True)
+                           reorient=True)
 
         if register:
             self.register()
