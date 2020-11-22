@@ -259,7 +259,8 @@ class Patient:
             self.__t1.update_nifti(new_img, new_roi, save, save_path)
 
     def resample_and_crop(self, resample_params, crop_shape, interp_type: int = 1, threshold: float = 50,
-                          register: bool = False, merge_roi: bool = False, save: bool = False, save_path: str = ""):
+                          register: bool = False, register_mode: str = "threshold", merge_roi: bool = False,
+                          save: bool = False, save_path: str = ""):
         """
         Resample both images and their ROI, crop them and if requested merge the ROI together.
 
@@ -269,6 +270,9 @@ class Patient:
                             (0: Linear, 1: nearest neighbor, 2: gaussian, 3: windowed sinc, 4: bspline)
         :param threshold: Maximum distance between the two center of mass before cropping.
         :param register: If true, the image "t2" will be register on the image "t1"
+        :param register_mode: A string that indicate when the registration is applied. (Option: 'threshold', 'always')
+                              If threashold then the image t1 is register on image t2 if the distance between
+                              the two center of mass is too high.
         :param merge_roi: A boolean that indicate if the ROI will be merge at the end of the process.
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
@@ -280,14 +284,20 @@ class Patient:
         self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
                            reorient=True)
 
-        if register:
+        if register and register_mode.lower() == "always":
             self.register()
 
         self.__read_measure()
-
         distance = np.linalg.norm(self.__measure["roi_distance"])
+
         if distance > threshold:
-            raise Exception("The distance between the two center of mass is too high.".format(distance))
+            if register is True and register_mode == "threshold":
+                self.register()
+                self.__read_measure()
+                distance = np.linalg.norm(self.__measure["roi_distance"])
+
+            if distance >threshold:
+                raise Exception("The distance between the two center of mass is too high.".format(distance))
 
         roi_center = self.__get_ponderate_center()
 
