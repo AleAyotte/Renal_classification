@@ -108,7 +108,7 @@ class MRIimage:
         from ants.utils.convert_nibabel import to_nibabel, from_nibabel
 
         if self.__img is None:
-            ants_img = ants.image_read(self._get_path(), reoriented=True)
+            ants_img = ants.image_read(self._get_path(), reorient=True)
         else:
             ants_img = from_nibabel(self.__img)
         corrected_img = to_nibabel(n4(ants_img))
@@ -346,7 +346,7 @@ class MRIimage:
         return sData[2][-1].StudyDate + sData[2][-1].StudyTime
 
     def resample(self, resample_params, interp_type: int = 1, save: bool = False, save_path: str = "",
-                 reoriented: bool = True):
+                 reorient: bool = True):
         """
         Resample an image using antspy according to the new voxel dimension given.
 
@@ -357,25 +357,25 @@ class MRIimage:
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
-        :param reoriented: If True, the file will be read with antspy and reoriented with it instead of
-                           convert from nibabel. Not saved modification will be lost.
+        :param reorient: If True, the file will be read with antspy and reoriented with it instead of
+                         convert from nibabel. Not saved modification will be lost.
         """
         import ants
         from ants.registration import resample_image
         from ants.utils.convert_nibabel import to_nibabel, from_nibabel
 
         if self.__img is None or reoriented:
-            ants_img = ants.image_read(self._get_path(), reoriented=reoriented)
+            ants_img = ants.image_read(self._get_path(), reorient=reorient)
         else:
             ants_img = from_nibabel(self.__img)
 
         if self.__roi is None or reoriented:
-            ants_roi = ants.image_read(self._get_path(roi=True), reoriented=reoriented)
+            ants_roi = ants.image_read(self._get_path(roi=True), reorient=reorient)
         else:
             ants_roi = from_nibabel(self.__roi)
 
         # Check the orientation and change the order of the resample parameters if needed.
-        if self.__metadata["orientation"] == "coronal" and reoriented is False:
+        if self.__metadata["orientation"] == "coronal" and reorient is False:
             resample_params = [resample_params[0], resample_params[2], resample_params[1]]
 
         corrected_img = to_nibabel(resample_image(ants_img, resample_params, False, interp_type))
