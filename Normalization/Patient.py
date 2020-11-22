@@ -76,12 +76,10 @@ class Patient:
         self.__dataset = dataset
         self.__t1 = MRIimage(modality="T1C",
                              path_image=path.join(self.__path, patient_id + "__T1C" + ".MRscan__VOL"),
-                             path_roi=path.join(self.__path, patient_id + "__T1C" + ".MRscan__ROI"),
-                             keep_mem=True)
+                             path_roi=path.join(self.__path, patient_id + "__T1C" + ".MRscan__ROI"))
         self.__t2 = MRIimage(modality="T2WI",
                              path_image=path.join(self.__path, patient_id + "__T2WI" + ".MRscan__VOL"),
-                             path_roi=path.join(self.__path, patient_id + "__T2WI" + ".MRscan__ROI"),
-                             keep_mem=True)
+                             path_roi=path.join(self.__path, patient_id + "__T2WI" + ".MRscan__ROI"))
         self.__measure = {"roi_size": [],
                           "t1_shape": [],
                           "t2_shape": [],
@@ -100,7 +98,7 @@ class Patient:
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
         """
-        self.__t1.apply_n4(save=save, save_path=save_path)
+        self.__t1.apply_n4(save=save, save_path=save_path, )
         self.__t2.apply_n4(save=save, save_path=save_path)
 
     def apply_znorm(self, save: bool = False, save_path=""):
@@ -114,23 +112,34 @@ class Patient:
         self.__t1.apply_znorm(save=save, save_path=save_path)
         self.__t2.apply_znorm(save=save, save_path=save_path)
 
-    def detach(self):
+    def get_measure(self) -> dict:
+        if len(self.__measure["roi_size"]) == 0:
+            self.__read_measure()
+        return self.__measure
+
+    def __get_ponderate_center(self) -> np.array:
         """
-        Release memory taken by the images and their ROI.
+        Measure the ponderate mean of the center of mass of both ROI modality.
+
+        :return: A numpy array that represent the ponderate center of mass in mm.
         """
-        self.__t1.detach()
-        self.__t2.detach()
+        t1_roi_measure = self.__t1.get_roi_measure()
+        t2_roi_measure = self.__t2.get_roi_measure()
+
+        roi_center_t1 = np.array(t1_roi_measure["center_mm"])
+        roi_center_t2 = np.array(t2_roi_measure["center_mm"])
+        t1_weight = self.__t1.get_roi().sum()
+        t2_weight = self.__t2.get_roi().sum()
+
+        roi_center = ((roi_center_t1 * t1_weight) + (roi_center_t2 * t2_weight)) / (t1_weight + t2_weight)
+
+        return roi_center
 
     def get_t1(self) -> MRIimage:
         return self.__t1
 
     def get_t2(self) -> MRIimage:
         return self.__t2
-
-    def get_measure(self) -> dict:
-        if len(self.__measure["roi_size"]) == 0:
-            self.__read_measure()
-        return self.__measure
 
     def merge_roi(self, save: bool = False, save_path: str = ""):
         """
@@ -154,7 +163,7 @@ class Patient:
         self.__t2.update_roi(new_roi=new_roi, save=save, save_path=save_path)
         self.__roi_merged = True
 
-    def plot_image_and_roi(self, slice_t1: int = -1, slice_t2: int = -1):
+    def plot_image_and_roi(self, slice_t1: int = -1, slice_t2: int = -1, slice_orientation: str = "axial"):
         """
         Plot the images and their corresponding ROI in axial view.
 
@@ -162,13 +171,21 @@ class Patient:
                          (If = -1 the selected slice will be choose according the center of the ROI.)
         :param slice_t2: A positive integer that represent the axial slice to visualize for the T2WI image and its ROI.
                          (If = -1 the selected slice will be choose according the center of the ROI.)
+        :param slice_orientation: A string that indicate the slice orientation. (Options: axial, coronal and sagittal)
         """
-        assert slice_t1 >= -1 and slice_t2 >= -1, "The slices parameters should be a positive integer"
+        _SLICE_ORIENTATION = ['sagittal', 'coronal', 'axial']
+        assert slice_orientation.lower() in _SLICE_ORIENTATION, "The slices orientation could only be 'axial', " \
+                                                                "'coronal' or 'sagittal'."
+        assert slice_t1 >= -1 and slice_t2 >= -1, "The slices parameters should be a positive integer."
 
-        slice_t1 = slice_t1 if slice_t1 > -1 else self.__t1.get_roi_measure()["center_voxel"][2]
-        slice_t2 = slice_t2 if slice_t2 > -1 else self.__t2.get_roi_measure()["center_voxel"][2]
+        ind = _SLICE_ORIENTATION.index(slice_orientation.lower())
+        slice_t1 = slice_t1 if slice_t1 > -1 else self.__t1.get_roi_measure()["center_voxel"][ind]
+        slice_t2 = slice_t2 if slice_t2 > -1 else self.__t2.get_roi_measure()["center_voxel"][ind]
 
-        slices = [slice_t1, slice_t1, slice_t2, slice_t2]
+        slices_t1 = [slice_t1 if x == ind else slice(None) for x in range(3)]
+        slices_t2 = [slice_t2 if x == ind else slice(None) for x in range(3)]
+
+        slices_list = [slices_t1, slices_t1, slices_t2, slices_t2]
         titles = ["Image T1C", "ROI T1C", "Image T2WI", "ROI T2WI"]
         imgs = [self.__t1.get_img(),
                 self.__t1.get_roi(),
@@ -180,70 +197,9 @@ class Patient:
         for i in range(len(imgs)):
             fig.add_subplot(2, 2, i + 1, title=titles[i])
             plt.set_cmap(plt.gray())
-            plt.imshow(imgs[i][:, :, slices[i]])
+            plt.imshow(imgs[i][slices_list[i][0], slices_list[i][1], slices_list[i][2]])
 
         plt.show()
-
-    def __get_ponderate_center(self) -> np.array:
-        """
-        Measure the ponderate mean of the center of mass of both ROI modality.
-
-        :return: A numpy array that represent the ponderate center of mass in mm.
-        """
-        t1_roi_measure = self.__t1.get_roi_measure()
-        t2_roi_measure = self.__t2.get_roi_measure()
-
-        roi_center_t1 = np.array(t1_roi_measure["center_mm"])
-        roi_center_t2 = np.array(t2_roi_measure["center_mm"])
-        t1_weight = self.__t1.get_roi().sum()
-        t2_weight = self.__t2.get_roi().sum()
-
-        roi_center = ((roi_center_t1 * t1_weight) + (roi_center_t2 * t2_weight)) / (t1_weight + t2_weight)
-
-        return roi_center
-
-    def resample_and_crop(self,  resample_params, crop_shape, interp_type: int = 1, threshold: float = 50,
-                          merge_roi: bool = False, save: bool = False, save_path: str = ""):
-        """
-        Resample both images and their ROI, crop them and if requested merge the ROI together.
-
-        :param resample_params: List or tuple that indicate the new voxel dimension in mm.
-        :param crop_shape: The dimension of the region to crop in term of number of voxel.
-        :param interp_type: The interpolation algorithm that will be used to resample the image.
-                            (0: Linear, 1: nearest neighbor, 2: gaussian, 3: windowed sinc, 4: bspline)
-        :param threshold: Maximum distance between the two center of mass before cropping.
-        :param merge_roi: A boolean that indicate if the ROI will be merge at the end of the process.
-        :param save: A boolean that indicate if we need to save the image after this operation.
-                     If keep memory is false, than the image will be saved either if save is true or false.
-        :param save_path: A string that indicate the path where the images will be save
-        """
-
-        self.__t1.resample(resample_params=resample_params, interp_type=interp_type, save=False)
-        self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False)
-
-        self.__t1.to_canonical(save=False)
-        self.__t2.to_canonical(save=False)
-
-        self.__read_measure()
-
-        distance = np.linalg.norm(self.__measure["roi_distance"])
-        if distance > threshold:
-            raise Exception("The distance between the two center of mass is too high.".format(distance))
-
-        roi_center = self.__get_ponderate_center()
-
-        self.__t1.crop(crop_shape=crop_shape,
-                       center=roi_center,
-                       save=False if merge_roi else save,
-                       save_path=save_path)
-
-        self.__t2.crop(crop_shape=crop_shape,
-                       center=roi_center,
-                       save=False if merge_roi else save,
-                       save_path=save_path)
-
-        if merge_roi:
-            self.merge_roi(save=save, save_path=save_path)
 
     def __read_measure(self):
         """
@@ -266,6 +222,100 @@ class Patient:
         self.__measure['t2_shape'] = self.__t2.get_metadata()["img_shape"]
         self.__measure['t1_voxel_spacing'] = self.__t1.get_metadata()["voxel_spacing"]
         self.__measure['t2_voxel_spacing'] = self.__t2.get_metadata()["voxel_spacing"]
+
+    def register(self, fixed_modality: str = "t1", type_of_transform: str = "Translation", save: bool = False,
+                 save_path: str = ""):
+        """
+
+        :param fixed_modality:
+        :param type_of_transform:
+        :param save: A boolean that indicate if we need to save the image after this operation.
+                     If keep memory is false, than the image will be saved either if save is true or false.
+        :param save_path: A string that indicate the path where the images will be save
+        """
+        import ants
+        from ants.registration import registration, apply_transforms
+        from ants.utils.convert_nibabel import to_nibabel, from_nibabel
+
+        t1 = self.__t1.get_nifti()
+        t2 = self.__t2.get_nifti()
+        roi_t1 = self.__t1.get_nifti(roi=True)
+        roi_t2 = self.__t2.get_nifti(roi=True)
+
+        ants_t1 = from_nibabel(t1)
+        ants_t2 = from_nibabel(t2)
+        ants_roi_t1 = from_nibabel(roi_t1)
+        ants_roi_t2 = from_nibabel(roi_t2)
+
+        if fixed_modality == "t1":
+            result = registration(fixed=ants_t1, moving=ants_t2, type_of_transform=type_of_transform)
+            new_t2 = to_nibabel(result['warpedmovout'])
+            new_ants_roi = apply_transforms(fixed=ants_roi_t1, moving=ants_roi_t2,
+                                            transformlist=result['fwdtransforms'])
+            print(new_t2.header)
+            print(to_nibabel(new_ants_roi).header)
+
+            self.__t2._MRI_image__img = new_t2
+            self.__t2._MRI_image__roi = to_nibabel(new_ants_roi)
+        elif fixed_modality == "t2":
+            result = registration(fixed=ants_t2, moving=ants_t1, type_of_transform=type_of_transform)
+            new_t1 = to_nibabel(result['warpedmovout'])
+            new_ants_roi = apply_transforms(fixed=ants_roi_t2, moving=ants_roi_t1,
+                                            transformlist=result['fwdtransforms'])
+            self.__t1._MRI_image__img = new_t1
+            self.__t1._MRI_image__roi = to_nibabel(new_ants_roi)
+        else:
+            raise NotImplementedError
+        
+        if save:
+            self.__t1.save_image(save_path=save_path, with_roi=True)
+            self.__t2.save_image(save_path=save_path, with_roi=True)
+
+    def resample_and_crop(self, resample_params, crop_shape, interp_type: int = 1, threshold: float = 50,
+                          register: bool = False, merge_roi: bool = False, save: bool = False, save_path: str = ""):
+        """
+        Resample both images and their ROI, crop them and if requested merge the ROI together.
+
+        :param resample_params: List or tuple that indicate the new voxel dimension in mm.
+        :param crop_shape: The dimension of the region to crop in term of number of voxel.
+        :param interp_type: The interpolation algorithm that will be used to resample the image.
+                            (0: Linear, 1: nearest neighbor, 2: gaussian, 3: windowed sinc, 4: bspline)
+        :param threshold: Maximum distance between the two center of mass before cropping.
+        :param register: If true, the image "t2" will be register on the image "t1"
+        :param merge_roi: A boolean that indicate if the ROI will be merge at the end of the process.
+        :param save: A boolean that indicate if we need to save the image after this operation.
+                     If keep memory is false, than the image will be saved either if save is true or false.
+        :param save_path: A string that indicate the path where the images will be save
+        """
+
+        self.__t1.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
+                           reoriented=True)
+        self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
+                           reoriented=True)
+
+        if register:
+            self.register()
+
+        self.__read_measure()
+
+        distance = np.linalg.norm(self.__measure["roi_distance"])
+        if distance > threshold:
+            raise Exception("The distance between the two center of mass is too high.".format(distance))
+
+        roi_center = self.__get_ponderate_center()
+
+        self.__t1.crop(crop_shape=crop_shape,
+                       center=roi_center,
+                       save=False if merge_roi else save,
+                       save_path=save_path)
+
+        self.__t2.crop(crop_shape=crop_shape,
+                       center=roi_center,
+                       save=False if merge_roi else save,
+                       save_path=save_path)
+
+        if merge_roi:
+            self.merge_roi(save=save, save_path=save_path)
 
     def save_images(self, modality: str = "both", save_path: str = "", with_roi: bool = False):
         """
