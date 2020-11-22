@@ -223,11 +223,11 @@ class Patient:
         self.__measure['t1_voxel_spacing'] = self.__t1.get_metadata()["voxel_spacing"]
         self.__measure['t2_voxel_spacing'] = self.__t2.get_metadata()["voxel_spacing"]
 
-    def register(self, fixed_modality: str = "t1", type_of_transform: str = "Translation", save: bool = False,
+    def register(self, t1_fixed: bool = True, type_of_transform: str = "Translation", save: bool = False,
                  save_path: str = ""):
         """
 
-        :param fixed_modality:
+        :param t1_fixed:
         :param type_of_transform:
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
@@ -241,32 +241,22 @@ class Patient:
         roi_t1 = self.__t1.get_nifti(roi=True)
         roi_t2 = self.__t2.get_nifti(roi=True)
 
-        ants_t1 = from_nibabel(t1)
-        ants_t2 = from_nibabel(t2)
-        ants_roi_t1 = from_nibabel(roi_t1)
-        ants_roi_t2 = from_nibabel(roi_t2)
+        fixed_img = from_nibabel(t1) if t1_fixed else from_nibabel(t2)
+        moving_img = from_nibabel(t2) if t1_fixed else from_nibabel(t1)
+        fixed_roi = from_nibabel(roi_t1) if t1_fixed else from_nibabel(roi_t2)
+        moving_roi = from_nibabel(roi_t2) if t1_fixed else from_nibabel(roi_t1)
 
-        if fixed_modality == "t1":
-            result = registration(fixed=ants_t1, moving=ants_t2, type_of_transform=type_of_transform)
-            new_t2 = to_nibabel(result['warpedmovout'])
-            new_ants_roi = apply_transforms(fixed=ants_roi_t1, moving=ants_roi_t2,
-                                            transformlist=result['fwdtransforms'])
+        result = registration(fixed=fixed_img, moving=moving_img, type_of_transform=type_of_transform)
+        new_ants_roi = apply_transforms(fixed=fixed_roi, moving=moving_roi,
+                                        transformlist=result['fwdtransforms'])
 
-            self.__t2._MRI_image__img = new_t2
-            self.__t2.update_roi(new_roi=new_ants_roi.numpy())
-        elif fixed_modality == "t2":
-            result = registration(fixed=ants_t2, moving=ants_t1, type_of_transform=type_of_transform)
-            new_t1 = to_nibabel(result['warpedmovout'])
-            new_ants_roi = apply_transforms(fixed=ants_roi_t2, moving=ants_roi_t1,
-                                            transformlist=result['fwdtransforms'])
-            self.__t1._MRI_image__img = new_t1
-            self.__t1.update_roi(new_roi=new_ants_roi.numpy())
+        new_img = to_nibabel(result['warpedmovout'])
+        new_roi = np.where(new_ants_roi.numpy() >= 0.5, 1, 0)
+
+        if t1_fixed:
+            self.__t2.update_nifti(new_img, new_roi, save, save_path)
         else:
-            raise NotImplementedError
-        
-        if save:
-            self.__t1.save_image(save_path=save_path, with_roi=True)
-            self.__t2.save_image(save_path=save_path, with_roi=True)
+            self.__t1.update_nifti(new_img, new_roi, save, save_path)
 
     def resample_and_crop(self, resample_params, crop_shape, interp_type: int = 1, threshold: float = 50,
                           register: bool = False, merge_roi: bool = False, save: bool = False, save_path: str = ""):

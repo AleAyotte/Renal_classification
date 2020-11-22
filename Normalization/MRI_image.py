@@ -479,6 +479,22 @@ class MRIimage:
                 self.__filename
             ))
 
+    def update_nifti(self, new_img: nib.nifti1.Nifti1Image, new_roi: np.array,
+                     save: bool = False, save_path: str = ""):
+        """
+        Change the nifti image and its ROI.
+
+        :param new_img: A nifti1Image object that represent the new image.
+        :param new_roi: A numpy array that represent the new region of interest
+        :param save: A boolean that indicate if we need to save the image after this operation.
+                     If keep memory is false, than the image will be saved either if save is true or false.
+        :param save_path: A string that indicate the path where the images will be save
+        """
+
+        self.__img = new_img
+        self.__read_metadata()
+        self.update_roi(new_roi, save=save, save_path=save_path)
+
     def update_roi(self, new_roi: np.array, save: bool = False, save_path: str = ""):
         """
         Change the dataobj of the ROI and update the roi_measure.
