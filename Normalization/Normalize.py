@@ -4,7 +4,10 @@ from tqdm import trange
 
 _path = "E:/WORKSPACE_RadiomicsComputation/Kidney/Corrected"
 temp_path = "n4_temp"
-exclude = ["Kidney-Penn-238", "Kidney-Penn-254", "Kidney-Penn-337", "Kidney-Penn-357"]
+exclude = ["Kidney-Penn-238", "Kidney-Penn-254", "Kidney-Penn-337", "Kidney-Penn-357", 'Kidney-Penn-086',
+           'Kidney-Penn-115', 'Kidney-Penn-125', 'Kidney-Penn-169', 'Kidney-Penn-329', 'Kidney-Penn-556',
+           'Kidney-Penn-587', 'Kidney-Penn-722', 'Kidney-Penn-745', 'Kidney-Penn-753', 'Kidney-Penn-765',
+           'Kidney-Penn-774', 'Kidney-Penn-788', 'Kidney-Penn-797', 'Kidney-TCGA-048', 'Kidney-TCGA-054']
 institution = ["Kidney-XY2", "Kidney-Penn", "Kidney-CH", "Kidney-TCGA", "Kidney-Mayo", "Kidney-HP"]
 nb_patient = [25, 833, 112, 56, 118, 50]
 
