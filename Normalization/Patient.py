@@ -281,7 +281,7 @@ class Patient:
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
         """
-        is_t1_axial = (self.__t1.get_metadata['orientation'] == "axial")
+        is_t1_axial = (self.__t1.get_metadata()['orientation'] == "axial")
 
         self.__t1.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
                            reorient=True)
