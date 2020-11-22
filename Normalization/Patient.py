@@ -233,7 +233,6 @@ class Patient:
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
         """
-        import ants
         from ants.registration import registration, apply_transforms
         from ants.utils.convert_nibabel import to_nibabel, from_nibabel
 
@@ -252,18 +251,16 @@ class Patient:
             new_t2 = to_nibabel(result['warpedmovout'])
             new_ants_roi = apply_transforms(fixed=ants_roi_t1, moving=ants_roi_t2,
                                             transformlist=result['fwdtransforms'])
-            print(new_t2.header)
-            print(to_nibabel(new_ants_roi).header)
 
             self.__t2._MRI_image__img = new_t2
-            self.__t2._MRI_image__roi = to_nibabel(new_ants_roi)
+            self.__t2.update_roi(new_roi=new_ants_roi.numpy())
         elif fixed_modality == "t2":
             result = registration(fixed=ants_t2, moving=ants_t1, type_of_transform=type_of_transform)
             new_t1 = to_nibabel(result['warpedmovout'])
             new_ants_roi = apply_transforms(fixed=ants_roi_t2, moving=ants_roi_t1,
                                             transformlist=result['fwdtransforms'])
             self.__t1._MRI_image__img = new_t1
-            self.__t1._MRI_image__roi = to_nibabel(new_ants_roi)
+            self.__t1.update_roi(new_roi=new_ants_roi.numpy())
         else:
             raise NotImplementedError
         

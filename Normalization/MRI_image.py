@@ -178,8 +178,8 @@ class MRIimage:
 
         radius = [int(x / 2) - 1 for x in crop_shape]
         center = self.__roi_measure['center_mm'] if center is None else center
-        center_min = self.spatial_to_voxel(np.floor(center)).astype(int)
-        center_max = self.spatial_to_voxel(np.ceil(center)).astype(int)
+        center_min = np.floor(self.spatial_to_voxel(center)).astype(int)
+        center_max = np.ceil(self.spatial_to_voxel(center)).astype(int)
         img_shape = self.__metadata['img_shape']
 
         # Pad the image and the ROI if its necessary
@@ -364,12 +364,12 @@ class MRIimage:
         from ants.registration import resample_image
         from ants.utils.convert_nibabel import to_nibabel, from_nibabel
 
-        if self.__img is None or reoriented:
+        if self.__img is None or reorient:
             ants_img = ants.image_read(self._get_path(), reorient=reorient)
         else:
             ants_img = from_nibabel(self.__img)
 
-        if self.__roi is None or reoriented:
+        if self.__roi is None or reorient:
             ants_roi = ants.image_read(self._get_path(roi=True), reorient=reorient)
         else:
             ants_roi = from_nibabel(self.__roi)
