@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 from MRI_image import MRIimage
 import numpy as np
 from os import path
+import os
 
 
 class Patient:
@@ -58,6 +59,9 @@ class Patient:
         Merge the ROI of the t1 image and the t2 image and set the new ROI to the images T1 and T2.
     plot_image_and_roi(slice_t1: int = -1, slice_t2: int = -1)
         Plot the images and their corresponding ROI in axial view.
+    register(t1_fixed: bool = True, type_of_transform: str = "Translation", focus_mask: bool = False,
+             save: bool = False, save_path: str = "")
+        Register the image T2 on the image T1 (Or the opposite if t1_fixed is False) and adjust the ROI.
     resample_and_crop(resample_params, crop_shape, interp_type: int = 1, merge_roi: bool = False,
                       save: bool = False, save_path: str = "")
          Resample both images and their ROI, crop them and if requested merge the ROI together.
@@ -226,9 +230,12 @@ class Patient:
     def register(self, t1_fixed: bool = True, type_of_transform: str = "Translation", focus_mask: bool = False,
                  save: bool = False, save_path: str = ""):
         """
+        Register the image T2 on the image T1 (Or the opposite if t1_fixed is False) and adjust the ROI.
 
-        :param t1_fixed:
-        :param type_of_transform:
+        :param t1_fixed: If true, the image T2 will be register on the image T1. Otherwise, it will be the opposite.
+                         (Default: True)
+        :param type_of_transform: Type of transformation that will be used for the registration.
+                                  (Default: Translation)
         :param focus_mask: If true, the fixed mask will be used to focus the registration.
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
@@ -260,6 +267,11 @@ class Patient:
             self.__t2.update_nifti(new_img, new_roi, save, save_path)
         else:
             self.__t1.update_nifti(new_img, new_roi, save, save_path)
+
+        # Delete temporary files.
+        for file in result['fwdtransforms']:
+            if path.exists(file):
+                os.remove(file)
 
     def resample_and_crop(self, resample_params, crop_shape, interp_type: int = 1, threshold: float = 50,
                           register: bool = False, register_mode: str = "threshold", merge_roi: bool = False,
@@ -294,6 +306,7 @@ class Patient:
         self.__read_measure()
         distance = np.linalg.norm(self.__measure["roi_distance"])
 
+        # If the distance between the center of mass is too high, then we register the images and the ROI.
         if distance > threshold:
             if register is True and register_mode == "threshold":
                 self.register(is_t1_axial)
