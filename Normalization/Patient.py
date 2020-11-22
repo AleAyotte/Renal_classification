@@ -223,12 +223,13 @@ class Patient:
         self.__measure['t1_voxel_spacing'] = self.__t1.get_metadata()["voxel_spacing"]
         self.__measure['t2_voxel_spacing'] = self.__t2.get_metadata()["voxel_spacing"]
 
-    def register(self, t1_fixed: bool = True, type_of_transform: str = "Translation", save: bool = False,
-                 save_path: str = ""):
+    def register(self, t1_fixed: bool = True, type_of_transform: str = "Translation", focus_mask: bool = False,
+                 save: bool = False, save_path: str = ""):
         """
 
         :param t1_fixed:
         :param type_of_transform:
+        :param focus_mask: If true, the fixed mask will be used to focus the registration.
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
@@ -246,7 +247,9 @@ class Patient:
         fixed_roi = from_nibabel(roi_t1) if t1_fixed else from_nibabel(roi_t2)
         moving_roi = from_nibabel(roi_t2) if t1_fixed else from_nibabel(roi_t1)
 
-        result = registration(fixed=fixed_img, moving=moving_img, type_of_transform=type_of_transform)
+        result = registration(fixed=fixed_img, moving=moving_img,
+                              type_of_transform=type_of_transform,
+                              mask=fixed_roi if focus_mask else None)
         new_ants_roi = apply_transforms(fixed=fixed_roi, moving=moving_roi,
                                         transformlist=result['fwdtransforms'])
 
@@ -278,6 +281,7 @@ class Patient:
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
         """
+        is_t1_axial = (self.__t1.get_metadata['orientation'] == "axial")
 
         self.__t1.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
                            reorient=True)
@@ -285,18 +289,23 @@ class Patient:
                            reorient=True)
 
         if register and register_mode.lower() == "always":
-            self.register()
+            self.register(is_t1_axial)
 
         self.__read_measure()
         distance = np.linalg.norm(self.__measure["roi_distance"])
 
         if distance > threshold:
             if register is True and register_mode == "threshold":
-                self.register()
+                self.register(is_t1_axial)
                 self.__read_measure()
                 distance = np.linalg.norm(self.__measure["roi_distance"])
 
-            if distance >threshold:
+                if distance > threshold:
+                    self.register(is_t1_axial, focus_mask=True)
+                    self.__read_measure()
+                    distance = np.linalg.norm(self.__measure["roi_distance"])
+
+            if distance > threshold:
                 raise Exception("The distance between the two center of mass is too high.".format(distance))
 
         roi_center = self.__get_ponderate_center()
