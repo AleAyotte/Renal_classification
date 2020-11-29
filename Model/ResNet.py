@@ -215,7 +215,7 @@ class ResNet(nn.Module):
                                 conv_only=~pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
-                                         self.in_channels * 2,
+                                         self.in_channels,
                                          kernel=kernel, strides=[2, 2, 1],
                                          drop_rate=dropout[0], act=act)
         self.layers2 = self.__make_layer(block[depth], layers[depth][1],
@@ -346,7 +346,7 @@ class MultiLevelResNet(nn.Module):
                                 conv_only=~pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
-                                         self.in_channels * 2,
+                                         self.in_channels,
                                          kernel=kernel, strides=[2, 2, 1],
                                          drop_rate=dropout[0], act=act,
                                          split_layer=(1 == split_level),
