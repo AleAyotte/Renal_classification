@@ -61,14 +61,14 @@ class RenalDataset(Dataset):
         sample = self.transform(self.__data[idx])
 
         if type(idx) == int:
-            if len(sample["t1"]) == 4:
+            if len(sample["t1"].size()) == 4:
                 sample = torch.cat((sample["t1"], sample["t2"], sample["roi"]), 0)
             else:
                 sample = torch.stack([sample["t1"], sample["t2"], sample["roi"]])
         else:
             temp = []
             for samp in sample:
-                if len(samp["t1"]) == 4:
+                if len(samp["t1"].size()) == 4:
                     temp.append(torch.cat((samp["t1"], samp["t2"], samp["roi"]), 0))
                 else:
                     temp.append(torch.stack([samp["t1"], samp["t2"], samp["roi"]]))
