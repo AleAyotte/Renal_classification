@@ -281,7 +281,7 @@ class ResNet(nn.Module):
 
 class MultiLevelResNet(nn.Module):
     def __init__(self, depth: int = 18, first_channels: int = 16,
-                 split_level: int = 3,
+                 split_level: int = 4,
                  in_shape: Union[Sequence[int], Tuple] = (16, 64, 64),
                  first_kernel: Union[Sequence[int], int] = 3,
                  kernel: Union[Sequence[int], int] = 3,
@@ -376,7 +376,7 @@ class MultiLevelResNet(nn.Module):
         in_shape = list(in_shape)
         out_shape = int((in_shape[0] / 16) * (in_shape[1] / 16) * (in_shape[2] / 8))
 
-        if self.plit == 5:
+        if self.split == 5:
             self.num_flat_features = out_shape * self.in_channels
         else:
             self.num_flat_features = out_shape * int(self.in_channels / 3)
@@ -427,7 +427,7 @@ class MultiLevelResNet(nn.Module):
         out = self.mixup[3](out) if 3 in mixup_key_list else out
         out = self.layers4(out)
 
-        if self.plit == 5:
+        if self.split == 5:
             features = out.view(-1, self.num_flat_features)
 
             mal_pred = self.fc_layer_mal(features)
