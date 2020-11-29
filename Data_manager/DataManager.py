@@ -1,7 +1,8 @@
 import h5py
 import numpy as np
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 
 
 class RenalDataset(Dataset):
@@ -75,4 +76,24 @@ class RenalDataset(Dataset):
 
             sample = torch.stack(temp)
 
-        return sample, self.__label[idx]
+        return sample, torch.tensor(self.__label[idx]).long()
+
+
+def get_dataloader(dataset: RenalDataset, bsize: int = 32,
+                   validation_split: float = 0.2, random_seed: int = 0):
+    dataset_size = len(dataset)
+    indices = list(range(dataset_size))
+    split = int(np.floor(validation_split * dataset_size))
+    np.random.seed(random_seed)
+    np.random.shuffle(indices)
+
+    train_indices, val_indices = indices[split:], indices[:split]
+    train_sampler = SubsetRandomSampler(train_indices)
+    valid_sampler = SubsetRandomSampler(val_indices)
+
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=bsize,
+                                               sampler=train_sampler)
+    valid_loader = torch.utils.data.DataLoader(dataset, batch_size=bsize,
+                                               sampler=valid_sampler)
+
+    return train_loader, valid_loader
