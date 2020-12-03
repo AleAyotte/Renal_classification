@@ -43,8 +43,13 @@ class RenalDataset(Dataset):
             self.__data.append({"t1": dtset[key]["t1"][:],
                                 "t2": dtset[key]["t2"][:],
                                 "roi": dtset[key]["roi"][:]})
-            self.__label.append(dtset[key].attrs["outcome"])
 
+            if "outcome" in list(dtset[key].attrs.keys()):
+                self.__label.append(dtset[key].attrs["outcome"])
+            else:
+                self.__label.append({"malignant": dtset[key].attrs["malignant"],
+                                     "subtype": dtset[key].attrs["subtype"],
+                                     "grade": dtset[key].attrs["grade"]})
             if self.__with_clinical:
                 attrs = dtset[key].attrs
                 clinical_data.append([attrs[key] for key in list(attrs.keys) if key != "outcome"])
@@ -66,17 +71,39 @@ class RenalDataset(Dataset):
                 sample = torch.cat((sample["t1"], sample["t2"], sample["roi"]), 0)
             else:
                 sample = torch.stack([sample["t1"], sample["t2"], sample["roi"]])
+
+            # Transfer the label in a dictionnary of torch tensor
+            if type(self.__label[idx]) == dict:
+                labels = {}
+                for key, value in self.__label[idx].items():
+                    labels[key] = torch.tensor(value).long()
+
+            # Transfer the label in a torch tensor
+            else:
+                labels = torch.tensor(self.__label[idx]).long()
+
         else:
+            # Stack the image into torch tensor
             temp = []
             for samp in sample:
                 if len(samp["t1"].size()) == 4:
                     temp.append(torch.cat((samp["t1"], samp["t2"], samp["roi"]), 0))
                 else:
                     temp.append(torch.stack([samp["t1"], samp["t2"], samp["roi"]]))
-
             sample = torch.stack(temp)
 
-        return sample, torch.tensor(self.__label[idx]).long()
+            # Extract and stack the labels in a dictionnary of torch tensor
+            if type(self.__label[idx][0]) == dict:
+                labels = {}
+                for key in list(self.__label[idx][0].keys()):
+                    labels[key] = torch.tensor([
+                        _dict[key] for _dict in self.__label[idx]
+                    ]).long
+
+            # Extract and stack the labels in a torch tensor
+            else:
+                labels = torch.tensor(self.__label[idx]).long()
+        return sample, labels
 
 
 def get_dataloader(dataset: RenalDataset, bsize: int = 32,
