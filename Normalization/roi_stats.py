@@ -2,6 +2,7 @@ import numpy as np
 from Patient import Patient
 from scipy import stats
 from tqdm import trange
+from matplotlib import pyplot as plt
 
 
 _path = "E:/WORKSPACE_RadiomicsComputation/Kidney/Corrected"
@@ -14,6 +15,7 @@ roi_length = np.empty((0, 3), float)
 roi_shape = np.empty((0, 3), int)
 img_shape = np.empty((0, 3), int)
 voxel_spacing = np.empty((0, 3), float)
+distance = []
 
 for i in range(len(institution)):
     for j in trange(1, nb_patient[i]+1):
@@ -30,7 +32,6 @@ for i in range(len(institution)):
             pat = Patient(patient_id, _path, institution[i], "Train")
 
             measures = pat.get_measure()
-
             roi_length = np.append(roi_length, [measures['roi_size']], axis=0)
             roi_shape = np.append(roi_shape, [measures['t1_roi_shape']], axis=0)
             roi_shape = np.append(roi_shape, [measures['t2_roi_shape']], axis=0)
@@ -38,6 +39,8 @@ for i in range(len(institution)):
             img_shape = np.append(img_shape, [measures['t2_shape']], axis=0)
             voxel_spacing = np.append(voxel_spacing, [measures['t1_voxel_spacing']], axis=0)
             voxel_spacing = np.append(voxel_spacing, [measures['t2_voxel_spacing']], axis=0)
+
+            distance.append(np.linalg.norm(measures["roi_distance"]))
 
 print("\n##########################################")
 print("\n              95 percentile               ")
@@ -62,6 +65,11 @@ print("per_5: ", np.percentile(voxel_spacing, 5, axis=0))
 print("per_95:", np.percentile(voxel_spacing, 95, axis=0))
 print("trimmed mean: ", stats.trim_mean(voxel_spacing, 0.05, axis=0))
 
+print("\nDISTANCE:")
+print("per_5: ", np.percentile(distance, 5, axis=0))
+print("per_95:", np.percentile(distance, 95, axis=0))
+print("trimmed mean: ", stats.trim_mean(distance, 0.05, axis=0))
+
 print("\n\n")
 print("##########################################")
 print("              90 percentile               ")
@@ -85,3 +93,28 @@ print("\nVOXEL SPACING:")
 print("per_10: ", np.percentile(voxel_spacing, 10, axis=0))
 print("per_90", np.percentile(voxel_spacing, 90, axis=0))
 print("trimmed mean: ", stats.trim_mean(voxel_spacing, 0.10, axis=0))
+
+print("\nDISTANCE:")
+print("per_10: ", np.percentile(distance, 10, axis=0))
+print("per_90", np.percentile(distance, 90, axis=0))
+print("trimmed mean: ", stats.trim_mean(distance, 0.10, axis=0))
+
+ok = np.where(np.array(distance) > 50, 1, 0).sum()
+ok2 = np.where(np.array(distance) == 50, 1, 0).sum()
+
+print("\n", ok)
+print(ok2)
+n, bins, patches = plt.hist(distance, 20, facecolor='green')
+# n1, bins1 = np.histogram(distance, 20)
+# plt.plot(bins1[1:-1], n1)
+plt.show()
+
+n, bins, patches = plt.hist(distance, 50, facecolor='green')
+# n1, bins1 = np.histogram(distance, 20)
+# plt.plot(bins1[1:-1], n1)
+plt.show()
+n, bins, patches = plt.hist(distance, 100, facecolor='green')
+# n1, bins1 = np.histogram(distance, 20)
+# plt.plot(bins1[1:-1], n1)
+plt.show()
+# print(histo)
