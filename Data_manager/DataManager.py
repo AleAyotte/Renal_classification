@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
+from typing import Sequence, Tuple
 
 
 class RenalDataset(Dataset):
@@ -60,13 +61,14 @@ class RenalDataset(Dataset):
     def __len__(self):
         return len(self.__data)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> Tuple[torch.Tensor, torch.Tensor]:
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
         sample = self.transform(self.__data[idx])
 
         if type(idx) == int:
+            # Stack the images into torch tensor
             if len(sample["t1"].size()) == 4:
                 sample = torch.cat((sample["t1"], sample["t2"], sample["roi"]), 0)
             else:
@@ -83,7 +85,7 @@ class RenalDataset(Dataset):
                 labels = torch.tensor(self.__label[idx]).long()
 
         else:
-            # Stack the image into torch tensor
+            # Stack the images into torch tensor
             temp = []
             for samp in sample:
                 if len(samp["t1"].size()) == 4:
