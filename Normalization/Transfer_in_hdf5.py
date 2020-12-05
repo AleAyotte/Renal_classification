@@ -34,7 +34,7 @@ for f in tqdm(folder):
                 except Exception as e:
                     continue
 """
-
+"""
 for f in tqdm(folder):
     for d in tqdm(dtset, leave=False):
         patient_list = {}
@@ -62,6 +62,37 @@ for f in tqdm(folder):
                     print(pat_id)
                     print(t, d)
                     raise NotImplementedError
+
+        for pat_id in tqdm(list(patient_list.keys()), leave=False):
+            try:
+                pat = Patient(pat_id, path_images + f, "NA", d)
+                pat.save_in_hdf5(path_images + "final_dtset/" + f + "all.hdf5", metadata=patient_list[pat_id])
+            except Exception as e:
+                continue
+"""
+
+for f in tqdm(folder):
+    for d in tqdm(dtset, leave=False):
+        patient_list = {}
+
+        # csv_file = d + "_" + t + "_info.csv"
+        csv_file = d + "_set.csv"
+        data = pd.read_csv(path_csv + d + "/" + csv_file)
+        other_col = list(data.columns)[2:]
+
+        for index, row in data.iterrows():
+            pat_id = row["PatientID"]
+
+            patient_list[pat_id] = {}
+            try:
+                for col in other_col:
+                    patient_list[pat_id][col] = row[col]
+
+            except Exception as e:
+                print(list(patient_list.keys()))
+                print(pat_id)
+                print(t, d)
+                raise NotImplementedError
 
         for pat_id in tqdm(list(patient_list.keys()), leave=False):
             try:
