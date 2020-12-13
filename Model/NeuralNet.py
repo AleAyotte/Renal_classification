@@ -39,7 +39,7 @@ class NeuralNet(nn.Module):
         lamb, permut = self.mixup[rand_key].sample()
         return rand_key, lamb, permut
 
-    def disable_mixup(self, key: int = -1):
+    def disable_mixup(self, key: int = -1) -> None:
         """
         Disable one or all mixup module.
 
@@ -52,7 +52,7 @@ class NeuralNet(nn.Module):
         else:
             self.mixup[key].enable = False
     
-    def set_mixup(self, b_size: int):
+    def set_mixup(self, b_size: int) -> None:
         """
         Set the b_size parameter of each mixup module.
 
