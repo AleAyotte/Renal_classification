@@ -1,6 +1,7 @@
 from Model.Module import Mixup
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act
+from Model.NeuralNet import NeuralNet
 import numpy as np
 from random import randint
 import torch
@@ -150,7 +151,7 @@ class PreResBlock2(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
+class ResNet(NeuralNet):
     """
     Create a pre activation or post activation 3D Residual Network.
      ...
@@ -205,7 +206,6 @@ class ResNet(nn.Module):
         assert mixup is None or len(mixup) == 4, "You should specify the 4 mixup parameters."
         mixup = [0, 0, 0, 0] if mixup is None else mixup
 
-        self.mixup = nn.ModuleDict()
         for i in range(len(mixup)):
             if mixup[i] > 0:
                 self.mixup[i] = Mixup(mixup[i])
@@ -316,40 +316,8 @@ class ResNet(nn.Module):
 
         return out
 
-    def set_mixup(self, b_size: int):
-        """
-        Set the b_size parameter of each mixup module.
 
-        :param b_size: An integer that represent the batch size parameter.
-        """
-        for module in self.mixup.values():
-            module.set_bacth_size(b_size)
-
-    def activate_mixup(self) -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]:
-        """
-        Choose randomly a mixup module and activate it.
-        """
-        key_list = list(self.mixup.keys())
-        rand_key = key_list[randint(0, len(key_list) - 1)]
-
-        lamb, permut = self.mixup[rand_key].sample()
-        return rand_key, lamb, permut
-
-    def disable_mixup(self, key: int = -1):
-        """
-        Disable one or all mixup module.
-
-        :param key: The name of the mixup module in the dictionary self.mixup.
-                    If key=-1 then all mixup module will be disable.
-        """
-        if key == -1:
-            for module in self.mixup.values():
-                module.enable = False
-        else:
-            self.mixup[key].enable = False
-
-
-class MultiLevelResNet(nn.Module):
+class MultiLevelResNet(NeuralNet):
     """
     Create a pre activation or post activation 3D Residual Network.
      ...
@@ -409,7 +377,6 @@ class MultiLevelResNet(nn.Module):
                  act: str = "ReLU", pre_act: bool = True):
 
         super().__init__()
-        self.mixup = nn.ModuleDict()
         self.__split = split_level
         self.__in_channels = first_channels
         # --------------------------------------------
@@ -564,35 +531,3 @@ class MultiLevelResNet(nn.Module):
         grade_pred = self.fc_layer_grade_2(torch.cat((out_grade, mal_pred), dim=1))
 
         return mal_pred, sub_pred, grade_pred
-
-    def set_mixup(self, b_size: int):
-        """
-        Set the b_size parameter of each mixup module.
-
-        :param b_size: An integer that represent the batch size parameter.
-        """
-        for module in self.mixup.values():
-            module.set_bacth_size(b_size)
-
-    def activate_mixup(self) -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]:
-        """
-        Choose randomly a mixup module and activate it.
-        """
-        key_list = list(self.mixup.keys())
-        rand_key = key_list[randint(0, len(key_list) - 1)]
-
-        lamb, permut = self.mixup[rand_key].sample()
-        return rand_key, lamb, permut
-
-    def disable_mixup(self, key: int = -1):
-        """
-        Disable one or all mixup module.
-
-        :param key: The name of the mixup module in the dictionary self.mixup.
-                    If key=-1 then all mixup module will be disable.
-        """
-        if key == -1:
-            for module in self.mixup.values():
-                module.enable = False
-        else:
-            self.mixup[key].enable = False
