@@ -320,7 +320,8 @@ class ResNet(NeuralNet):
 class MultiLevelResNet(NeuralNet):
     """
     Create a pre activation or post activation 3D Residual Network.
-     ...
+
+    ...
     Attributes
     ----------
     conv: Convolution
