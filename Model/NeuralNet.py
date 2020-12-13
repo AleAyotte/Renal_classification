@@ -7,20 +7,23 @@ from typing import Sequence, Tuple, Union
 class NeuralNet(nn.Module):
     """
     Define the Neural Network abstract class
-     ...
+
+    ...
     Attributes
     ----------
     mixup: nn.ModuleDict
         A dictionnary that contain all the mixup module.
     Methods
     -------
-    set_mixup(b_size : int)
+    set_mixup(b_size : int) -> None:
         Set the b_size parameter of each mixup module.
     activate_mixup() -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]
         Choose randomly a mixup module and activate it.
-    disable_mixup(key: int = -1):
+    disable_mixup(key: int = -1) -> None:
         Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
         modules will be disable.
+    restore(checkpoint_path) -> Tuple[int, float, float]:
+        Restore the weight from the last checkpoint saved during training
     """
     def __init__(self):
         super().__init__()
@@ -60,3 +63,15 @@ class NeuralNet(nn.Module):
         """
         for module in self.mixup.values():
             module.set_bacth_size(b_size)
+    
+    def restore(self, checkpoint_path) -> Tuple[int, float, float]:
+        """
+        Restore the weight from the last checkpoint saved during training
+
+        :param checkpoint_path:
+        """
+
+        if checkpoint_path is not None:
+            checkpoint = torch.load(checkpoint_path)
+            self.load_state_dict(checkpoint['model_state_dict'])
+            return checkpoint['epoch'], checkpoint['loss'], checkpoint['accuracy']
