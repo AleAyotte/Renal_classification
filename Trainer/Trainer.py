@@ -1,6 +1,7 @@
 from Data_manager.DataManager import RenalDataset, get_dataloader
 from Model.NeuralNet import NeuralNet
 from torch import nn
+from torch.autograd import Variable
 from typing import Sequence, Union
 
 
@@ -19,7 +20,7 @@ class Trainer:
     __loss : string
         Indicate the loss that will be used during the training.
     __margin_loss : NotImplemented
-        The margin loss as descrbed in "Dynamic Routing Between Capsules", Sabour et al (2017).
+        The margin loss as described in "Dynamic Routing Between Capsules", Sabour et al (2017).
     model : NeuralNet
         The neural network to train and evaluate.
     __num_worker : int
@@ -113,7 +114,7 @@ class Trainer:
         :param eta_min: Minimum value of the learning rate. (Default=1e-4)
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient. (Default=0)
         :param mode: The training type: Option: Standard training (No mixup) (Default)
-                                                Mixup (Standard manifold mixup)
+                                                Mixup (Manifold mixup)
         :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
         :param retrain: If false, the weights of the model will initialize. (Default=False)
         :param device: The device on which the training will be done. (Default="cuda:0", first GPU)
@@ -172,7 +173,7 @@ class Trainer:
                 if current_mode == "Mixup":
                     training_loss = self.mixup_epoch(train_loader, optimizer, scheduler, _grad_clip)
                 else:
-                    training_loss = self.standard_epoch(train_loader, optimizer, scheduler, _grad_clip)
+                    training_loss = self.__standard_epoch(train_loader, optimizer, scheduler, _grad_clip)
 
                 self.model.eval()
 
@@ -187,7 +188,7 @@ class Trainer:
 
                 if (val_loss < last_saved_loss and current_accuracy >= best_accuracy) or \
                         (val_loss < last_saved_loss*(1+self.__tol) and current_accuracy > best_accuracy):
-                    self.save_checkpoint(epoch, val_loss, current_accuracy)
+                    self.__save_checkpoint(epoch, val_loss, current_accuracy)
                     best_accuracy = current_accuracy
                     last_saved_loss = val_loss
                     best_epoch = epoch
@@ -198,4 +199,78 @@ class Trainer:
                                  training_loss, val_loss, current_accuracy * 100, best_accuracy * 100, best_epoch + 1,
                                  current_mode)
                 t.update()
-        self.model.restore(self.save_path)
+        self.model.restore(self.__save_path)
+
+    def __standard_epoch(self, train_loader: torch.utils.data.DataLoader, 
+                         optimizer: torch.optim.Adam, 
+                         scheduler: CosineAnnealingWarmRestarts, 
+                         grad_clip: float) -> float:
+        """
+        Make a standard training epoch
+
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param optimizer: The torch optimizer that will used to train the model.
+        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :return: The average training loss
+        """
+
+        sum_loss = 0
+        n_iters = len(train_loader)
+
+        scaler = amp.grad_scaler.GradScaler()
+        for step, data in enumerate(train_loader, 0):
+            features, labels = data["sample"].to(self.__device), data["labels"]
+
+            m_labels = labels["malignant"].to(self.__device)
+            s_labels = labels["subtype"].to(self.__device)
+            g_labels = labels["subtype"].to(self.__device)
+
+            features = Variable(features)
+            m_labels, s_labels, g_labels = Variable(m_labels), Variable(s_labels), Variable(g_labels)
+
+            optimizer.zero_grad()
+
+            # training step
+            with amp.autocast():
+                m_pred, s_pred, g_pred = self.model(features)
+
+                m_loss = self.__ce_loss(m_pred, m_labels)
+                s_loss = self.__ce_loss(s_pred, s_labels)
+                g_loss = self.__ce_loss(g_pred, g_labels)
+
+                loss = m_loss + s_loss + g_loss
+
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+
+            if grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
+
+            scaler.step(optimizer)
+            scheduler.step()
+
+            scaler.update()
+
+            # Save the loss
+            sum_loss += loss
+
+        return sum_loss.item() / n_iters
+
+    def __save_checkpoint(self, epoch: int, 
+                          loss: float, 
+                          accuracy: float) -> None:
+        """
+        Save the model and his at a the current state if the self.path is not None.
+
+        :param epoch: Current epoch of the training
+        :param loss: Current loss of the training
+        :param accuracy: Current validation accuracy
+        """
+
+        if self.__save_path is not None:
+            torch.save({"epoch": epoch,
+                        "model_state_dict": self.model.state_dict(),
+                        "loss": loss,
+                        "accuracy": accuracy},
+                       self.__save_path)
