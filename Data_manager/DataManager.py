@@ -105,7 +105,7 @@ class RenalDataset(Dataset):
             # Extract and stack the labels in a torch tensor
             else:
                 labels = torch.tensor(self.__label[idx]).long()
-        return sample, labels
+        return {"sample": sample, "labels": labels}
 
 
 def get_dataloader(dataset: RenalDataset, 
