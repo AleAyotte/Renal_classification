@@ -180,6 +180,13 @@ class ResNet(nn.Module):
     -------
     forward(x: torch.Tensor) -> torch.Tensor
         Execute the forward on a given torch.Tensor.
+    set_mixup(b_size : int)
+        Set the b_size parameter of each mixup module.
+    activate_mixup() -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]
+        Choose randomly a mixup module and activate it.
+    disable_mixup(key: int = -1):
+        Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
+        modules will be disable.
     """
     def __init__(self, depth: int = 18, first_channels: int = 16,
                  num_classes: int = 2,
@@ -318,7 +325,7 @@ class ResNet(nn.Module):
         for module in self.mixup.values():
             module.set_bacth_size(b_size)
 
-    def activate_mixup(self) -> Tuple[int, float, Sequence[int]]:
+    def activate_mixup(self) -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]:
         """
         Choose randomly a mixup module and activate it.
         """
@@ -384,6 +391,13 @@ class MultiLevelResNet(nn.Module):
     -------
     forward(x: torch.Tensor) -> torch.Tensor
         Execute the forward on a given torch.Tensor.
+    set_mixup(b_size : int)
+        Set the b_size parameter of each mixup module.
+    activate_mixup() -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]
+        Choose randomly a mixup module and activate it.
+    disable_mixup(key: int = -1):
+        Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
+        modules will be disable.
     """
     def __init__(self, depth: int = 18, first_channels: int = 16,
                  split_level: int = 4,
@@ -560,7 +574,7 @@ class MultiLevelResNet(nn.Module):
         for module in self.mixup.values():
             module.set_bacth_size(b_size)
 
-    def activate_mixup(self) -> Tuple[int, float, Sequence[int]]:
+    def activate_mixup(self) -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]:
         """
         Choose randomly a mixup module and activate it.
         """
