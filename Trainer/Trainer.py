@@ -2,6 +2,7 @@ from Data_manager.DataManager import RenalDataset, get_dataloader
 from Model.NeuralNet import NeuralNet
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
+from Trainer.Utils import init_weights, to_one_hot
 from torch import nn
 from torch.autograd import Variable
 from typing import Sequence, Union
@@ -289,6 +290,40 @@ class Trainer:
             sum_loss += loss
 
         return sum_loss.item() / n_iters
+
+    def mixup_criterion(self, pred, target, lamb=None, permut=None):
+        """
+        Transform target into one hot vector and apply mixup on it
+
+        :param pred: A maxtrix of the prediction of the model. 
+        :param target: Vector of the ground truth
+        :param mixup_position: Position of the module in the self.conv sequantial container
+        :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass
+        :param permut: A numpy array that indicate which images has been shuffle during the foward pass
+        :return: The mixup loss as torch tensor
+        """
+        m_pred, s_pred, g_pred = pred
+        m_target, s_target, g_target = target
+
+        if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
+            m_hot_target = to_one_hot(m_target, 2, self.__device)
+            s_hot_target = to_one_hot(s_target, 3, self.__device)
+            g_hot_target = to_one_hot(g_target, 3, self.__device)
+
+            m_mixed_target = lamb*m_hot_target + (1-lamb)*m_hot_target[permut]
+            s_mixed_target = lamb*s_hot_target + (1-lamb)*s_hot_target[permut]
+            g_mixed_target = lamb*g_hot_target + (1-lamb)*g_hot_target[permut]
+
+            m_loss = self.__m_loss(m_pred, m_mixed_target)
+            s_loss = self.__m_loss(s_pred, s_mixed_target)
+            g_loss = self.__m_loss(g_pred, g_mixed_target)
+
+        else:
+            m_loss = lamb*self.__m_loss(m_pred, m_target) + (1-lamb)*self.__m_loss(m_pred, m_target[permut])
+            s_loss = lamb*self.__s_loss(s_pred, s_target) + (1-lamb)*self.__s_loss(s_pred, s_target[permut])
+            g_loss = lamb*self.__g_loss(g_pred, g_target) + (1-lamb)*self.__g_loss(g_pred, g_target[permut])
+        
+        return (m_loss + s_loss + g_loss) / 3
 
     def __accuracy(self, dt_loader, get_loss=False) -> Union[Tuple[float, float, float, float],
                                                              Tuple[float, float, float]]:
