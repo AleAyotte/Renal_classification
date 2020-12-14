@@ -29,7 +29,7 @@ class NeuralNet(nn.Module):
         super().__init__()
         self.mixup = nn.ModuleDict()
 
-    def forward()
+    def forward():
         pass
 
     def activate_mixup(self) -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]:
