@@ -5,6 +5,7 @@ from monai.optimizers import Novograd
 from Trainer.Utils import init_weights, to_one_hot
 from torch import nn
 from torch.autograd import Variable
+from torch.utils.data import DataLoader
 from typing import Sequence, Union
 
 
@@ -205,7 +206,7 @@ class Trainer:
 
                 # We make a training epoch
                 if current_mode == "Mixup":
-                    training_loss = self.mixup_epoch(train_loader, optimizer, scheduler, _grad_clip)
+                    training_loss = self.__mixup_epoch(train_loader, optimizer, scheduler, _grad_clip)
                 else:
                     training_loss = self.__standard_epoch(train_loader, optimizer, scheduler, _grad_clip)
 
@@ -236,8 +237,8 @@ class Trainer:
                 t.update()
         self.model.restore(self.__save_path)
 
-    def __standard_epoch(self, train_loader: torch.utils.data.DataLoader, 
-                         optimizer: torch.optim.Adam, 
+    def __standard_epoch(self, train_loader: DataLoader, 
+                         optimizer: Union[torch.optim.Adam, Novograd],
                          scheduler: CosineAnnealingWarmRestarts, 
                          grad_clip: float) -> float:
         """
@@ -291,13 +292,15 @@ class Trainer:
 
         return sum_loss.item() / n_iters
 
-    def mixup_criterion(self, pred, target, lamb=None, permut=None):
+    def __mixup_criterion(self, pred: torch.Tensor, 
+                          target: torch.Variable, 
+                          lamb: float, 
+                          permut: Sequence[int]) -> torch.FloatTensor:
         """
         Transform target into one hot vector and apply mixup on it
 
-        :param pred: A maxtrix of the prediction of the model. 
+        :param pred: A matrix of the prediction of the model. 
         :param target: Vector of the ground truth
-        :param mixup_position: Position of the module in the self.conv sequantial container
         :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass
         :param permut: A numpy array that indicate which images has been shuffle during the foward pass
         :return: The mixup loss as torch tensor
@@ -325,8 +328,68 @@ class Trainer:
         
         return (m_loss + s_loss + g_loss) / 3
 
-    def __accuracy(self, dt_loader, get_loss=False) -> Union[Tuple[float, float, float, float],
-                                                             Tuple[float, float, float]]:
+
+        def __mixup_epoch(self, train_loader: DataLoader, 
+                          optimizer: Union[torch.optim.Adam, Novograd],
+                          scheduler: CosineAnnealingWarmRestarts, 
+                          grad_clip: float) -> float:
+        """
+        Make a manifold mixup epoch
+
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param optimizer: The torch optimizer that will used to train the model.
+        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :return: The average training loss
+        """
+        sum_loss = 0
+        n_iters = len(train_loader)
+
+        scaler = amp.grad_scaler.GradScaler()
+        for step, data in enumerate(train_loader, 0):
+            features, labels = data["sample"].to(self.__device), data["labels"]
+
+            m_labels = labels["malignant"].to(self.__device)
+            s_labels = labels["subtype"].to(self.__device)
+            g_labels = labels["subtype"].to(self.__device)
+
+            features = Variable(features)
+            m_labels, s_labels, g_labels = Variable(m_labels), Variable(s_labels), Variable(g_labels)
+
+            optimizer.zero_grad()
+
+            # Mixup activation
+            mixup_key, lamb, permut = self.model.activate_mixup()
+
+            # training step
+            with amp.autocast():
+                m_pred, s_pred, g_pred = self.model(features)
+                loss = self.mixup_criterion([m_pred, s_pred, g_pred], 
+                                            [m_labels, s_labels, g_labels], 
+                                            lamb, 
+                                            permut)
+
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+
+            if grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
+
+            scaler.step(optimizer)
+            scheduler.step()
+
+            scaler.update()
+
+            # Save the loss
+            sum_loss += loss
+
+            self.model.disable_mixup(mixup_key)
+
+        return sum_loss.item() / n_iters
+
+    def __accuracy(self, dt_loader: DataLoader, 
+                   get_loss: bool = False) -> Union[Tuple[float, float, float, float],
+                                                    Tuple[float, float, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
@@ -372,8 +435,9 @@ class Trainer:
         else:
             return m_acc, s_acc, g_acc
 
-    def score(self, testset=None, batch_size=150) -> Union[Tuple[float, float, float, float],
-                                                           Tuple[float, float, float]]:
+    def score(self, testset: RenalDataset, 
+                    batch_size: int = 150) -> Union[Tuple[float, float, float, float],
+                                                    Tuple[float, float, float]]:
         """
         Compute the accuracy of the model on a given test dataset
 
