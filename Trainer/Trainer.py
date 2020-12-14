@@ -17,8 +17,12 @@ class Trainer:
     ...
     Attributes
     ----------
-    __loss : string
-        Indicate the loss that will be used during the training.
+    __m_loss : torch.nn
+        The loss function of the malignant task.
+    __s_loss : torch.nn
+        The loss function of the subtype task.
+    __g_loss : torch.nn
+        The loss function of the grade task.
     model : NeuralNet
         The neural network to train and evaluate.
     __num_worker : int
