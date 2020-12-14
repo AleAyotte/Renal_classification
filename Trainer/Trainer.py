@@ -3,10 +3,12 @@ from Model.NeuralNet import NeuralNet
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 from Trainer.Utils import init_weights, to_one_hot
+import torch
 from torch import nn
 from torch.autograd import Variable
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
-from typing import Sequence, Union
+from typing import Sequence, Tuple, Union
 
 
 class Trainer:
@@ -82,8 +84,7 @@ class Trainer:
         # ----------------------------------
         #              LOSS
         # ----------------------------------
-        assert loss.lower() in ["ce", "bce", "marg", "focal"], \ 
-            "You can only choose one of the following loss ['ce', 'bce', 'marg']"
+        assert loss.lower() in ["ce", "bce", "marg", "focal"], "You can only choose one of the following loss ['ce', 'bce', 'marg']"
 
         weights = {"flat": [[1., 1.], 
                             [1., 1., 1.], 
@@ -289,7 +290,7 @@ class Trainer:
         return sum_loss.item() / n_iters
 
     def __mixup_criterion(self, pred: torch.Tensor, 
-                          target: torch.Variable, 
+                          target: Variable, 
                           lamb: float, 
                           permut: Sequence[int]) -> torch.FloatTensor:
         """
@@ -325,10 +326,10 @@ class Trainer:
         return (m_loss + s_loss + g_loss) / 3
 
 
-        def __mixup_epoch(self, train_loader: DataLoader, 
-                          optimizer: Union[torch.optim.Adam, Novograd],
-                          scheduler: CosineAnnealingWarmRestarts, 
-                          grad_clip: float) -> float:
+    def __mixup_epoch(self, train_loader: DataLoader, 
+                      optimizer: Union[torch.optim.Adam, Novograd],
+                      scheduler: CosineAnnealingWarmRestarts, 
+                      grad_clip: float) -> float:
         """
         Make a manifold mixup epoch
 

@@ -191,7 +191,7 @@ class ResNet(NeuralNet):
     """
     def __init__(self, depth: int = 18, first_channels: int = 16,
                  num_classes: int = 2,
-                 in_shape: Union[Sequence[int], Tuple] = (16, 64, 64),
+                 in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  first_kernel: Union[Sequence[int], int] = 3,
                  kernel: Union[Sequence[int], int] = 3,
                  mixup: Sequence[int] = None,
@@ -208,7 +208,7 @@ class ResNet(NeuralNet):
 
         for i in range(len(mixup)):
             if mixup[i] > 0:
-                self.mixup[i] = Mixup(mixup[i])
+                self.mixup[str(i)] = Mixup(mixup[i])
 
         if depth in [50, 101]:
             raise NotImplementedError
@@ -298,17 +298,17 @@ class ResNet(NeuralNet):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         mixup_key_list = list(self.mixup.keys())
 
-        out = self.mixup[0](x) if 0 in mixup_key_list else x
+        out = self.mixup["0"](x) if "0" in mixup_key_list else x
         out = self.conv(out)
         out = self.layers1(out)
 
-        out = self.mixup[1](out) if 1 in mixup_key_list else out
+        out = self.mixup["1"](out) if "1" in mixup_key_list else out
         out = self.layers2(out)
 
-        out = self.mixup[2](out) if 2 in mixup_key_list else out
+        out = self.mixup["2"](out) if "2" in mixup_key_list else out
         out = self.layers3(out)
 
-        out = self.mixup[3](out) if 3 in mixup_key_list else out
+        out = self.mixup["3"](out) if "3" in mixup_key_list else out
         out = self.layers4(out)
 
         features = out.view(-1, self.__num_flat_features)
@@ -370,7 +370,7 @@ class MultiLevelResNet(NeuralNet):
     """
     def __init__(self, depth: int = 18, first_channels: int = 16,
                  split_level: int = 4,
-                 in_shape: Union[Sequence[int], Tuple] = (16, 64, 64),
+                 in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  first_kernel: Union[Sequence[int], int] = 3,
                  kernel: Union[Sequence[int], int] = 3,
                  mixup: Sequence[float] = None,
@@ -388,7 +388,7 @@ class MultiLevelResNet(NeuralNet):
 
         for i in range(len(mixup)):
             if mixup[i] > 0:
-                self.mixup[i] = Mixup(mixup[i])
+                self.mixup[str(i)] = Mixup(mixup[i])
 
         if depth in [50, 101]:
             raise NotImplementedError
@@ -501,17 +501,17 @@ class MultiLevelResNet(NeuralNet):
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         mixup_key_list = list(self.mixup.keys())
 
-        out = self.mixup[0](x) if 0 in mixup_key_list else x
+        out = self.mixup["0"](x) if "0" in mixup_key_list else x
         out = self.conv(out)
         out = self.layers1(out)
 
-        out = self.mixup[1](out) if 1 in mixup_key_list else out
+        out = self.mixup["1"](out) if "1" in mixup_key_list else out
         out = self.layers2(out)
 
-        out = self.mixup[2](out) if 2 in mixup_key_list else out
+        out = self.mixup["2"](out) if "2" in mixup_key_list else out
         out = self.layers3(out)
 
-        out = self.mixup[3](out) if 3 in mixup_key_list else out
+        out = self.mixup["3"](out) if "3" in mixup_key_list else out
         out = self.layers4(out)
 
         if self.__split == 5:
