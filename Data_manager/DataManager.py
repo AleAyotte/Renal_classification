@@ -61,7 +61,7 @@ class RenalDataset(Dataset):
     def __len__(self):
         return len(self.__data)
 
-    def __getitem__(self, idx) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx) -> dict:
         if torch.is_tensor(idx):
             idx = idx.tolist()
 

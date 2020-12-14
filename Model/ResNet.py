@@ -373,7 +373,7 @@ class MultiLevelResNet(NeuralNet):
                  in_shape: Union[Sequence[int], Tuple] = (16, 64, 64),
                  first_kernel: Union[Sequence[int], int] = 3,
                  kernel: Union[Sequence[int], int] = 3,
-                 mixup: Sequence[int] = None,
+                 mixup: Sequence[float] = None,
                  drop_rate: float = 0, drop_type: str = "flat",
                  act: str = "ReLU", pre_act: bool = True):
 
