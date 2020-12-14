@@ -17,14 +17,8 @@ class Trainer:
     ...
     Attributes
     ----------
-    __bce_loss : torch.nn.BCELoss
-        The binary cross entropy loss function.
-    __ce_loss : torch.nn.CrossEntropyLoss
-        The cross entropy loss function.
     __loss : string
         Indicate the loss that will be used during the training.
-    __margin_loss : NotImplemented
-        The margin loss as described in "Dynamic Routing Between Capsules", Sabour et al (2017).
     model : NeuralNet
         The neural network to train and evaluate.
     __num_worker : int
@@ -111,9 +105,7 @@ class Trainer:
             self.__m_loss = FocalLoss(gamma=gamma, weight=torch.Tensor(weights[0]))
             self.__s_loss = FocalLoss(gamma=gamma, weight=torch.Tensor(weights[1]))
             self.__g_loss = FocalLoss(gamma=gamma, weight=torch.Tensor(weights[2]))
-
-        # loss == "marg":
-        else:
+        else:  # loss == "marg"
             raise NotImplementedError
 
         self.__soft = nn.Softmax(dim=-1)
