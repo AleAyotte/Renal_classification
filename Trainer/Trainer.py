@@ -450,7 +450,7 @@ class Trainer:
 
         self.model.eval()
 
-        return self.accuracy(dt_loader=test_loader)
+        return self.__accuracy(dt_loader=test_loader)
 
     def __save_checkpoint(self, epoch: int, 
                           loss: float, 

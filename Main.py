@@ -24,4 +24,15 @@ net = MultiLevelResNet(mixup=[0., 2., 2., 2.],
 summary(net, (3, 96, 96, 32))
 
 trainer = Trainer(save_path="Check_moi_ca.pt")
-trainer.fit(model=net, trainset=trainset, mode="mixup", grad_clip=5)
+trainer.fit(model=net, 
+            trainset=trainset, 
+            mode="mixup",
+            learning_rate=1e-3, 
+            grad_clip=5,
+            warm_up_epoch=5)
+
+m_acc, s_acc, g_acc = trainer.score(testset, 32)
+
+print("m_acc: ", m_acc)
+print("s_acc: ", s_acc)
+print("g_acc: ", g_acc)
