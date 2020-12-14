@@ -1,5 +1,7 @@
 from Data_manager.DataManager import RenalDataset, get_dataloader
 from Model.NeuralNet import NeuralNet
+from monai.losses import FocalLoss
+from monai.optimizers import Novograd
 from torch import nn
 from torch.autograd import Variable
 from typing import Sequence, Union
@@ -45,7 +47,9 @@ class Trainer:
                 valid_split: float = 0.2, 
                 tol: float = 0.01, 
                 pin_memory: bool = False, 
-                num_workers: int = 0, 
+                num_workers: int = 0,
+                classes_weights: str = "balanced",
+                gamma: float = 2.,
                 save_path: str = ""):
         """
         The constructor of the trainer class. 
@@ -58,6 +62,13 @@ class Trainer:
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
                             the main process will be used for the data augmentation. (Default: 0)
+        :param classes_weights: The configuration of weights that will be applied on the loss during the training.
+                                Flat: All classes have the same weight during the training.
+                                balanced: The weights are inversionaly proportional to the number of data of each 
+                                          classes in the training set.
+                                focused: Same as balanced but in the subtype and grade task, the total weights of the 
+                                         two not none classes are 4 times higher than the weight class.
+        :param gamma: Gamma parameter of the focal loss
         :param save_path: Indicate where the weights of the network and the result will be saved.
         """
         self.__tol = tol
@@ -71,16 +82,38 @@ class Trainer:
         # ----------------------------------
         #              LOSS
         # ----------------------------------
-        assert loss in ["ce", "bce", "marg"], \ 
+        assert loss.lower() in ["ce", "bce", "marg", "focal"], \ 
             "You can only choose one of the following loss ['ce', 'bce', 'marg']"
 
-        if loss == "marg":
+        weights = {"flat": [[1., 1.], 
+                            [1., 1., 1.], 
+                            [1., 1., 1.]],
+                   "balanced": [[1/0.8, 1/1.2], 
+                                [1/1.2, 1/0.414, 1/1.386], 
+                                [1/1.2, 1/1.206, 1/0.594]],
+                   "focused": [[1/0.8, 1/1.2], 
+                               [1/(2 * 1.2), 1 / (0.75 * 0.414), 1 / (0.75 * 1.386)],
+                               [1/(2 * 1.2), 1 / (0.75 * 1.206), 1 / (0.75 * 0.594)]]}
+
+        weights = weights[classes_weights.lower()]
+
+        if loss.lower() == "ce":
+            self.__m_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[0]))
+            self.__s_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[1]))
+            self.__g_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[2]))
+        elif loss.lower() == "bce":
+            self.__m_loss = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor(weights[0]))
+            self.__s_loss = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor(weights[1]))
+            self.__g_loss = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor(weights[2]))
+        elif loss.lower() == "focal":
+            self.__m_loss = FocalLoss(gamma=gamma, weight=torch.Tensor(weights[0]))
+            self.__s_loss = FocalLoss(gamma=gamma, weight=torch.Tensor(weights[1]))
+            self.__g_loss = FocalLoss(gamma=gamma, weight=torch.Tensor(weights[2]))
+
+        # loss == "marg":
+        else:
             raise NotImplementedError
 
-        self.__loss = loss
-        self.__ce_loss = nn.CrossEntropyLoss()
-        self.__bce_loss = nn.BCELoss()
-        self.__margin_loss = None
         self.__soft = nn.Softmax(dim=-1)
 
     def fit(self, model: NeuralNet, 
@@ -178,7 +211,8 @@ class Trainer:
                 self.model.eval()
 
                 with amp.autocast():
-                    current_accuracy, val_loss = self.accuracy(dt_loader=valid_loader, get_loss=True)
+                    m_acc, s_acc, g_acc, val_loss = self.accuracy(dt_loader=valid_loader, get_loss=True)
+                    current_accuracy = (m_acc + s_acc + g_acc) / 3
 
                 self.model.train()
 
@@ -214,7 +248,6 @@ class Trainer:
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :return: The average training loss
         """
-
         sum_loss = 0
         n_iters = len(train_loader)
 
@@ -235,11 +268,11 @@ class Trainer:
             with amp.autocast():
                 m_pred, s_pred, g_pred = self.model(features)
 
-                m_loss = self.__ce_loss(m_pred, m_labels)
-                s_loss = self.__ce_loss(s_pred, s_labels)
-                g_loss = self.__ce_loss(g_pred, g_labels)
+                m_loss = self.__m_loss(m_pred, m_labels)
+                s_loss = self.__s_loss(s_pred, s_labels)
+                g_loss = self.__g_loss(g_pred, g_labels)
 
-                loss = m_loss + s_loss + g_loss
+                loss = (m_loss + s_loss + g_loss) / 3
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
@@ -256,6 +289,68 @@ class Trainer:
             sum_loss += loss
 
         return sum_loss.item() / n_iters
+
+    def __accuracy(self, dt_loader, get_loss=False) -> Union[Tuple[float, float, float, float],
+                                                             Tuple[float, float, float]]:
+        """
+        Compute the accuracy of the model on a given data loader
+
+        :param dt_loader: A torch data loader that contain test or validation data
+        :param get_loss: Return also the loss if True
+        :return: The accuracy of the model and the average loss if get_loss == True
+        """
+        total_loss = 0
+        total = 0
+        accuracy = 0
+
+        for data in dt_loader:
+            features, labels = data["sample"].to(self.__device), data["labels"]
+
+            m_labels = labels["malignant"].to(self.__device)
+            s_labels = labels["subtype"].to(self.__device)
+            g_labels = labels["subtype"].to(self.__device)
+
+            with torch.no_grad():
+                m_out, s_out, g_out = self.model(features)
+
+                m_loss = self.__m_loss(m_out, m_labels)
+                s_loss = self.__s_loss(s_out, s_labels)
+                g_loss = self.__g_loss(g_out, g_labels)
+                total_loss += (m_loss + s_loss + g_loss)
+
+                m_pred = torch.argmax(m_out, dim=1)
+                s_pred = torch.argmax(s_out, dim=1)
+                g_pred = torch.argmax(g_out, dim=1)
+
+                # TODO: Compute average of per class accuracy instead of global accuracy.
+                m_acc += (m_pred == m_labels).sum()
+                s_acc += (s_pred == s_labels).sum()
+                g_acc += (g_pred == g_labels).sum()
+                total += labels.size(0)
+        
+        m_acc = m_acc.item() / total
+        s_acc = s_acc.item() / total
+        g_acc = g_acc.item() / total
+
+        if get_loss:
+            return m_acc, s_acc, g_acc, total_loss.item() / (3 * len(dt_loader))
+        else:
+            return m_acc, s_acc, g_acc
+
+    def score(self, testset=None, batch_size=150) -> Union[Tuple[float, float, float, float],
+                                                           Tuple[float, float, float]]:
+        """
+        Compute the accuracy of the model on a given test dataset
+
+        :param testset: A torch dataset which contain our test data points and labels
+        :param batch_size: The batch_size that will be use to create the data loader. (Default=150)
+        :return: The accuracy of the model.
+        """
+        test_loader = torch.utils.data.DataLoader(testset, batch_size, shuffle=False)
+
+        self.model.eval()
+
+        return self.accuracy(dt_loader=test_loader)
 
     def __save_checkpoint(self, epoch: int, 
                           loss: float, 
