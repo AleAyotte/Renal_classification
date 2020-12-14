@@ -140,7 +140,7 @@ def get_dataloader(dataset: RenalDataset,
 
     train_loader = DataLoader(dataset, batch_size=bsize,
                                        pin_memory=pin_memory,
-                                       num_workers=num_workers
+                                       num_workers=num_workers,
                                        sampler=train_sampler)
     valid_loader = DataLoader(dataset, batch_size=bsize,
                                        sampler=valid_sampler)
