@@ -18,6 +18,10 @@ transform = Compose([
 trainset = RenalDataset(data_path, transform=transform)
 testset = RenalDataset(data_path, split="test")
 
-net = MultiLevelResNet(mixup=[0., 2., 2., 2.]).to("cuda:0")
+net = MultiLevelResNet(mixup=[0., 2., 2., 2.],
+                       in_shape=(96, 96, 32)).to("cuda:0")
 
-summary(net, (3, 64, 64, 16))
+summary(net, (3, 96, 96, 32))
+
+trainer = Trainer(save_path="Check_moi_ca.pt")
+trainer.fit(model=net, trainset=trainset, mode="mixup", grad_clip=5)

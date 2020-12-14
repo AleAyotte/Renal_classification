@@ -1,3 +1,5 @@
+import torch
+
 def init_weights(m):
     """
     Initialize the weights of the fully connected layer and convolutional layer with Xavier normal initialization
@@ -26,7 +28,7 @@ def to_one_hot(inp, num_classes, device="cuda:0"):
     :param inp: The input vector to transform as a one hot vector
     :param num_classes: The number of classes in the dataset
     :param device: The device on which the result will be return. (Default="cuda:0", first GPU)
-    
+
     :return: A one hot vector that represent the ground truth
     """
     y_onehot = torch.FloatTensor(inp.size(0), num_classes)

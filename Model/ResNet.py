@@ -523,7 +523,7 @@ class MultiLevelResNet(NeuralNet):
 
         else:
             features = out.view(-1, 3, self.__num_flat_features)
-
+            
             mal_pred = self.fc_layer_mal(features[:, 0, :])
             out_sub = self.fc_layer_sub_1(features[:, 1, :])
             out_grade = self.fc_layer_grade_1(features[:, 2, :])

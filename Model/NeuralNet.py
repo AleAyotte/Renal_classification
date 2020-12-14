@@ -62,7 +62,7 @@ class NeuralNet(nn.Module):
         :param b_size: An integer that represent the batch size parameter.
         """
         for module in self.mixup.values():
-            module.set_bacth_size(b_size)
+            module.set_batch_size(b_size)
     
     def restore(self, checkpoint_path) -> Tuple[int, float, float]:
         """

@@ -5,9 +5,11 @@ from monai.optimizers import Novograd
 from Trainer.Utils import init_weights, to_one_hot
 import torch
 from torch import nn
+from torch.cuda import amp
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 from typing import Sequence, Tuple, Union
 
 
@@ -78,7 +80,7 @@ class Trainer:
         self.__pin_memory = pin_memory
         self.__num_work = num_workers
         self.__save_path = save_path
-        self.__model = None
+        self.model = None
         self.__device = None
 
         # ----------------------------------
@@ -99,9 +101,9 @@ class Trainer:
         weights = weights[classes_weights.lower()]
 
         if loss.lower() == "ce":
-            self.__m_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[0]))
-            self.__s_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[1]))
-            self.__g_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[2]))
+            self.__m_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[0]).to("cuda:0"))
+            self.__s_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[1]).to("cuda:0"))
+            self.__g_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[2]).to("cuda:0"))
         elif loss.lower() == "bce":
             self.__m_loss = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor(weights[0]))
             self.__s_loss = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor(weights[1]))
@@ -119,8 +121,8 @@ class Trainer:
             trainset: RenalDataset,
             seed: int = 0,
             num_epoch: int = 200, 
-            batch_size: int = 150, 
-            learning_rate: float = 0.01, 
+            batch_size: int = 32, 
+            learning_rate: float = 1e-3, 
             eps: float = 1e-4, 
             l2: float = 1e-4, 
             t_0: int = 200,
@@ -162,8 +164,8 @@ class Trainer:
 
         # Initialization of the model.
         self.__device = device
-        self.__model = model.to(device)
-        self.__model.set_mixup(batch_size)
+        self.model = model.to(device)
+        self.model.set_mixup(batch_size)
 
         if retrain:
             start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.save_path)
@@ -172,7 +174,7 @@ class Trainer:
             start_epoch = 0
 
         # Initialization of the dataloader
-        train_loader, valid_loader = get_dataloader(trainset, batch_size, shuffle=True,
+        train_loader, valid_loader = get_dataloader(trainset, batch_size,
                                                     pin_memory=self.__pin_memory, 
                                                     num_workers=self.__num_work,
                                                     validation_split=self.__valid_split,
@@ -210,7 +212,7 @@ class Trainer:
                 self.model.eval()
 
                 with amp.autocast():
-                    m_acc, s_acc, g_acc, val_loss = self.accuracy(dt_loader=valid_loader, get_loss=True)
+                    m_acc, s_acc, g_acc, val_loss = self.__accuracy(dt_loader=valid_loader, get_loss=True)
                     current_accuracy = (m_acc + s_acc + g_acc) / 3
 
                 self.model.train()
@@ -396,7 +398,9 @@ class Trainer:
         """
         total_loss = 0
         total = 0
-        accuracy = 0
+        m_acc = 0
+        s_acc = 0
+        g_acc = 0
 
         for data in dt_loader:
             features, labels = data["sample"].to(self.__device), data["labels"]
@@ -421,7 +425,7 @@ class Trainer:
                 m_acc += (m_pred == m_labels).sum()
                 s_acc += (s_pred == s_labels).sum()
                 g_acc += (g_pred == g_labels).sum()
-                total += labels.size(0)
+                total += m_labels.size(0)
         
         m_acc = m_acc.item() / total
         s_acc = s_acc.item() / total
