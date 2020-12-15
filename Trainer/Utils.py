@@ -28,7 +28,7 @@ def get_mean_accuracy(recalls: Sequence[float],
     :return: The mean accuracy.
     """
     if geometric_mean:
-        return np.sqrt(np.prod(recalls))
+        return np.prod(recalls) ** (1 / len(recalls))
     else:
         return np.mean(recalls)
 
