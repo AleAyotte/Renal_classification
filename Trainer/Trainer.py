@@ -277,7 +277,7 @@ class Trainer:
         :param optimizer: The torch optimizer that will used to train the model.
         :param scheduler: The learning rate scheduler that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
-        :return: The average training loss
+        :return: The average training loss.
         """
         sum_loss = 0
         n_iters = len(train_loader)
@@ -341,10 +341,10 @@ class Trainer:
         Transform target into one hot vector and apply mixup on it
 
         :param pred: A matrix of the prediction of the model. 
-        :param target: Vector of the ground truth
-        :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass
-        :param permut: A numpy array that indicate which images has been shuffle during the foward pass
-        :return: The mixup loss as torch tensor
+        :param target: Vector of the ground truth.
+        :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass.
+        :param permut: A numpy array that indicate which images has been shuffle during the foward pass.
+        :return: The mixup loss as torch tensor.
         """
         m_pred, s_pred, g_pred = pred
         m_target, s_target, g_target = target
@@ -389,7 +389,7 @@ class Trainer:
         :param optimizer: The torch optimizer that will used to train the model.
         :param scheduler: The learning rate scheduler that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
-        :return: The average training loss
+        :return: The average training loss.
         """
         sum_loss = 0
         n_iters = len(train_loader)
@@ -445,7 +445,8 @@ class Trainer:
         """
         Execute the validation step and save the metrics with tensorboard.
 
-        :param dt_loader: A torch data loader that contain test or validation data
+        :param dt_loader: A torch data loader that contain test or validation data.
+        :param epoch: The current epoch number.
         :param dataset_name: The name of the dataset will be used to save the metrics with tensorboard.
         :return: The mean accuracy as float and the loss as float.
         """
@@ -493,9 +494,9 @@ class Trainer:
         """
         Compute the accuracy of the model on a given data loader
 
-        :param dt_loader: A torch data loader that contain test or validation data
-        :param get_loss: Return also the loss if True
-        :return: The confusion matrix for each classes and the average loss if get_loss == True
+        :param dt_loader: A torch data loader that contain test or validation data.
+        :param get_loss: Return also the loss if True.
+        :return: The confusion matrix for each classes and the average loss if get_loss == True.
         """
         m_outs = torch.empty(0, 2).to(self.__device)
         s_outs = torch.empty(0, 3).to(self.__device)
