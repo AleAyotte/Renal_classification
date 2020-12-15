@@ -363,10 +363,10 @@ class Trainer:
             # training step
             with amp.autocast():
                 m_pred, s_pred, g_pred = self.model(features)
-                loss = self.mixup_criterion([m_pred, s_pred, g_pred], 
-                                            [m_labels, s_labels, g_labels], 
-                                            lamb, 
-                                            permut)
+                loss = self.__mixup_criterion([m_pred, s_pred, g_pred], 
+                                              [m_labels, s_labels, g_labels], 
+                                              lamb, 
+                                              permut)
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)

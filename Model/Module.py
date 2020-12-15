@@ -60,7 +60,7 @@ class Mixup(torch.nn.Module):
         else:
             self.lamb = 1
 
-        self.permut = torch.randperm(self.batch_size)
+        self.permut = torch.randperm(self.__batch_size)
 
         return self.lamb, self.permut
 
