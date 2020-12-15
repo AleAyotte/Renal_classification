@@ -9,6 +9,7 @@ from torch.cuda import amp
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from typing import Sequence, Tuple, Union
 
@@ -41,8 +42,12 @@ class Trainer:
     __tol : float
         Represent the tolerance factor. If the loss of a given epoch is below (1 - __tol) * best_loss, 
         then this is consider as an improvement.
+    __track_mode : str
+        Control information that are registred by tensorboard. Options: all, low, none (Default: all).
     __valid_split : float
         Percentage of the trainset that will be used to create the validation set.
+    __writer : SummaryWriter
+        Use to keep track of the training with tensorboard.
     Methods
     -------
     fit()
@@ -54,7 +59,8 @@ class Trainer:
                 num_workers: int = 0,
                 classes_weights: str = "balanced",
                 gamma: float = 2.,
-                save_path: str = ""):
+                save_path: str = "",
+                track_mode: str = "all"):
         """
         The constructor of the trainer class. 
 
@@ -80,14 +86,15 @@ class Trainer:
         self.__pin_memory = pin_memory
         self.__num_work = num_workers
         self.__save_path = save_path
+        self.__track_mode = track_mode.lower()
         self.model = None
         self.__device = None
-
+        self.__writer = None
         # ----------------------------------
         #              LOSS
         # ----------------------------------
         assert loss.lower() in ["ce", "bce", "marg", "focal"], "You can only choose one of the following loss ['ce', 'bce', 'marg']"
-
+        assert track_mode.lower() in ["all", "low", "none"], "Track mode should be one of those options: 'all', 'low' or 'none'"
         weights = {"flat": [[1., 1.], 
                             [1., 1., 1.], 
                             [1., 1., 1.]],
@@ -100,6 +107,7 @@ class Trainer:
 
         weights = weights[classes_weights.lower()]
 
+        #  TODO: Transfer in fit method where self.__device is available.
         if loss.lower() == "ce":
             self.__m_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[0]).to("cuda:0"))
             self.__s_loss = nn.CrossEntropyLoss(weight=torch.Tensor(weights[1]).to("cuda:0"))
@@ -129,7 +137,8 @@ class Trainer:
             eta_min: float = 1e-4, 
             grad_clip: float = 0, 
             mode: str = "standard", 
-            warm_up_epoch: int = 0, 
+            warm_up_epoch: int = 0,
+            optim: str = "Adam", 
             retrain: bool = False, 
             device: str = "cuda:0", 
             verbose: bool = True) -> None:
@@ -158,9 +167,10 @@ class Trainer:
         best_accuracy = 0
         best_epoch = -1
         current_mode = "Standard"
-
-        # We get the appropriate loss because mixup loss will always be bigger than standard loss.
         last_saved_loss = float("inf")
+
+        # Tensorboard writer
+        writer = SummaryWriter()
 
         # Initialization of the model.
         self.__device = device
@@ -181,17 +191,29 @@ class Trainer:
                                                     random_seed=seed)
 
         # Initialization of the optimizer and the scheduler
-        optimizer = torch.optim.Adam(
-            self.model.parameters(),
-            lr=learning_rate,
-            weight_decay=l2)
+        assert optim.lower() in ["adam", "novograd"]
+        if optim.lower() == "adam": 
+            optimizer = torch.optim.Adam(
+                self.model.parameters(),
+                lr=learning_rate,
+                weight_decay=l2,
+                eps=eps
+            )
+        else:
+            optimizer = Novograd(
+                self.model.parameters(),
+                lr=learning_rate,
+                weight_decay=l2,
+                eps=eps
+            )
 
         n_iters = len(train_loader)
         scheduler = CosineAnnealingWarmRestarts(
             optimizer,
             T_0=t_0*n_iters,
             T_mult=1,
-            eta_min=eta_min)
+            eta_min=eta_min
+        )
         scheduler.step(start_epoch*n_iters)
 
         # Go in training mode to activate mixup module
@@ -215,6 +237,12 @@ class Trainer:
                     m_acc, s_acc, g_acc, val_loss = self.__accuracy(dt_loader=valid_loader, get_loss=True)
                     current_accuracy = (m_acc + s_acc + g_acc) / 3
 
+                if self.__track_mode != "none"
+                    self.__writer.add_scalars('validation/accuracy', 
+                                              {'malignant': m_acc,
+                                               'subtype': s_acc,
+                                               'grade': g_acc}, 
+                                              epoch)
                 self.model.train()
 
                 # ------------------------------------------------------------------------------------------
@@ -251,6 +279,7 @@ class Trainer:
         """
         sum_loss = 0
         n_iters = len(train_loader)
+        it = 0
 
         scaler = amp.grad_scaler.GradScaler()
         for step, data in enumerate(train_loader, 0):
@@ -289,12 +318,22 @@ class Trainer:
             # Save the loss
             sum_loss += loss
 
+            if self.__track_mode == "all"
+                self.__writer.add_scalars('Training/Loss', 
+                                          {'Malignant': m_loss.item(),
+                                           'Subtype': s_loss.item(),
+                                           'Grade': g_loss.item(),
+                                           'Total': loss.item()}, 
+                                           it)
+            it += 1
+
         return sum_loss.item() / n_iters
 
     def __mixup_criterion(self, pred: torch.Tensor, 
                           target: Variable, 
                           lamb: float, 
-                          permut: Sequence[int]) -> torch.FloatTensor:
+                          permut: Sequence[int],
+                          it: int) -> torch.FloatTensor:
         """
         Transform target into one hot vector and apply mixup on it
 
@@ -325,6 +364,14 @@ class Trainer:
             s_loss = lamb*self.__s_loss(s_pred, s_target) + (1-lamb)*self.__s_loss(s_pred, s_target[permut])
             g_loss = lamb*self.__g_loss(g_pred, g_target) + (1-lamb)*self.__g_loss(g_pred, g_target[permut])
         
+        if self.__track_mode == "all"
+            self.__writer.add_scalars('Training/Loss', 
+                                      {'Malignant': m_loss.item(),
+                                       'Subtype': s_loss.item(),
+                                       'Grade': g_loss.item(),
+                                       'Total': loss.item()}, 
+                                       it)
+
         return (m_loss + s_loss + g_loss) / 3
 
 
@@ -343,6 +390,7 @@ class Trainer:
         """
         sum_loss = 0
         n_iters = len(train_loader)
+        it = 0
 
         scaler = amp.grad_scaler.GradScaler()
         for step, data in enumerate(train_loader, 0):
@@ -366,7 +414,8 @@ class Trainer:
                 loss = self.__mixup_criterion([m_pred, s_pred, g_pred], 
                                               [m_labels, s_labels, g_labels], 
                                               lamb, 
-                                              permut)
+                                              permut,
+                                              it)
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
@@ -381,7 +430,8 @@ class Trainer:
 
             # Save the loss
             sum_loss += loss
-
+            it += 1
+            
             self.model.disable_mixup(mixup_key)
 
         return sum_loss.item() / n_iters
