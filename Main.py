@@ -5,6 +5,8 @@ from Model.ResNet import MultiLevelResNet
 from monai.transforms import RandFlipd, ScaleIntensityd, ToTensord, Compose, AddChanneld
 from torchsummary import summary
 from Trainer.Trainer import Trainer
+from Trainer.Utils import compute_recall
+
 
 def argument_parser():
     parser = argparse.ArgumentParser()
@@ -67,8 +69,12 @@ if __name__ == "__main__":
                 batch_size=args.b_size,
                 device=args.device)
 
-    m_acc, s_acc, g_acc = trainer.score(testset, 32)
+    m_conf, s_conf, g_conf = trainer.score(testset, 32)
 
+    m_acc = compute_recall(m_conf)
+    s_acc = compute_recall(s_conf)
+    g_acc = compute_recall(g_conf)
+    
     print("m_acc: ", m_acc)
     print("s_acc: ", s_acc)
     print("g_acc: ", g_acc)
