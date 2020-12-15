@@ -18,6 +18,9 @@ def argument_parser():
     parser.add_argument('--worker', type=int, default=0)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--eps', type=float, default=1e-4)
+    parser.add_argument('--dropout', type=float, default=0)
+    parser.add_argument('--drop_type', type=str, default="flat",
+                        choices=["flat", "linear"])
     parser.add_argument('--b_size', type=int, default=32)
     parser.add_argument('--in_channels', type=int, default=16)
     parser.add_argument('--pin_memory', type=bool, default=False)
@@ -42,7 +45,9 @@ if __name__ == "__main__":
 
     net = MultiLevelResNet(mixup=[0., 2., 2., 2.],
                            in_shape=(96, 96, 32),
-                           first_channels=args.in_channels).to(args.device)
+                           first_channels=args.in_channels,
+                           drop_rate=args.dropout,
+                           drop_type=args.drop_type).to(args.device)
 
     summary(net, (3, 96, 96, 32))
 
