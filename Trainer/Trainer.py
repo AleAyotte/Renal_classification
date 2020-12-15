@@ -2,7 +2,8 @@ from Data_manager.DataManager import RenalDataset, get_dataloader
 from Model.NeuralNet import NeuralNet
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
-from Trainer.Utils import init_weights, to_one_hot
+from sklearn.metrics import confusion_matrix
+from Trainer.Utils import init_weights, to_one_hot, compute_recall, get_mean_accuracy
 import torch
 from torch import nn
 from torch.cuda import amp
@@ -240,16 +241,9 @@ class Trainer:
 
                 self.model.eval()
 
-                with amp.autocast():
-                    m_acc, s_acc, g_acc, val_loss = self.__accuracy(dt_loader=valid_loader, get_loss=True)
-                    current_accuracy = (m_acc + s_acc + g_acc) / 3
+                current_accuracy, val_loss = self.__validation_step(dt_loader=valid_loader, epoch=epoch)
+                train_acc, train_loss = self.__validation_step(dt_loader=train_loader, epoch=epoch)
 
-                if self.__track_mode != "none"
-                    self.__writer.add_scalars('validation/accuracy', 
-                                              {'malignant': m_acc,
-                                               'subtype': s_acc,
-                                               'grade': g_acc}, 
-                                              epoch)
                 self.model.train()
 
                 # ------------------------------------------------------------------------------------------
@@ -264,10 +258,11 @@ class Trainer:
                     best_epoch = epoch
 
                 if verbose:
-                    t.postfix = "train loss: {:.4f}, val loss: {:.4f}, val acc: {:.2f}%, best acc: {:.2f}%, " \
-                                "best epoch: {}, epoch type: {}".format(
-                                 training_loss, val_loss, current_accuracy * 100, best_accuracy * 100, best_epoch + 1,
-                                 current_mode)
+                    t.postfix = "train loss: {:.4f}, train acc {:.2f}%, val loss: {:.4f}, val acc: {:.2f}%, " \
+                                "best acc: {:.2f}%, best epoch: {}, epoch type: {}".format(
+                                    train_loss, train_acc, val_loss, current_accuracy * 100, best_accuracy * 100,
+                                    best_epoch + 1, current_mode
+                                )
                 t.update()
         self.model.restore(self.__save_path)
 
@@ -290,11 +285,12 @@ class Trainer:
 
         scaler = amp.grad_scaler.GradScaler()
         for step, data in enumerate(train_loader, 0):
+            # Extract the data
             features, labels = data["sample"].to(self.__device), data["labels"]
 
             m_labels = labels["malignant"].to(self.__device)
             s_labels = labels["subtype"].to(self.__device)
-            g_labels = labels["subtype"].to(self.__device)
+            g_labels = labels["grade"].to(self.__device)
 
             features = Variable(features)
             m_labels, s_labels, g_labels = Variable(m_labels), Variable(s_labels), Variable(g_labels)
@@ -405,7 +401,7 @@ class Trainer:
 
             m_labels = labels["malignant"].to(self.__device)
             s_labels = labels["subtype"].to(self.__device)
-            g_labels = labels["subtype"].to(self.__device)
+            g_labels = labels["grade"].to(self.__device)
 
             features = Variable(features)
             m_labels, s_labels, g_labels = Variable(m_labels), Variable(s_labels), Variable(g_labels)
@@ -443,56 +439,106 @@ class Trainer:
 
         return sum_loss.item() / n_iters
 
-    def __accuracy(self, dt_loader: DataLoader, 
-                   get_loss: bool = False) -> Union[Tuple[float, float, float, float],
-                                                    Tuple[float, float, float]]:
+    def __validation_step(self, dt_loader: DataLoader,
+                          epoch: int, 
+                          dataset_name: str = "Validation") -> Tuple[float, float]:
+        """
+        Execute the validation step and save the metrics with tensorboard.
+
+        :param dt_loader: A torch data loader that contain test or validation data
+        :param dataset_name: The name of the dataset will be used to save the metrics with tensorboard.
+        :return: The mean accuracy as float and the loss as float.
+        """
+
+        with amp.autocast():
+            m_conf, s_conf, g_conf, loss = self.__get_conf_matrix(dt_loader=valid_loader, get_loss=True)
+                    
+            m_reccal = compute_recall(m_conf)
+            s_reccal = compute_recall(s_conf)
+            g_reccal = compute_recall(g_conf)
+
+            m_acc = get_mean_accuracy(m_reccal)
+            s_acc = get_mean_accuracy(s_reccal[0:2])
+            g_acc = get_mean_accuracy(g_reccal[0:2])
+            mean_acc = get_mean_accuracy([m_acc, s_acc, g_acc])
+
+        if self.__track_mode != "none"
+            self.__writer.add_scalars('{}/Accuracy'.format(dataset_name), 
+                                        {'Malignant': m_acc,
+                                        'Subtype': s_acc,
+                                        'Grade': g_acc}, 
+                                        epoch)
+
+            self.__writer.add_scalars('{}/Recall/Malignant'.format(dataset_name), 
+                                      {'Recall 0': m_reccal[0],
+                                       'Recall 1': m_reccal[1]}, 
+                                      epoch)
+            
+            self.__writer.add_scalars('{}/Recall/Subtype'.format(dataset_name), 
+                                      {'Recall 0': s_reccal[0],
+                                       'Recall 1': s_reccal[1],
+                                       'Recall 2': s_reccal[2]}, 
+                                      epoch)
+
+            self.__writer.add_scalars('{}/Recall/Grade'.format(dataset_name), 
+                                      {'Recall 0': g_reccal[0],
+                                       'Recall 1': g_reccal[1],
+                                       'Recall 2': g_reccal[2]}, 
+                                      epoch)
+        return mean_acc, loss
+    
+    def __get_conf_matrix(self, dt_loader: DataLoader, 
+                          get_loss: bool = False) -> Union[Tuple[np.array, np.array, np.array, float],
+                                                           Tuple[np.array, np.array, np.array]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data
         :param get_loss: Return also the loss if True
-        :return: The accuracy of the model and the average loss if get_loss == True
+        :return: The confusion matrix for each classes and the average loss if get_loss == True
         """
-        total_loss = 0
-        total = 0
-        m_acc = 0
-        s_acc = 0
-        g_acc = 0
+        m_outs = torch.empty(0, 2).to(self.__device)
+        s_outs = torch.empty(0, 3).to(self.__device)
+        g_outs = torch.empty(0, 3).to(self.__device)
+
+        m_labels = torch.empty(0, 1).to(self.__device)
+        s_labels = torch.empty(0, 1).to(self.__device)
+        g_labels = torch.empty(0, 1).to(self.__device)
 
         for data in dt_loader:
             features, labels = data["sample"].to(self.__device), data["labels"]
 
-            m_labels = labels["malignant"].to(self.__device)
-            s_labels = labels["subtype"].to(self.__device)
-            g_labels = labels["subtype"].to(self.__device)
-
             with torch.no_grad():
+                m_labels = torch.cat(m_labels, labels["malignant"].to(self.__device))
+                s_labels = torch.cat(s_labels, labels["subtype"].to(self.__device))
+                g_labels = torch.cat(g_labels, labels["grade"].to(self.__device))
+
                 m_out, s_out, g_out = self.model(features)
 
-                m_loss = self.__m_loss(m_out, m_labels)
-                s_loss = self.__s_loss(s_out, s_labels)
-                g_loss = self.__g_loss(g_out, g_labels)
-                total_loss += (m_loss + s_loss + g_loss)
-
-                m_pred = torch.argmax(m_out, dim=1)
-                s_pred = torch.argmax(s_out, dim=1)
-                g_pred = torch.argmax(g_out, dim=1)
-
-                # TODO: Compute average of per class accuracy instead of global accuracy.
-                m_acc += (m_pred == m_labels).sum()
-                s_acc += (s_pred == s_labels).sum()
-                g_acc += (g_pred == g_labels).sum()
-                total += m_labels.size(0)
+                m_outs = torch.cat([m_outs, m_out])
+                s_outs = torch.cat([s_outs, s_out])
+                g_outs = torch.cat([g_outs, g_out])
         
-        m_acc = m_acc.item() / total
-        s_acc = s_acc.item() / total
-        g_acc = g_acc.item() / total
+        with torch.no_grad:
+            m_pred = torch.argmax(m_outs, dim=1)
+            s_pred = torch.argmax(s_outs, dim=1)
+            g_pred = torch.argmax(g_outs, dim=1)
+
+            m_loss = self.__m_loss(m_outs, m_labels)
+            s_loss = self.__s_loss(s_outs, s_labels)
+            g_loss = self.__g_loss(g_outs, g_labels)
+
+            total_loss = (m_loss + s_loss + g_loss) / 3
+
+        m_conf = confusion_matrix(m_labels.numpy(), m_pred.numpy())
+        s_conf = confusion_matrix(s_labels.numpy(), s_pred.numpy())
+        g_conf = confusion_matrix(g_labels.numpy(), g_pred.numpy())
 
         if get_loss:
-            return m_acc, s_acc, g_acc, total_loss.item() / (3 * len(dt_loader))
+            return m_conf, s_conf, g_conf, total_loss.item()
         else:
-            return m_acc, s_acc, g_acc
-
+            return m_conf, s_conf, g_conf
+    
     def score(self, testset: RenalDataset, 
                     batch_size: int = 150) -> Union[Tuple[float, float, float, float],
                                                     Tuple[float, float, float]]:
@@ -507,7 +553,7 @@ class Trainer:
 
         self.model.eval()
 
-        return self.__accuracy(dt_loader=test_loader)
+        return self.__get_conf_matrix(dt_loader=test_loader)
 
     def __save_checkpoint(self, epoch: int, 
                           loss: float, 
