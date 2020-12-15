@@ -43,14 +43,17 @@ class Trainer:
         Represent the tolerance factor. If the loss of a given epoch is below (1 - __tol) * best_loss, 
         then this is consider as an improvement.
     __track_mode : str
-        Control information that are registred by tensorboard. Options: all, low, none (Default: all).
+        Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
     __valid_split : float
         Percentage of the trainset that will be used to create the validation set.
     __writer : SummaryWriter
         Use to keep track of the training with tensorboard.
     Methods
     -------
-    fit()
+    fit():
+        Train the model on the given dataset
+    score(dt_loader: DataLoader, get_loss: bool = False):
+        Compute the accuracy of the model on a given data loader.
     """
     def __init__(self, loss: str = "ce",
                 valid_split: float = 0.2, 
@@ -80,6 +83,9 @@ class Trainer:
                                          two not none classes are 4 times higher than the weight class.
         :param gamma: Gamma parameter of the focal loss
         :param save_path: Indicate where the weights of the network and the result will be saved.
+        :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
+                           low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
+                           at each iteration. (Default: all)
         """
         self.__tol = tol
         self.__valid_split = valid_split
@@ -159,6 +165,7 @@ class Trainer:
         :param mode: The training type: Option: Standard training (No mixup) (Default)
                                                 Mixup (Manifold mixup)
         :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
+        :param optim: A string that indicate the optimizer that will be used for training. (Default='Adam')
         :param retrain: If false, the weights of the model will initialize. (Default=False)
         :param device: The device on which the training will be done. (Default="cuda:0", first GPU)
         :param verbose: If true, show the progress of the training. (Default=True)
@@ -431,7 +438,7 @@ class Trainer:
             # Save the loss
             sum_loss += loss
             it += 1
-            
+
             self.model.disable_mixup(mixup_key)
 
         return sum_loss.item() / n_iters
