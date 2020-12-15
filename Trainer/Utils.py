@@ -1,6 +1,39 @@
+import numpy as np
 import torch
+from torch.autograd import Variable
+from typing import Tuple, Sequence, Union
 
-def init_weights(m):
+def compute_recall(conf_matrix: np.array) -> Sequence[float]:
+    """
+    Compute the recall of each class.
+
+    :param conf_matrix: A numpy matrix that represent the confusion matrix.
+    :return: A list of float that represent the recall of each class.
+    """
+    recalls = []
+
+    for it in range(len(conf_matrix)):
+        recalls.append(conf_matrix[it, it] / conf_matrix[it].sum())
+        
+    return recalls
+
+
+def get_mean_accuracy(recalls: Sequence[float], 
+                      geometric_mean: bool = True) -> float:
+    """
+    Compute the mean accuracy according to the recalls of each classes.
+
+    :param recalls: A list of float that represent the recall of each classes.
+    :param geometric_mean: If true, the geometric mean is used. Else the euclidian mean will be used.
+    :return: The mean accuracy.
+    """
+    if geometric_mean:
+        return np.sqrt(np.prod(recalls))
+    else:
+        return np.mean(recalls)
+
+
+def init_weights(m) -> None:
     """
     Initialize the weights of the fully connected layer and convolutional layer with Xavier normal initialization
     and Kamming normal initialization respectively.
@@ -22,7 +55,10 @@ def init_weights(m):
         if not (m.bias is None):
             torch.nn.init.zeros_(m.bias)
 
-def to_one_hot(inp, num_classes, device="cuda:0"):
+
+def to_one_hot(inp: Union[torch.Tensor, Variable] , 
+               num_classes: int, 
+               device: str = "cuda:0") -> Variable:
     """
     Transform a logit ground truth to a one hot vector
     :param inp: The input vector to transform as a one hot vector
@@ -36,4 +72,4 @@ def to_one_hot(inp, num_classes, device="cuda:0"):
 
     y_onehot.scatter_(1, inp.unsqueeze(1).data.cpu(), 1)
 
-    return torch.autograd.Variable(y_onehot.to(device), requires_grad=False)
+    return Variable(y_onehot.to(device), requires_grad=False)
