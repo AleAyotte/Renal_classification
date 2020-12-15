@@ -540,8 +540,8 @@ class Trainer:
             return m_conf, s_conf, g_conf
     
     def score(self, testset: RenalDataset, 
-                    batch_size: int = 150) -> Union[Tuple[float, float, float, float],
-                                                    Tuple[float, float, float]]:
+                    batch_size: int = 150) -> Union[Tuple[np.array, np.array, np.array, float],
+                                                    Tuple[np.array, np.array, np.array]]:
         """
         Compute the accuracy of the model on a given test dataset
 
