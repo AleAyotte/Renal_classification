@@ -2,6 +2,7 @@ from Data_manager.DataManager import RenalDataset, get_dataloader
 from Model.NeuralNet import NeuralNet
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
+import numpy as np
 from sklearn.metrics import confusion_matrix
 from Trainer.Utils import init_weights, to_one_hot, compute_recall, get_mean_accuracy
 import torch
@@ -178,7 +179,7 @@ class Trainer:
         last_saved_loss = float("inf")
 
         # Tensorboard writer
-        writer = SummaryWriter()
+        self.__writer = SummaryWriter()
 
         # Initialization of the model.
         self.__device = device
@@ -260,10 +261,12 @@ class Trainer:
                 if verbose:
                     t.postfix = "train loss: {:.4f}, train acc {:.2f}%, val loss: {:.4f}, val acc: {:.2f}%, " \
                                 "best acc: {:.2f}%, best epoch: {}, epoch type: {}".format(
-                                    train_loss, train_acc, val_loss, current_accuracy * 100, best_accuracy * 100,
+                                    train_loss, train_acc * 100, val_loss, current_accuracy * 100, best_accuracy * 100,
                                     best_epoch + 1, current_mode
                                 )
                 t.update()
+
+        self.__writer.close()
         self.model.restore(self.__save_path)
 
     def __standard_epoch(self, train_loader: DataLoader, 
@@ -321,7 +324,7 @@ class Trainer:
             # Save the loss
             sum_loss += loss
 
-            if self.__track_mode == "all"
+            if self.__track_mode == "all":
                 self.__writer.add_scalars('Training/Loss', 
                                           {'Malignant': m_loss.item(),
                                            'Subtype': s_loss.item(),
@@ -367,7 +370,9 @@ class Trainer:
             s_loss = lamb*self.__s_loss(s_pred, s_target) + (1-lamb)*self.__s_loss(s_pred, s_target[permut])
             g_loss = lamb*self.__g_loss(g_pred, g_target) + (1-lamb)*self.__g_loss(g_pred, g_target[permut])
         
-        if self.__track_mode == "all"
+        loss = (m_loss + s_loss + g_loss) / 3
+
+        if self.__track_mode == "all":
             self.__writer.add_scalars('Training/Loss', 
                                       {'Malignant': m_loss.item(),
                                        'Subtype': s_loss.item(),
@@ -375,7 +380,7 @@ class Trainer:
                                        'Total': loss.item()}, 
                                        it)
 
-        return (m_loss + s_loss + g_loss) / 3
+        return loss
 
 
     def __mixup_epoch(self, train_loader: DataLoader, 
@@ -452,18 +457,18 @@ class Trainer:
         """
 
         with amp.autocast():
-            m_conf, s_conf, g_conf, loss = self.__get_conf_matrix(dt_loader=valid_loader, get_loss=True)
-                    
+            m_conf, s_conf, g_conf, loss = self.__get_conf_matrix(dt_loader=dt_loader, get_loss=True)
+
             m_reccal = compute_recall(m_conf)
             s_reccal = compute_recall(s_conf)
             g_reccal = compute_recall(g_conf)
 
-            m_acc = get_mean_accuracy(m_reccal)
-            s_acc = get_mean_accuracy(s_reccal[0:2])
-            g_acc = get_mean_accuracy(g_reccal[0:2])
-            mean_acc = get_mean_accuracy([m_acc, s_acc, g_acc])
+            m_acc = get_mean_accuracy(m_reccal, geometric_mean=False)
+            s_acc = get_mean_accuracy(s_reccal[0:2], geometric_mean=False)
+            g_acc = get_mean_accuracy(g_reccal[0:2], geometric_mean=False)
+            mean_acc = get_mean_accuracy([m_acc, s_acc, g_acc], geometric_mean=False)
 
-        if self.__track_mode != "none"
+        if self.__track_mode != "none":
             self.__writer.add_scalars('{}/Accuracy'.format(dataset_name), 
                                         {'Malignant': m_acc,
                                         'Subtype': s_acc,
@@ -502,17 +507,17 @@ class Trainer:
         s_outs = torch.empty(0, 3).to(self.__device)
         g_outs = torch.empty(0, 3).to(self.__device)
 
-        m_labels = torch.empty(0, 1).to(self.__device)
-        s_labels = torch.empty(0, 1).to(self.__device)
-        g_labels = torch.empty(0, 1).to(self.__device)
+        m_labels = torch.empty(0).long()
+        s_labels = torch.empty(0).long()
+        g_labels = torch.empty(0).long()
 
         for data in dt_loader:
             features, labels = data["sample"].to(self.__device), data["labels"]
 
             with torch.no_grad():
-                m_labels = torch.cat(m_labels, labels["malignant"].to(self.__device))
-                s_labels = torch.cat(s_labels, labels["subtype"].to(self.__device))
-                g_labels = torch.cat(g_labels, labels["grade"].to(self.__device))
+                m_labels = torch.cat([m_labels, labels["malignant"]])
+                s_labels = torch.cat([s_labels, labels["subtype"]])
+                g_labels = torch.cat([g_labels, labels["grade"]])
 
                 m_out, s_out, g_out = self.model(features)
 
@@ -520,20 +525,20 @@ class Trainer:
                 s_outs = torch.cat([s_outs, s_out])
                 g_outs = torch.cat([g_outs, g_out])
         
-        with torch.no_grad:
+        with torch.no_grad():
             m_pred = torch.argmax(m_outs, dim=1)
             s_pred = torch.argmax(s_outs, dim=1)
             g_pred = torch.argmax(g_outs, dim=1)
 
-            m_loss = self.__m_loss(m_outs, m_labels)
-            s_loss = self.__s_loss(s_outs, s_labels)
-            g_loss = self.__g_loss(g_outs, g_labels)
+            m_loss = self.__m_loss(m_outs, m_labels.to(self.__device))
+            s_loss = self.__s_loss(s_outs, s_labels.to(self.__device))
+            g_loss = self.__g_loss(g_outs, g_labels.to(self.__device))
 
             total_loss = (m_loss + s_loss + g_loss) / 3
 
-        m_conf = confusion_matrix(m_labels.numpy(), m_pred.numpy())
-        s_conf = confusion_matrix(s_labels.numpy(), s_pred.numpy())
-        g_conf = confusion_matrix(g_labels.numpy(), g_pred.numpy())
+        m_conf = confusion_matrix(m_labels.numpy(), m_pred.cpu().numpy())
+        s_conf = confusion_matrix(s_labels.numpy(), s_pred.cpu().numpy())
+        g_conf = confusion_matrix(g_labels.numpy(), g_pred.cpu().numpy())
 
         if get_loss:
             return m_conf, s_conf, g_conf, total_loss.item()
