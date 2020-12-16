@@ -2,7 +2,7 @@ import argparse
 from Data_manager.DataManager import RenalDataset
 from matplotlib import pyplot as plt
 from Model.ResNet import MultiLevelResNet
-from monai.transforms import RandFlipd, ScaleIntensityd, ToTensord, Compose, AddChanneld
+from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld, RandGaussianSharpend
 from torchsummary import summary
 from Trainer.Trainer import Trainer
 from Trainer.Utils import compute_recall
@@ -42,7 +42,8 @@ if __name__ == "__main__":
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
         RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1], prob=0.5),
-        ScaleIntensityd(keys=["t1", "t2"]),
+        ScaleIntensityd(keys=["t1", "t2"], factors=0.1, prob=0.5),
+        # RandGaussianSharpend(keys=["t1", "t2"], prob=0.3)
         ToTensord(keys=["t1", "t2", "roi"])
         ])
 
