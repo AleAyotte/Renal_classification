@@ -49,10 +49,15 @@ if __name__ == "__main__":
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
         # RandGaussianSharpend(keys=["t1", "t2"], prob=0.3),
         ToTensord(keys=["t1", "t2", "roi"])
-        ])
+    ])
+
+    test_transform = Compose([
+        AddChanneld(keys=["t1", "t2", "roi"]),
+        ToTensord(keys=["t1", "t2", "roi"])
+    ])
 
     trainset = RenalDataset(data_path, transform=transform)
-    testset = RenalDataset(data_path, split="test")
+    testset = RenalDataset(data_path, transform=test_transform, split="test")
 
     in_shape= tuple(trainset[0]["sample"].size()[1:])
     net = MultiLevelResNet(mixup=[0., 2., 2., 2.],
@@ -62,7 +67,7 @@ if __name__ == "__main__":
                            drop_type=args.drop_type).to(args.device)
 
     summary(net, (3, 96, 96, 32))
-
+    print(type(testset[1]))
     trainer = Trainer(save_path="Check_moi_ca.pth", 
                       loss=args.loss,
                       num_workers=args.worker,
