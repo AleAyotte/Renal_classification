@@ -54,8 +54,9 @@ if __name__ == "__main__":
     trainset = RenalDataset(data_path, transform=transform)
     testset = RenalDataset(data_path, split="test")
 
+    in_shape= Tuple(trainset[0]["sample"].size()[1:])
     net = MultiLevelResNet(mixup=[0., 2., 2., 2.],
-                           in_shape=(96, 96, 32),
+                           in_shape=in_shape,
                            first_channels=args.in_channels,
                            drop_rate=args.dropout,
                            drop_type=args.drop_type).to(args.device)
