@@ -11,6 +11,10 @@ from Trainer.Utils import compute_recall
 def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str, default="cuda:0")
+    parser.add_argument('--dataset', type=str, default='Option1_without_N4',
+                        choices=['Option1_with_N4', 'Option1_without_N4',
+                                 'Option2_with_N4', 'Option2_without_N4'])
+    parser.add_argument('--num_epoch', type=int, default=100)                             
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
     parser.add_argument('--loss', type=str, default="ce",
@@ -37,7 +41,7 @@ if __name__ == "__main__":
     args = argument_parser()
     device = args.device
 
-    data_path = "final_dtset/Option1_with_N4/all.hdf5"
+    data_path = "final_dtset/{}/all.hdf5".format(args.dataset)
 
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
@@ -74,7 +78,8 @@ if __name__ == "__main__":
                 eps=args.eps,
                 batch_size=args.b_size,
                 device=args.device,
-                optim=args.optim)
+                optim=args.optim,
+                num_epoch=args.num_epoch)
 
     m_conf, s_conf, g_conf = trainer.score(testset, 32)
 
