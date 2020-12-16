@@ -18,11 +18,15 @@ def argument_parser():
     parser.add_argument('--weights', type=str, default="balanced",
                         choices=["flat", "balanced", "focused"])                        
     parser.add_argument('--worker', type=int, default=0)
+    parser.add_argument('--optim', type=str, default="adam",
+                        choices=["adam", "novograd"])
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--eps', type=float, default=1e-4)
     parser.add_argument('--dropout', type=float, default=0)
     parser.add_argument('--drop_type', type=str, default="flat",
                         choices=["flat", "linear"])
+    parser.add_argument('--track_mode', type=str, default="all",
+                        choices=["all", "low", "none"])
     parser.add_argument('--b_size', type=int, default=32)
     parser.add_argument('--in_channels', type=int, default=16)
     parser.add_argument('--pin_memory', type=bool, default=False)
@@ -57,7 +61,8 @@ if __name__ == "__main__":
                       loss=args.loss,
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
-                      classes_weights=args.weights)
+                      classes_weights=args.weights,
+                      track_mode=args.track_mode)
 
     trainer.fit(model=net, 
                 trainset=trainset, 
@@ -67,7 +72,8 @@ if __name__ == "__main__":
                 warm_up_epoch=0,
                 eps=args.eps,
                 batch_size=args.b_size,
-                device=args.device)
+                device=args.device,
+                optim=args.optim)
 
     m_conf, s_conf, g_conf = trainer.score(testset, 32)
 

@@ -249,6 +249,10 @@ class Trainer:
                                                                epoch=epoch, 
                                                                dataset_name="training")
 
+                self.__writer.add_scalars('Accuracy', 
+                                          {'Training': train_acc,
+                                           'Validation': valid_acc}, 
+                                          epoch)
                 self.model.train()
 
                 # ------------------------------------------------------------------------------------------
