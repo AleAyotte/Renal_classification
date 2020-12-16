@@ -462,10 +462,11 @@ class Trainer:
             m_reccal = compute_recall(m_conf)
             s_reccal = compute_recall(s_conf)
             g_reccal = compute_recall(g_conf)
-
-            m_acc = get_mean_accuracy(m_reccal, geometric_mean=False)
-            s_acc = get_mean_accuracy(s_reccal[0:2], geometric_mean=False)
-            g_acc = get_mean_accuracy(g_reccal[0:2], geometric_mean=False)
+            
+            m_acc = get_mean_accuracy(m_reccal, geometric_mean=True)
+            s_acc = get_mean_accuracy(s_reccal[0:2], geometric_mean=True)
+            g_acc = get_mean_accuracy(g_reccal[0:2], geometric_mean=True)
+            
             mean_acc = get_mean_accuracy([m_acc, s_acc, g_acc], geometric_mean=False)
 
         if self.__track_mode != "none":
