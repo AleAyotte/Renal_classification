@@ -42,7 +42,7 @@ if __name__ == "__main__":
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
         RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1], prob=0.5),
-        ScaleIntensityd(keys=["t1", "t2"], factors=0.1, prob=0.5),
+        RandScaleIntensityd(keys=["t1", "t2"], factors=0.1, prob=0.5),
         # RandGaussianSharpend(keys=["t1", "t2"], prob=0.3)
         ToTensord(keys=["t1", "t2", "roi"])
         ])
