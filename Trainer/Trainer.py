@@ -236,14 +236,18 @@ class Trainer:
 
                 # We make a training epoch
                 if current_mode == "Mixup":
-                    training_loss = self.__mixup_epoch(train_loader, optimizer, scheduler, _grad_clip)
+                    training_loss = self.__mixup_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
                 else:
-                    training_loss = self.__standard_epoch(train_loader, optimizer, scheduler, _grad_clip)
+                    training_loss = self.__standard_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
 
                 self.model.eval()
 
-                current_accuracy, val_loss = self.__validation_step(dt_loader=valid_loader, epoch=epoch)
-                train_acc, train_loss = self.__validation_step(dt_loader=train_loader, epoch=epoch)
+                current_accuracy, val_loss = self.__validation_step(dt_loader=valid_loader, 
+                                                                    epoch=epoch)
+
+                train_acc, train_loss = self.__validation_step(dt_loader=train_loader, 
+                                                               epoch=epoch, 
+                                                               dataset_name="training")
 
                 self.model.train()
 
@@ -272,7 +276,8 @@ class Trainer:
     def __standard_epoch(self, train_loader: DataLoader, 
                          optimizer: Union[torch.optim.Adam, Novograd],
                          scheduler: CosineAnnealingWarmRestarts, 
-                         grad_clip: float) -> float:
+                         grad_clip: float,
+                         epoch: int) -> float:
         """
         Make a standard training epoch
 
@@ -330,7 +335,7 @@ class Trainer:
                                            'Subtype': s_loss.item(),
                                            'Grade': g_loss.item(),
                                            'Total': loss.item()}, 
-                                           it)
+                                           it + epoch*n_tiers)
             it += 1
 
         return sum_loss.item() / n_iters
@@ -386,7 +391,8 @@ class Trainer:
     def __mixup_epoch(self, train_loader: DataLoader, 
                       optimizer: Union[torch.optim.Adam, Novograd],
                       scheduler: CosineAnnealingWarmRestarts, 
-                      grad_clip: float) -> float:
+                      grad_clip: float,
+                      epoch: int) -> float:
         """
         Make a manifold mixup epoch
 
@@ -423,7 +429,7 @@ class Trainer:
                                               [m_labels, s_labels, g_labels], 
                                               lamb, 
                                               permut,
-                                              it)
+                                              it + epoch*n_iters)
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
