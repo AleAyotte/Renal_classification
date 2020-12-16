@@ -242,7 +242,7 @@ class Trainer:
 
                 self.model.eval()
 
-                current_accuracy, val_loss = self.__validation_step(dt_loader=valid_loader, 
+                val_acc, val_loss = self.__validation_step(dt_loader=valid_loader, 
                                                                     epoch=epoch)
 
                 train_acc, train_loss = self.__validation_step(dt_loader=train_loader, 
@@ -251,7 +251,7 @@ class Trainer:
 
                 self.__writer.add_scalars('Accuracy', 
                                           {'Training': train_acc,
-                                           'Validation': valid_acc}, 
+                                           'Validation': val_acc}, 
                                           epoch)
                 self.model.train()
 
@@ -259,17 +259,17 @@ class Trainer:
                 #                                   EARLY STOPPING PART
                 # ------------------------------------------------------------------------------------------
 
-                if (val_loss < last_saved_loss and current_accuracy >= best_accuracy) or \
-                        (val_loss < last_saved_loss*(1+self.__tol) and current_accuracy > best_accuracy):
-                    self.__save_checkpoint(epoch, val_loss, current_accuracy)
-                    best_accuracy = current_accuracy
+                if (val_loss < last_saved_loss and val_acc >= best_accuracy) or \
+                        (val_loss < last_saved_loss*(1+self.__tol) and val_acc > best_accuracy):
+                    self.__save_checkpoint(epoch, val_loss, val_acc)
+                    best_accuracy = val_acc
                     last_saved_loss = val_loss
                     best_epoch = epoch
 
                 if verbose:
                     t.postfix = "train loss: {:.4f}, train acc {:.2f}%, val loss: {:.4f}, val acc: {:.2f}%, " \
                                 "best acc: {:.2f}%, best epoch: {}, epoch type: {}".format(
-                                    train_loss, train_acc * 100, val_loss, current_accuracy * 100, best_accuracy * 100,
+                                    train_loss, train_acc * 100, val_loss, val_acc * 100, best_accuracy * 100,
                                     best_epoch + 1, current_mode
                                 )
                 t.update()
