@@ -339,7 +339,7 @@ class Trainer:
                                            'Subtype': s_loss.item(),
                                            'Grade': g_loss.item(),
                                            'Total': loss.item()}, 
-                                           it + epoch*n_tiers)
+                                           it + epoch*n_iters)
             it += 1
 
         return sum_loss.item() / n_iters
