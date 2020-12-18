@@ -85,7 +85,8 @@ if __name__ == "__main__":
                 batch_size=args.b_size,
                 device=args.device,
                 optim=args.optim,
-                num_epoch=args.num_epoch)
+                num_epoch=args.num_epoch,
+                t_0=args.num_epoch)
 
     m_conf, s_conf, g_conf = trainer.score(testset, 32)
 
