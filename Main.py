@@ -73,6 +73,7 @@ if __name__ == "__main__":
     print(type(testset[1]))
     trainer = Trainer(save_path="Check_moi_ca.pth", 
                       loss=args.loss,
+                      tol=0.05,
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
@@ -88,7 +89,6 @@ if __name__ == "__main__":
                 batch_size=args.b_size,
                 device=args.device,
                 optim=args.optim,
-                tol=0.05,
                 num_epoch=args.num_epoch)
 
     m_conf, s_conf, g_conf = trainer.score(testset, 32)
