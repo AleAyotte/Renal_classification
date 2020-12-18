@@ -1,5 +1,4 @@
 from Data_manager.DataManager import RenalDataset
-from Model.NeuralNet import NeuralNet
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -33,22 +32,12 @@ class MultiTaskTrainer(Trainer):
         The loss function of the grade task.
     model : NeuralNet
         The neural network to train and evaluate.
-    __num_worker : int
-        Number of parallel process used for the preprocessing of the data. If 0, the main process will 
-        be used for the data augmentation.
-    __pin_memory : bool
-        The pin_memory option of the DataLoader. If true, the data tensor will copied into the CUDA pinned memory.
-    __save_path : string
-        Indicate where the weights of the network and the result will be saved.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
-    __tol : float
-        Represent the tolerance factor. If the loss of a given epoch is below (1 - __tol) * best_loss, 
-        then this is consider as an improvement.
-    __track_mode : str
+    _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
-    __valid_split : float
-        Percentage of the trainset that will be used to create the validation set.
+    __weights : Sequence[Sequence[int]]
+        The list of weights that will be used to adjust the loss function
     _writer : SummaryWriter
         Use to keep track of the training with tensorboard.
     Methods
@@ -64,7 +53,6 @@ class MultiTaskTrainer(Trainer):
                 pin_memory: bool = False, 
                 num_workers: int = 0,
                 classes_weights: str = "balanced",
-                gamma: float = 2.,
                 save_path: str = "",
                 track_mode: str = "all"):
         """
@@ -80,11 +68,10 @@ class MultiTaskTrainer(Trainer):
                             the main process will be used for the data augmentation. (Default: 0)
         :param classes_weights: The configuration of weights that will be applied on the loss during the training.
                                 Flat: All classes have the same weight during the training.
-                                balanced: The weights are inversionaly proportional to the number of data of each 
+                                Balanced: The weights are inversionaly proportional to the number of data of each 
                                           classes in the training set.
-                                focused: Same as balanced but in the subtype and grade task, the total weights of the 
+                                Focused: Same as balanced but in the subtype and grade task, the total weights of the 
                                          two not none classes are 4 times higher than the weight class.
-        :param gamma: Gamma parameter of the focal loss
         :param save_path: Indicate where the weights of the network and the result will be saved.
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
@@ -93,11 +80,10 @@ class MultiTaskTrainer(Trainer):
         super().__init__(loss=loss, valid_split=valid_split, 
                          tol=tol, pin_memory=pin_memory,
                          num_workers=num_workers, 
-                         gamma=gamma,
                          save_path=save_path,
                          track_mode=track_mode)
 
-        assert track_mode.lower() in ["all", "low", "none"], "Track mode should be one of those options: 'all', 'low' or 'none'"
+        assert classes_weights.lower() in ["Flat", "Balanced", "Focused"], "classes_weights should be one of those options: 'Flat', 'Balanced' or 'Focused'"
         weights = {"flat": [[1., 1.], 
                             [1., 1., 1.], 
                             [1., 1., 1.]],
@@ -113,9 +99,11 @@ class MultiTaskTrainer(Trainer):
         self.__s_loss = None
         self.__g_loss = None
         
-    def _init_loss(self) -> None:
+    def _init_loss(self, gamma: float) -> None:
         """
         Initialize the loss function by sending the classes weights on the appropriate device.
+
+        :param gamma: Gamma parameter of the focal loss.
         """
         weight_0 = torch.Tensor(self.__weights[0]).to(self._device)
         weight_1 = torch.Tensor(self.__weights[1]).to(self._device)
@@ -152,10 +140,9 @@ class MultiTaskTrainer(Trainer):
         """
         sum_loss = 0
         n_iters = len(train_loader)
-        it = 0
 
         scaler = amp.grad_scaler.GradScaler()
-        for step, data in enumerate(train_loader, 0):
+        for it, data in enumerate(train_loader, 0):
             # Extract the data
             features, labels = data["sample"].to(self._device), data["labels"]
 
@@ -186,7 +173,6 @@ class MultiTaskTrainer(Trainer):
 
             scaler.step(optimizer)
             scheduler.step()
-
             scaler.update()
 
             # Save the loss
@@ -199,12 +185,11 @@ class MultiTaskTrainer(Trainer):
                                           'Grade': g_loss.item(),
                                           'Total': loss.item()}, 
                                          it + epoch*n_tiers)
-            it += 1
 
         return sum_loss.item() / n_iters
 
-    def _mixup_criterion(self, pred: torch.Tensor, 
-                        target: Variable, 
+    def _mixup_criterion(self, pred: Sequence[torch.Tensor], 
+                        target: Sequence[Variable], 
                         lamb: float, 
                         permut: Sequence[int],
                         it: int) -> torch.FloatTensor:
@@ -267,10 +252,9 @@ class MultiTaskTrainer(Trainer):
         """
         sum_loss = 0
         n_iters = len(train_loader)
-        it = 0
 
         scaler = amp.grad_scaler.GradScaler()
-        for step, data in enumerate(train_loader, 0):
+        for it, data in enumerate(train_loader, 0):
             features, labels = data["sample"].to(self._device), data["labels"]
 
             m_labels = labels["malignant"].to(self._device)
@@ -302,12 +286,10 @@ class MultiTaskTrainer(Trainer):
 
             scaler.step(optimizer)
             scheduler.step()
-
             scaler.update()
 
             # Save the loss
             sum_loss += loss
-            it += 1
 
             self.model.disable_mixup(mixup_key)
 
@@ -372,7 +354,7 @@ class MultiTaskTrainer(Trainer):
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return also the loss if True.
-        :return: The confusion matrix for each classes and the average loss if get_loss == True.
+        :return: The confusion matrix for each task and the average loss if get_loss == True.
         """
         m_outs = torch.empty(0, 2).to(self._device)
         s_outs = torch.empty(0, 3).to(self._device)
@@ -386,15 +368,15 @@ class MultiTaskTrainer(Trainer):
             features, labels = data["sample"].to(self._device), data["labels"]
 
             with torch.no_grad():
-                m_labels = torch.cat([m_labels, labels["malignant"]])
-                s_labels = torch.cat([s_labels, labels["subtype"]])
-                g_labels = torch.cat([g_labels, labels["grade"]])
-
                 m_out, s_out, g_out = self.model(features)
 
                 m_outs = torch.cat([m_outs, m_out])
                 s_outs = torch.cat([s_outs, s_out])
                 g_outs = torch.cat([g_outs, g_out])
+
+                m_labels = torch.cat([m_labels, labels["malignant"]])
+                s_labels = torch.cat([s_labels, labels["subtype"]])
+                g_labels = torch.cat([g_labels, labels["grade"]])
         
         with torch.no_grad():
             m_pred = torch.argmax(m_outs, dim=1)

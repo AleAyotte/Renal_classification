@@ -24,12 +24,6 @@ class Trainer(ABC):
     ----------
     _loss : str
         The name of the loss that will be used during the training.
-    _m_loss : torch.nn
-        The loss function of the malignant task.
-    _s_loss : torch.nn
-        The loss function of the subtype task.
-    _g_loss : torch.nn
-        The loss function of the grade task.
     model : NeuralNet
         The neural network to train and evaluate.
     __num_worker : int
@@ -62,7 +56,6 @@ class Trainer(ABC):
                 tol: float = 0.01, 
                 pin_memory: bool = False, 
                 num_workers: int = 0,
-                gamma: float = 2.,
                 save_path: str = "",
                 track_mode: str = "all"):
         """
@@ -76,13 +69,6 @@ class Trainer(ABC):
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
                             the main process will be used for the data augmentation. (Default: 0)
-        :param classes_weights: The configuration of weights that will be applied on the loss during the training.
-                                Flat: All classes have the same weight during the training.
-                                balanced: The weights are inversionaly proportional to the number of data of each 
-                                          classes in the training set.
-                                focused: Same as balanced but in the subtype and grade task, the total weights of the 
-                                         two not none classes are 4 times higher than the weight class.
-        :param gamma: Gamma parameter of the focal loss
         :param save_path: Indicate where the weights of the network and the result will be saved.
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
@@ -90,7 +76,8 @@ class Trainer(ABC):
         """
         super().__init__()
 
-        
+        assert loss.lower() in ["ce", "bce", "marg", "focal"], "You can only choose one of the following loss ['ce', 'bce', 'marg']"
+        assert track_mode.lower() in ["all", "low", "none"], "Track mode should be one of those options: 'all', 'low' or 'none'"
         self.__tol = tol
         self.__valid_split = valid_split
         self.__pin_memory = pin_memory
@@ -100,10 +87,6 @@ class Trainer(ABC):
         self.model = None
         self._device = None
         self._writer = None
-        # ----------------------------------
-        #              LOSS
-        # ----------------------------------
-        assert loss.lower() in ["ce", "bce", "marg", "focal"], "You can only choose one of the following loss ['ce', 'bce', 'marg']"
         self._loss = loss.lower()
         self._soft = nn.Softmax(dim=-1)
 
@@ -111,7 +94,8 @@ class Trainer(ABC):
             trainset: RenalDataset,
             seed: int = 0,
             num_epoch: int = 200, 
-            batch_size: int = 32, 
+            batch_size: int = 32,
+            gamma: float = 2.,
             learning_rate: float = 1e-3, 
             eps: float = 1e-4, 
             l2: float = 1e-4, 
@@ -132,6 +116,7 @@ class Trainer(ABC):
         :param seed: The seed that will be used to split the trainset.
         :param num_epoch: Maximum number of epoch during the training. (Default=200)
         :param batch_size: The batch size that will be used during the training. (Default=150)
+        :param gamma: Gamma parameter of the focal loss. (Default=2.0)
         :param learning_rate: Start learning rate of the Adam optimizer. (Default=0.1)
         :param eps: The epsilon parameter of the Adam Optimizer.
         :param l2: L2 regularization coefficient.
@@ -253,7 +238,12 @@ class Trainer(ABC):
         self.model.restore(self.__save_path)
 
     @abstractmethod
-    def _init_loss(self) -> None:
+    def _init_loss(self, gamma: float) -> None:
+        """
+        Initialize the loss function by sending the classes weights on the appropriate device.
+
+        :param gamma: Gamma parameter of the focal loss.
+        """
         raise NotImplementedError("Must override _init_loss")
     
     @abstractmethod
