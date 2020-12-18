@@ -17,6 +17,8 @@ def argument_parser():
     parser.add_argument('--num_epoch', type=int, default=100)                             
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
+    parser.add_argument('--warm_up', type=int, default=0)
+    parser.add_argument('--mixup', type=list, default=[0, 2, 2, 2])
     parser.add_argument('--loss', type=str, default="ce",
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--weights', type=str, default="balanced",
@@ -60,7 +62,7 @@ if __name__ == "__main__":
     testset = RenalDataset(data_path, transform=test_transform, split="test")
 
     in_shape= tuple(trainset[0]["sample"].size()[1:])
-    net = MultiLevelResNet(mixup=[0., 2., 2., 2.],
+    net = MultiLevelResNet(mixup=args.mixup,
                            in_shape=in_shape,
                            first_channels=args.in_channels,
                            drop_rate=args.dropout,
@@ -80,7 +82,7 @@ if __name__ == "__main__":
                 mode=args.mode,
                 learning_rate=args.lr, 
                 grad_clip=5,
-                warm_up_epoch=0,
+                warm_up_epoch=args.warm_up,
                 eps=args.eps,
                 batch_size=args.b_size,
                 device=args.device,
