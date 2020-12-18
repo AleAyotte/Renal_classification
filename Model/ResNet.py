@@ -275,7 +275,9 @@ class ResNet(NeuralNet):
         in_shape = list(in_shape)
         out_shape = int((in_shape[0] / 16) * (in_shape[1] / 16) * (in_shape[2] / 8))
 
-        self.__num_flat_features = out_shape * self.__in_channels
+        self.avg_pool = nn.AvgPool3d(kernel_size=out_shape)
+
+        self.__num_flat_features = self.__in_channels
 
         self.fc_layer = nn.Linear(self.__num_flat_features, num_classes)
 
@@ -310,6 +312,7 @@ class ResNet(NeuralNet):
 
         out = self.mixup["3"](out) if "3" in mixup_key_list else out
         out = self.layers4(out)
+        out = self.avg_pool(out)
 
         features = out.view(-1, self.__num_flat_features)
         out = self.fc_layer(features)
@@ -463,10 +466,12 @@ class MultiLevelResNet(NeuralNet):
         in_shape = list(in_shape)
         out_shape = int((in_shape[0] / 16) * (in_shape[1] / 16) * (in_shape[2] / 8))
 
+        self.avg_pool = nn.AvgPool3d(kernel_size=out_shape)
+
         if self.__split == 5:
-            self.__num_flat_features = out_shape * self.__in_channels
+            self.__num_flat_features = self.__in_channels
         else:
-            self.__num_flat_features = out_shape * int(self.__in_channels / 3)
+            self.__num_flat_features = int(self.__in_channels / 3)
 
         self.fc_layer_mal = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 2))
 
@@ -513,6 +518,7 @@ class MultiLevelResNet(NeuralNet):
 
         out = self.mixup["3"](out) if "3" in mixup_key_list else out
         out = self.layers4(out)
+        out = self.avg_pool(out)
 
         if self.__split == 5:
             features = out.view(-1, self.__num_flat_features)
