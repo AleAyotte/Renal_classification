@@ -273,7 +273,7 @@ class ResNet(NeuralNet):
         #                   FC LAYERS
         # --------------------------------------------
         in_shape = list(in_shape)
-        out_shape = int((in_shape[0] / 16) * (in_shape[1] / 16) * (in_shape[2] / 8))
+        out_shape = [int(in_shape[0] / 16), int(in_shape[1] / 16),  int(in_shape[2] / 8)]
 
         self.avg_pool = nn.AvgPool3d(kernel_size=out_shape)
 
@@ -464,7 +464,7 @@ class MultiLevelResNet(NeuralNet):
         #                   FC LAYERS
         # --------------------------------------------
         in_shape = list(in_shape)
-        out_shape = int((in_shape[0] / 16) * (in_shape[1] / 16) * (in_shape[2] / 8))
+        out_shape = [int(in_shape[0] / 16), int(in_shape[1] / 16),  int(in_shape[2] / 8)]
 
         self.avg_pool = nn.AvgPool3d(kernel_size=out_shape)
 
