@@ -185,6 +185,10 @@ class Trainer:
         self.__device = device
         self.model = model.to(device)
         self.model.set_mixup(batch_size)
+<<<<<<< Updated upstream
+=======
+        self._init_loss(gamma=gamma)
+>>>>>>> Stashed changes
 
         if retrain:
             start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.save_path)
@@ -557,8 +561,13 @@ class Trainer:
             return m_conf, s_conf, g_conf
     
     def score(self, testset: RenalDataset, 
+<<<<<<< Updated upstream
                     batch_size: int = 150) -> Union[Tuple[np.array, np.array, np.array, float],
                                                     Tuple[np.array, np.array, np.array]]:
+=======
+                    batch_size: int = 150) -> Union[Tuple[Sequence[np.array], float],
+                                                    Sequence[np.array]]:
+>>>>>>> Stashed changes
         """
         Compute the accuracy of the model on a given test dataset
 
