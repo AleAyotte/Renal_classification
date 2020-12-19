@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from Model.ResNet import MultiLevelResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld, RandGaussianSharpend
 from torchsummary import summary
-from Trainer.Trainer import Trainer
+from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Trainer.Utils import compute_recall
 
 
