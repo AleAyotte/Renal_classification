@@ -1,5 +1,5 @@
 import argparse
-from Data_manager.DataManager import RenalDataset
+from Data_manager.DataManager import RenalDataset, split_trainset
 from matplotlib import pyplot as plt
 from Model.ResNet import MultiLevelResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld, RandGaussianSharpend
@@ -59,9 +59,11 @@ if __name__ == "__main__":
     ])
 
     trainset = RenalDataset(data_path, transform=transform)
+    validset = RenalDataset(data_path, transform=test_transform, split=None)
     testset = RenalDataset(data_path, transform=test_transform, split="test")
+    trainset, validset = split_trainset(trainset, validset)
 
-    in_shape= tuple(trainset[0]["sample"].size()[1:])
+    in_shape = tuple(trainset[0]["sample"].size()[1:])
     print(args.mixup)
     net = MultiLevelResNet(mixup=args.mixup,
                            in_shape=in_shape,
