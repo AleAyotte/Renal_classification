@@ -11,7 +11,7 @@ from Trainer.Utils import compute_recall
 def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str, default="cuda:0")
-    parser.add_argument('--dataset', type=str, default='Option1_without_N4',
+    parser.add_argument('--dataset', type=str, default='Option1_with_N4',
                         choices=['Option1_with_N4', 'Option1_without_N4',
                                  'Option2_with_N4', 'Option2_without_N4'])
     parser.add_argument('--num_epoch', type=int, default=100)                             
@@ -64,7 +64,6 @@ if __name__ == "__main__":
     trainset, validset = split_trainset(trainset, validset)
 
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    print(args.mixup)
     net = MultiLevelResNet(mixup=args.mixup,
                            in_shape=in_shape,
                            first_channels=args.in_channels,
@@ -72,7 +71,6 @@ if __name__ == "__main__":
                            drop_type=args.drop_type).to(args.device)
 
     summary(net, (3, 96, 96, 32))
-    print(type(testset[1]))
     trainer = Trainer(save_path="Check_moi_ca.pth", 
                       loss=args.loss,
                       tol=0.05,
@@ -82,7 +80,8 @@ if __name__ == "__main__":
                       track_mode=args.track_mode)
 
     trainer.fit(model=net, 
-                trainset=trainset, 
+                trainset=trainset,
+                validset=validset,
                 mode=args.mode,
                 learning_rate=args.lr, 
                 grad_clip=5,

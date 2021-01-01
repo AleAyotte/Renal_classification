@@ -60,16 +60,17 @@ class RenalDataset(Dataset):
         :return: A tuple that contain the data (images), the labels and the clinical data.
         """
         clin = None
+        data = [self.__data[i] for i in idx]
+        label = [self.__label[i] for i in idx]
+        if self.__with_clinical:
+            clin = [self.__clinical_data[i] for i in idx]
+
         if pop:
-            data = [self.__data.pop(i) for i in idx]
-            label = [self.__label.pop(i) for i in idx]
-            if self.__with_clinical:
-                clin = [self.__clinical_data.pop(i) for i in idx]
-        else:
-            data = [self.__data[i] for i in idx]
-            label = [self.__label[i] for i in idx]
-            if self.__with_clinical:
-                clin = [self.__clinical_data[i] for i in idx]
+            for i in sorted(idx, reverse=True):
+                del self.__data[i]
+                del self.__label[i]
+                if self.__with_clinical:
+                    del self.__clinical_data[i]
 
         return data, label, clin
 
