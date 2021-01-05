@@ -49,13 +49,13 @@ class MultiTaskTrainer(Trainer):
         Compute the accuracy of the model on a given data loader.
     """
     def __init__(self, loss: str = "ce",
-                valid_split: float = 0.2, 
-                tol: float = 0.01, 
-                pin_memory: bool = False, 
-                num_workers: int = 0,
-                classes_weights: str = "balanced",
-                save_path: str = "",
-                track_mode: str = "all"):
+                 valid_split: float = 0.2,
+                 tol: float = 0.01,
+                 pin_memory: bool = False,
+                 num_workers: int = 0,
+                 classes_weights: str = "balanced",
+                 save_path: str = "",
+                 track_mode: str = "all"):
         """
         The constructor of the trainer class. 
 
@@ -84,7 +84,8 @@ class MultiTaskTrainer(Trainer):
                          save_path=save_path,
                          track_mode=track_mode)
 
-        assert classes_weights.lower() in ["flat", "balanced", "bocused"], "classes_weights should be one of those options: 'Flat', 'Balanced' or 'Focused'"
+        assert classes_weights.lower() in ["flat", "balanced", "focused"], \
+            "classes_weights should be one of those options: 'Flat', 'Balanced' or 'Focused'"
         weights = {"flat": [[1., 1.], 
                             [1., 1., 1.], 
                             [1., 1., 1.]],
@@ -185,15 +186,15 @@ class MultiTaskTrainer(Trainer):
                                           'Subtype': s_loss.item(),
                                           'Grade': g_loss.item(),
                                           'Total': loss.item()}, 
-                                         it + epoch*n_tiers)
+                                         it + epoch*n_iters)
 
         return sum_loss.item() / n_iters
 
     def _mixup_criterion(self, pred: Sequence[torch.Tensor], 
-                        target: Sequence[Variable], 
-                        lamb: float, 
-                        permut: Sequence[int],
-                        it: int) -> torch.FloatTensor:
+                         target: Sequence[Variable],
+                         lamb: float,
+                         permut: Sequence[int],
+                         it: int) -> torch.FloatTensor:
         """
         Transform target into one hot vector and apply mixup on it
 
@@ -236,12 +237,11 @@ class MultiTaskTrainer(Trainer):
 
         return loss
 
-
     def _mixup_epoch(self, train_loader: DataLoader, 
-                    optimizer: Union[torch.optim.Adam, Novograd],
-                    scheduler: CosineAnnealingWarmRestarts, 
-                    grad_clip: float,
-                    epoch: int) -> float:
+                     optimizer: Union[torch.optim.Adam, Novograd],
+                     scheduler: CosineAnnealingWarmRestarts,
+                     grad_clip: float,
+                     epoch: int) -> float:
         """
         Make a manifold mixup epoch
 
@@ -297,8 +297,8 @@ class MultiTaskTrainer(Trainer):
         return sum_loss.item() / n_iters
 
     def _validation_step(self, dt_loader: DataLoader,
-                        epoch: int, 
-                        dataset_name: str = "Validation") -> Tuple[float, float]:
+                         epoch: int,
+                         dataset_name: str = "Validation") -> Tuple[float, float]:
         """
         Execute the validation step and save the metrics with tensorboard.
 
@@ -348,8 +348,8 @@ class MultiTaskTrainer(Trainer):
         return mean_acc, loss
     
     def _get_conf_matrix(self, dt_loader: DataLoader, 
-                        get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                         Sequence[np.array]]:
+                         get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
+                                                          Sequence[np.array]]:
         """
         Compute the accuracy of the model on a given data loader
 

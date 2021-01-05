@@ -371,14 +371,18 @@ class MultiLevelResNet(NeuralNet):
         Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
         modules will be disable.
     """
-    def __init__(self, depth: int = 18, first_channels: int = 16,
+    def __init__(self,
+                 depth: int = 18,
+                 first_channels: int = 16,
                  split_level: int = 4,
                  in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  first_kernel: Union[Sequence[int], int] = 3,
                  kernel: Union[Sequence[int], int] = 3,
                  mixup: Sequence[float] = None,
-                 drop_rate: float = 0, drop_type: str = "flat",
-                 act: str = "ReLU", pre_act: bool = True):
+                 drop_rate: float = 0,
+                 drop_type: str = "flat",
+                 act: str = "ReLU",
+                 pre_act: bool = True):
 
         super().__init__()
         self.__split = split_level
