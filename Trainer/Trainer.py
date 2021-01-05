@@ -26,7 +26,7 @@ class Trainer(ABC):
         The name of the loss that will be used during the training.
     model : NeuralNet
         The neural network to train and evaluate.
-    __num_worker : int
+    __num_work : int
         Number of parallel process used for the preprocessing of the data. If 0, the main process will 
         be used for the data augmentation.
     __pin_memory : bool
@@ -38,7 +38,7 @@ class Trainer(ABC):
     __tol : float
         Represent the tolerance factor. If the loss of a given epoch is below (1 - __tol) * best_loss, 
         then this is consider as an improvement.
-    __track_mode : str
+    _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
     __valid_split : float
         Percentage of the trainset that will be used to create the validation set.
@@ -52,12 +52,12 @@ class Trainer(ABC):
         Compute the accuracy of the model on a given data loader.
     """
     def __init__(self, loss: str = "ce",
-                valid_split: float = 0.2, 
-                tol: float = 0.01, 
-                pin_memory: bool = False, 
-                num_workers: int = 0,
-                save_path: str = "",
-                track_mode: str = "all"):
+                 valid_split: float = 0.2,
+                 tol: float = 0.01,
+                 pin_memory: bool = False,
+                 num_workers: int = 0,
+                 save_path: str = "",
+                 track_mode: str = "all"):
         """
         The constructor of the trainer class. 
 
@@ -76,8 +76,10 @@ class Trainer(ABC):
         """
         super().__init__()
 
-        assert loss.lower() in ["ce", "bce", "marg", "focal"], "You can only choose one of the following loss ['ce', 'bce', 'marg']"
-        assert track_mode.lower() in ["all", "low", "none"], "Track mode should be one of those options: 'all', 'low' or 'none'"
+        assert loss.lower() in ["ce", "bce", "marg", "focal"], \
+            "You can only choose one of the following loss ['ce', 'bce', 'marg']"
+        assert track_mode.lower() in ["all", "low", "none"], \
+            "Track mode should be one of those options: 'all', 'low' or 'none'"
         self.__tol = tol
         self.__valid_split = valid_split
         self.__pin_memory = pin_memory
@@ -92,7 +94,7 @@ class Trainer(ABC):
 
     def fit(self, model: NeuralNet, 
             trainset: RenalDataset,
-            seed: int = 0,
+            validset: RenalDataset,
             num_epoch: int = 200, 
             batch_size: int = 32,
             gamma: float = 2.,
@@ -113,7 +115,7 @@ class Trainer(ABC):
 
         :param model: The model to train.
         :param trainset: The dataset that will be used to train the model.
-        :param seed: The seed that will be used to split the trainset.
+        :param validset: The dataset that will be used to mesure the model performance.
         :param num_epoch: Maximum number of epoch during the training. (Default=200)
         :param batch_size: The batch size that will be used during the training. (Default=150)
         :param gamma: Gamma parameter of the focal loss. (Default=2.0)
@@ -153,11 +155,18 @@ class Trainer(ABC):
             start_epoch = 0
 
         # Initialization of the dataloader
-        train_loader, valid_loader = get_dataloader(trainset, batch_size,
-                                                    pin_memory=self.__pin_memory, 
-                                                    num_workers=self.__num_work,
-                                                    validation_split=self.__valid_split,
-                                                    random_seed=seed)
+        train_loader = DataLoader(trainset,
+                                  batch_size=batch_size,
+                                  pin_memory=self.__pin_memory,
+                                  num_workers=self.__num_work,
+                                  shuffle=True,
+                                  drop_last=True)
+        valid_loader = DataLoader(validset,
+                                  batch_size=batch_size,
+                                  pin_memory=self.__pin_memory,
+                                  num_workers=self.__num_work,
+                                  shuffle=False,
+                                  drop_last=True)
 
         # Initialization of the optimizer and the scheduler
         assert optim.lower() in ["adam", "novograd"]
@@ -203,16 +212,16 @@ class Trainer(ABC):
                 self.model.eval()
 
                 val_acc, val_loss = self._validation_step(dt_loader=valid_loader, 
-                                                                    epoch=epoch)
+                                                          epoch=epoch)
 
                 train_acc, train_loss = self._validation_step(dt_loader=train_loader, 
-                                                               epoch=epoch, 
-                                                               dataset_name="training")
+                                                              epoch=epoch,
+                                                              dataset_name="training")
 
                 self._writer.add_scalars('Accuracy', 
                                          {'Training': train_acc,
                                           'Validation': val_acc}, 
-                                          epoch)
+                                         epoch)
                 self.model.train()
 
                 # ------------------------------------------------------------------------------------------
@@ -265,10 +274,10 @@ class Trainer(ABC):
 
     @abstractmethod
     def _mixup_criterion(self, pred: torch.Tensor, 
-                        target: Variable, 
-                        lamb: float, 
-                        permut: Sequence[int],
-                        it: int) -> torch.FloatTensor:
+                         target: Variable,
+                         lamb: float,
+                         permut: Sequence[int],
+                         it: int) -> torch.FloatTensor:
         """
         Transform target into one hot vector and apply mixup on it
 
@@ -282,10 +291,10 @@ class Trainer(ABC):
 
     @abstractmethod
     def _mixup_epoch(self, train_loader: DataLoader, 
-                    optimizer: Union[torch.optim.Adam, Novograd],
-                    scheduler: CosineAnnealingWarmRestarts, 
-                    grad_clip: float,
-                    epoch: int) -> float:
+                     optimizer: Union[torch.optim.Adam, Novograd],
+                     scheduler: CosineAnnealingWarmRestarts,
+                     grad_clip: float,
+                     epoch: int) -> float:
         """
         Make a manifold mixup epoch
 
@@ -299,8 +308,8 @@ class Trainer(ABC):
 
     @abstractmethod
     def _validation_step(self, dt_loader: DataLoader,
-                        epoch: int, 
-                        dataset_name: str = "Validation") -> Tuple[float, float]:
+                         epoch: int,
+                         dataset_name: str = "Validation") -> Tuple[float, float]:
         """
         Execute the validation step and save the metrics with tensorboard.
 
@@ -313,8 +322,8 @@ class Trainer(ABC):
 
     @abstractmethod
     def _get_conf_matrix(self, dt_loader: DataLoader, 
-                        get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                         Sequence[np.array]]:
+                         get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
+                                                          Sequence[np.array]]:
         """
         Compute the accuracy of the model on a given data loader
 
@@ -325,8 +334,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _get_conf_matrix.")
     
     def score(self, testset: RenalDataset, 
-                    batch_size: int = 150) -> Union[Tuple[Sequence[np.array], float],
-                                                    Sequence[np.array]]:
+              batch_size: int = 150) -> Union[Tuple[Sequence[np.array], float],
+                                              Sequence[np.array]]:
         """
         Compute the accuracy of the model on a given test dataset
 
