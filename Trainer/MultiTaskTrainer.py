@@ -217,8 +217,8 @@ class MultiTaskTrainer(Trainer):
             g_mixed_target = lamb*g_hot_target + (1-lamb)*g_hot_target[permut]
 
             m_loss = self.__m_loss(m_pred, m_mixed_target)
-            s_loss = self.__m_loss(s_pred, s_mixed_target)
-            g_loss = self.__m_loss(g_pred, g_mixed_target)
+            s_loss = self.__s_loss(s_pred, s_mixed_target)
+            g_loss = self.__g_loss(g_pred, g_mixed_target)
 
         else:
             m_loss = lamb*self.__m_loss(m_pred, m_target) + (1-lamb)*self.__m_loss(m_pred, m_target[permut])
@@ -271,7 +271,7 @@ class MultiTaskTrainer(Trainer):
             mixup_key, lamb, permut = self.model.activate_mixup()
 
             # training step
-            with amp.autocast():
+            with amp.autocast(enabled=False):
                 m_pred, s_pred, g_pred = self.model(features)
                 loss = self._mixup_criterion([m_pred, s_pred, g_pred], 
                                              [m_labels, s_labels, g_labels], 
@@ -308,7 +308,7 @@ class MultiTaskTrainer(Trainer):
         :return: The mean accuracy as float and the loss as float.
         """
 
-        with amp.autocast():
+        with amp.autocast(enabled=False):
             conf_mat, loss = self._get_conf_matrix(dt_loader=dt_loader, get_loss=True)
             m_conf, s_conf, g_conf = conf_mat
 
@@ -384,9 +384,16 @@ class MultiTaskTrainer(Trainer):
             s_pred = torch.argmax(s_outs, dim=1)
             g_pred = torch.argmax(g_outs, dim=1)
 
-            m_loss = self.__m_loss(m_outs, m_labels.to(self._device))
-            s_loss = self.__s_loss(s_outs, s_labels.to(self._device))
-            g_loss = self.__g_loss(g_outs, g_labels.to(self._device))
+            if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
+                m_target = to_one_hot(m_labels, 2, self._device)
+                s_target = to_one_hot(s_labels, 3, self._device)
+                g_target = to_one_hot(g_labels, 3, self._device)
+            else:
+                m_target, s_target, g_target = m_labels, s_labels, g_labels
+
+            m_loss = self.__m_loss(m_outs, m_target.to(self._device))
+            s_loss = self.__s_loss(s_outs, s_target.to(self._device))
+            g_loss = self.__g_loss(g_outs, g_target.to(self._device))
 
             total_loss = (m_loss + s_loss + g_loss) / 3
 
