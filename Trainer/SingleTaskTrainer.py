@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
 
-class MultiTaskTrainer(Trainer):
+class SingleTaskTrainer(Trainer):
     """
     The trainer class define an object that will be used to train and evaluate a given model. It handle the 
     mixed precision training, the mixup process and more.
@@ -31,6 +31,8 @@ class MultiTaskTrainer(Trainer):
         The neural network to train and evaluate.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
+    __task : str
+        The name of the task on which the model will be train.
     _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
     _writer : SummaryWriter
@@ -42,14 +44,15 @@ class MultiTaskTrainer(Trainer):
     score(dt_loader: DataLoader, get_loss: bool = False):
         Compute the accuracy of the model on a given data loader.
     """
-    def __init__(self, loss: str = "ce",
-                valid_split: float = 0.2, 
-                tol: float = 0.01, 
-                pin_memory: bool = False, 
-                num_workers: int = 0,
-                classes_weights: str = "balanced",
-                save_path: str = "",
-                track_mode: str = "all"):
+    def __init__(self,
+                 loss: str = "ce",
+                 valid_split: float = 0.2,
+                 tol: float = 0.01,
+                 pin_memory: bool = False,
+                 num_workers: int = 0,
+                 save_path: str = "",
+                 track_mode: str = "all",
+                 task="Malignant"):
         """
         The constructor of the trainer class. 
 
@@ -72,7 +75,8 @@ class MultiTaskTrainer(Trainer):
                          save_path=save_path,
                          track_mode=track_mode)
         self.__loss = None
-        
+        self.__task = task
+
     def _init_loss(self, gamma: float) -> None:
         """
         Initialize the loss function by sending the classes weights on the appropriate device.
@@ -89,7 +93,8 @@ class MultiTaskTrainer(Trainer):
         else:  # loss == "marg"
             raise NotImplementedError
     
-    def _standard_epoch(self, train_loader: DataLoader, 
+    def _standard_epoch(self,
+                        train_loader: DataLoader,
                         optimizer: Union[torch.optim.Adam, Novograd],
                         scheduler: CosineAnnealingWarmRestarts, 
                         grad_clip: float,
@@ -135,15 +140,16 @@ class MultiTaskTrainer(Trainer):
             if self._track_mode == "all":
                 self._writer.add_scalars('Training/Loss', 
                                          {'Loss': loss.item()}, 
-                                         it + epoch*n_tiers)
+                                         it + epoch*n_iters)
 
         return sum_loss.item() / n_iters
 
-    def _mixup_criterion(self, pred: Sequence[torch.Tensor], 
-                        target: Sequence[Variable], 
-                        lamb: float, 
-                        permut: Sequence[int],
-                        it: int) -> torch.FloatTensor:
+    def _mixup_criterion(self,
+                         pred: Sequence[torch.Tensor],
+                         target: Sequence[Variable],
+                         lamb: float,
+                         permut: Sequence[int],
+                         it: int) -> torch.FloatTensor:
         """
         Transform target into one hot vector and apply mixup on it
 
@@ -173,12 +179,12 @@ class MultiTaskTrainer(Trainer):
 
         return loss
 
-
-    def _mixup_epoch(self, train_loader: DataLoader, 
-                    optimizer: Union[torch.optim.Adam, Novograd],
-                    scheduler: CosineAnnealingWarmRestarts, 
-                    grad_clip: float,
-                    epoch: int) -> float:
+    def _mixup_epoch(self,
+                     train_loader: DataLoader,
+                     optimizer: Union[torch.optim.Adam, Novograd],
+                     scheduler: CosineAnnealingWarmRestarts,
+                     grad_clip: float,
+                     epoch: int) -> float:
         """
         Make a manifold mixup epoch
 
@@ -195,15 +201,14 @@ class MultiTaskTrainer(Trainer):
         for it, data in enumerate(train_loader, 0):
             # Extract the data
             features, labels = data["sample"].to(self._device), data["labels"].to(self._device)
-            features = Variable(features), Variable(labels)
-
+            features, labels = Variable(features), Variable(labels)
             optimizer.zero_grad()
 
             # Mixup activation
             mixup_key, lamb, permut = self.model.activate_mixup()
 
             # training step
-            with amp.autocast():
+            with amp.autocast(enabled=False):
                 pred = self.model(features)
                 loss = self._mixup_criterion([pred], 
                                              [labels], 
@@ -228,9 +233,10 @@ class MultiTaskTrainer(Trainer):
 
         return sum_loss.item() / n_iters
 
-    def _validation_step(self, dt_loader: DataLoader,
-                        epoch: int, 
-                        dataset_name: str = "Validation") -> Tuple[float, float]:
+    def _validation_step(self,
+                         dt_loader: DataLoader,
+                         epoch: int,
+                         dataset_name: str = "Validation") -> Tuple[float, float]:
         """
         Execute the validation step and save the metrics with tensorboard.
 
@@ -240,12 +246,12 @@ class MultiTaskTrainer(Trainer):
         :return: The accuracy as float and the loss as float.
         """
 
-        with amp.autocast():
+        with amp.autocast(enabled=False):
             conf_mat, loss = self._get_conf_matrix(dt_loader=dt_loader, get_loss=True)
-            conf_mat = conf_mat[0]
+            conf_mat = conf_mat
 
-            reccals = compute_recall(conf_mat)
-            acc = get_mean_accuracy(reccals, geometric_mean=True)
+            recalls = compute_recall(conf_mat)
+            acc = get_mean_accuracy(recalls, geometric_mean=True)
 
         if self._track_mode != "none":
             self._writer.add_scalars('{}/Accuracy'.format(dataset_name), 
@@ -261,9 +267,12 @@ class MultiTaskTrainer(Trainer):
                                      epoch)
         return acc, loss
     
-    def _get_conf_matrix(self, dt_loader: DataLoader, 
-                        get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                         Sequence[np.array]]:
+    def _get_conf_matrix(self,
+                         dt_loader: DataLoader,
+                         get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
+                                                          Tuple[np.array, float],
+                                                          Sequence[np.array],
+                                                          np.array]:
         """
         Compute the accuracy of the model on a given data loader
 
@@ -275,22 +284,21 @@ class MultiTaskTrainer(Trainer):
         labels = torch.empty(0).long()
 
         for data in dt_loader:
-            features, labels = data["sample"].to(self._device), data["labels"]
+            features, label = data["sample"].to(self._device), data["labels"]
 
             with torch.no_grad():
                 out = self.model(features)
 
                 outs = torch.cat([outs, out])
-                labels = torch.cat([labels, labels])
+                labels = torch.cat([labels, label])
         
         with torch.no_grad():
             pred = torch.argmax(outs, dim=1)
-
             loss = self.__loss(outs, labels.to(self._device))
 
         conf_mat = confusion_matrix(labels.numpy(), pred.cpu().numpy())
 
         if get_loss:
-            return [conf_mat], loss.item()
+            return conf_mat, loss.item()
         else:
-            return [conf_mat]
+            return conf_mat
