@@ -126,7 +126,8 @@ class MultiTaskTrainer(Trainer):
         else:  # loss == "marg"
             raise NotImplementedError
     
-    def _standard_epoch(self, train_loader: DataLoader, 
+    def _standard_epoch(self,
+                        train_loader: DataLoader,
                         optimizer: Union[torch.optim.Adam, Novograd],
                         scheduler: CosineAnnealingWarmRestarts, 
                         grad_clip: float,
@@ -190,7 +191,8 @@ class MultiTaskTrainer(Trainer):
 
         return sum_loss.item() / n_iters
 
-    def _mixup_criterion(self, pred: Sequence[torch.Tensor], 
+    def _mixup_criterion(self,
+                         pred: Sequence[torch.Tensor],
                          target: Sequence[Variable],
                          lamb: float,
                          permut: Sequence[int],
@@ -237,7 +239,8 @@ class MultiTaskTrainer(Trainer):
 
         return loss
 
-    def _mixup_epoch(self, train_loader: DataLoader, 
+    def _mixup_epoch(self,
+                     train_loader: DataLoader,
                      optimizer: Union[torch.optim.Adam, Novograd],
                      scheduler: CosineAnnealingWarmRestarts,
                      grad_clip: float,
@@ -296,7 +299,8 @@ class MultiTaskTrainer(Trainer):
 
         return sum_loss.item() / n_iters
 
-    def _validation_step(self, dt_loader: DataLoader,
+    def _validation_step(self,
+                         dt_loader: DataLoader,
                          epoch: int,
                          dataset_name: str = "Validation") -> Tuple[float, float]:
         """
@@ -312,13 +316,13 @@ class MultiTaskTrainer(Trainer):
             conf_mat, loss = self._get_conf_matrix(dt_loader=dt_loader, get_loss=True)
             m_conf, s_conf, g_conf = conf_mat
 
-            m_reccal = compute_recall(m_conf)
-            s_reccal = compute_recall(s_conf)
-            g_reccal = compute_recall(g_conf)
+            m_recall = compute_recall(m_conf)
+            s_recall = compute_recall(s_conf)
+            g_recall = compute_recall(g_conf)
             
-            m_acc = get_mean_accuracy(m_reccal, geometric_mean=True)
-            s_acc = get_mean_accuracy(s_reccal[1:], geometric_mean=True)
-            g_acc = get_mean_accuracy(g_reccal[1:], geometric_mean=True)
+            m_acc = get_mean_accuracy(m_recall, geometric_mean=True)
+            s_acc = get_mean_accuracy(s_recall[1:], geometric_mean=True)
+            g_acc = get_mean_accuracy(g_recall[1:], geometric_mean=True)
             
             mean_acc = get_mean_accuracy([m_acc, s_acc, g_acc], geometric_mean=True)
 
@@ -330,26 +334,29 @@ class MultiTaskTrainer(Trainer):
                                      epoch)
 
             self._writer.add_scalars('{}/Recall/Malignant'.format(dataset_name), 
-                                     {'Recall 0': m_reccal[0],
-                                      'Recall 1': m_reccal[1]}, 
+                                     {'Recall 0': m_recall[0],
+                                      'Recall 1': m_recall[1]},
                                      epoch)
             
             self._writer.add_scalars('{}/Recall/Subtype'.format(dataset_name), 
-                                     {'Recall 0': s_reccal[0],
-                                      'Recall 1': s_reccal[1],
-                                      'Recall 2': s_reccal[2]}, 
+                                     {'Recall 0': s_recall[0],
+                                      'Recall 1': s_recall[1],
+                                      'Recall 2': s_recall[2]},
                                      epoch)
 
             self._writer.add_scalars('{}/Recall/Grade'.format(dataset_name), 
-                                     {'Recall 0': g_reccal[0],
-                                      'Recall 1': g_reccal[1],
-                                      'Recall 2': g_reccal[2]}, 
+                                     {'Recall 0': g_recall[0],
+                                      'Recall 1': g_recall[1],
+                                      'Recall 2': g_recall[2]},
                                      epoch)
         return mean_acc, loss
     
-    def _get_conf_matrix(self, dt_loader: DataLoader, 
+    def _get_conf_matrix(self,
+                         dt_loader: DataLoader,
                          get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Sequence[np.array]]:
+                                                          Tuple[np.array, float],
+                                                          Sequence[np.array],
+                                                          np.array]:
         """
         Compute the accuracy of the model on a given data loader
 

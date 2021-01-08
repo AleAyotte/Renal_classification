@@ -51,7 +51,8 @@ class Trainer(ABC):
     score(dt_loader: DataLoader, get_loss: bool = False):
         Compute the accuracy of the model on a given data loader.
     """
-    def __init__(self, loss: str = "ce",
+    def __init__(self,
+                 loss: str = "ce",
                  valid_split: float = 0.2,
                  tol: float = 0.01,
                  pin_memory: bool = False,
@@ -92,7 +93,8 @@ class Trainer(ABC):
         self._loss = loss.lower()
         self._soft = nn.Softmax(dim=-1)
 
-    def fit(self, model: NeuralNet, 
+    def fit(self,
+            model: NeuralNet,
             trainset: RenalDataset,
             validset: RenalDataset,
             num_epoch: int = 200, 
@@ -256,7 +258,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _init_loss")
     
     @abstractmethod
-    def _standard_epoch(self, train_loader: DataLoader, 
+    def _standard_epoch(self,
+                        train_loader: DataLoader,
                         optimizer: Union[torch.optim.Adam, Novograd],
                         scheduler: CosineAnnealingWarmRestarts, 
                         grad_clip: float,
@@ -273,7 +276,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _standard_epoch.")
 
     @abstractmethod
-    def _mixup_criterion(self, pred: torch.Tensor, 
+    def _mixup_criterion(self,
+                         pred: torch.Tensor,
                          target: Variable,
                          lamb: float,
                          permut: Sequence[int],
@@ -290,7 +294,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _mixup_criterion.")
 
     @abstractmethod
-    def _mixup_epoch(self, train_loader: DataLoader, 
+    def _mixup_epoch(self,
+                     train_loader: DataLoader,
                      optimizer: Union[torch.optim.Adam, Novograd],
                      scheduler: CosineAnnealingWarmRestarts,
                      grad_clip: float,
@@ -307,7 +312,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _mixup_epoch.")
 
     @abstractmethod
-    def _validation_step(self, dt_loader: DataLoader,
+    def _validation_step(self,
+                         dt_loader: DataLoader,
                          epoch: int,
                          dataset_name: str = "Validation") -> Tuple[float, float]:
         """
@@ -321,9 +327,12 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _validation_step.")
 
     @abstractmethod
-    def _get_conf_matrix(self, dt_loader: DataLoader, 
+    def _get_conf_matrix(self,
+                         dt_loader: DataLoader,
                          get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Sequence[np.array]]:
+                                                          Tuple[np.array, float],
+                                                          Sequence[np.array],
+                                                          np.array]:
         """
         Compute the accuracy of the model on a given data loader
 
@@ -333,9 +342,12 @@ class Trainer(ABC):
         """
         raise NotImplementedError("Must override _get_conf_matrix.")
     
-    def score(self, testset: RenalDataset, 
+    def score(self,
+              testset: RenalDataset,
               batch_size: int = 150) -> Union[Tuple[Sequence[np.array], float],
-                                              Sequence[np.array]]:
+                                              Tuple[np.array, float],
+                                              Sequence[np.array],
+                                              np.array]:
         """
         Compute the accuracy of the model on a given test dataset
 
@@ -349,7 +361,8 @@ class Trainer(ABC):
 
         return self._get_conf_matrix(dt_loader=test_loader)
 
-    def __save_checkpoint(self, epoch: int, 
+    def __save_checkpoint(self,
+                          epoch: int,
                           loss: float, 
                           accuracy: float) -> None:
         """

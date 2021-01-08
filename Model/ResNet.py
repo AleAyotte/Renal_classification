@@ -12,7 +12,9 @@ from typing import Sequence, Tuple, Union
 class PreResBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, fmap_in: int, fmap_out: int,
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
                  kernel: Union[Sequence[int], int] = 3,
                  strides: Union[Sequence[int], int] = 1,
                  groups: int = 1,
@@ -26,7 +28,7 @@ class PreResBlock(nn.Module):
         :param fmap_out: Number of output feature maps
         :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
         :param strides: Convolution strides.
-        :param drop_rate: The hyperparameter of the Dropout2D module.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
         """
         super().__init__()
 
@@ -88,7 +90,9 @@ class PreResBlock(nn.Module):
 class ResBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, fmap_in: int, fmap_out: int,
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
                  kernel: Union[Sequence[int], int] = 3,
                  strides: Union[Sequence[int], int] = 1,
                  drop_rate: float = 0,
@@ -100,14 +104,14 @@ class ResBlock(nn.Module):
         :param fmap_out: Number of output feature maps
         :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
         :param strides: Convolution strides.
-        :param drop_rate: The hyperparameter of the Dropout2D module.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
         :param activation: The activation function that will be used
         """
         super().__init__()
 
         self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
                                 kernel_size=kernel, strides=strides, dropout=drop_rate,
-                                dropout_dim=3, act=activation, norm="batch",
+                                dropout_dim=3, act=activation, norm="BATCH",
                                 last_conv_only=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -119,7 +123,9 @@ class ResBlock(nn.Module):
 class PreResBlock2(nn.Module):
     expansion = 1
 
-    def __init__(self, fmap_in: int, fmap_out: int,
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
                  kernel: Union[Sequence[int], int] = 3,
                  strides: Union[Sequence[int], int] = 1,
                  drop_rate: float = 0,
@@ -131,7 +137,7 @@ class PreResBlock2(nn.Module):
         :param fmap_out: Number of output feature maps
         :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
         :param strides: Convolution strides.
-        :param drop_rate: The hyperparameter of the Dropout2D module.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
         :param activation: The activation function that will be used
         """
         super().__init__()
@@ -140,7 +146,7 @@ class PreResBlock2(nn.Module):
         self.act = Act[activation]()
         self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
                                 kernel_size=kernel, strides=strides, dropout=drop_rate,
-                                dropout_dim=2, act=activation, norm="BATCH",
+                                dropout_dim=3, act=activation, norm="BATCH",
                                 last_conv_only=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -189,14 +195,18 @@ class ResNet(NeuralNet):
         Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
         modules will be disable.
     """
-    def __init__(self, depth: int = 18, first_channels: int = 16,
+    def __init__(self,
+                 depth: int = 18,
+                 first_channels: int = 16,
                  num_classes: int = 2,
                  in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  first_kernel: Union[Sequence[int], int] = 3,
                  kernel: Union[Sequence[int], int] = 3,
                  mixup: Sequence[int] = None,
-                 drop_rate: float = 0, drop_type: str = "flat",
-                 act: str = "ReLU", pre_act: bool = True):
+                 drop_rate: float = 0,
+                 drop_type: str = "flat",
+                 act: str = "ReLU",
+                 pre_act: bool = True):
 
         super().__init__()
 
@@ -281,10 +291,14 @@ class ResNet(NeuralNet):
 
         self.fc_layer = nn.Linear(self.__num_flat_features, num_classes)
 
-    def __make_layer(self, block, num_block: int, fmap_out: int,
+    def __make_layer(self,
+                     block,
+                     num_block: int,
+                     fmap_out: int,
                      kernel: Union[Sequence[int], int],
                      strides: Union[Sequence[int], int] = 1,
-                     drop_rate: Sequence[float] = None, act: str = "ReLU") -> nn.Sequential:
+                     drop_rate: Sequence[float] = None,
+                     act: str = "ReLU") -> nn.Sequential:
         layers = []
 
         for i in range(num_block):
@@ -485,10 +499,14 @@ class MultiLevelResNet(NeuralNet):
         self.fc_layer_grade_1 = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 3))
         self.fc_layer_grade_2 = torch.nn.Sequential(torch.nn.Linear(5, 3))
 
-    def __make_layer(self, block, num_block: int, fmap_out: int,
+    def __make_layer(self,
+                     block,
+                     num_block: int,
+                     fmap_out: int,
                      kernel: Union[Sequence[int], int],
                      strides: Union[Sequence[int], int] = 1,
-                     drop_rate: Sequence[float] = None, act: str = "ReLU",
+                     drop_rate: Sequence[float] = None,
+                     act: str = "ReLU",
                      groups: int = 1,
                      split_layer: bool = False) -> nn.Sequential:
 
