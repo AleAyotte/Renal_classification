@@ -43,6 +43,8 @@ def argument_parser():
     parser.add_argument('--track_mode', type=str, default="all",
                         choices=["all", "low", "none"])
     parser.add_argument('--warm_up', type=int, default=0)
+    parser.add_argument('--weights', type=str, default="balanced",
+                        choices=["flat", "balanced", "focused"])
     parser.add_argument('--worker', type=int, default=0)
     return parser.parse_args()
 
@@ -55,7 +57,7 @@ if __name__ == "__main__":
 
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1], prob=0.5),
+        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1, 2], prob=0.5),
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
         SpatialPadd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
@@ -78,7 +80,7 @@ if __name__ == "__main__":
         del data
         del label
 
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.1)
+    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     net = ResNet(mixup=args.mixup,
@@ -98,6 +100,7 @@ if __name__ == "__main__":
                       tol=0.05,
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
+                      classes_weights=args.weights,
                       task=args.task,
                       track_mode=args.track_mode)
 

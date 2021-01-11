@@ -35,6 +35,8 @@ class SingleTaskTrainer(Trainer):
         The name of the task on which the model will be train.
     _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
+    __weights : Sequence[Sequence[int]]
+        The list of weights that will be used to adjust the loss function
     _writer : SummaryWriter
         Use to keep track of the training with tensorboard.
     Methods
@@ -50,6 +52,7 @@ class SingleTaskTrainer(Trainer):
                  tol: float = 0.01,
                  pin_memory: bool = False,
                  num_workers: int = 0,
+                 classes_weights: str = "balanced",
                  save_path: str = "",
                  track_mode: str = "all",
                  task="Malignant"):
@@ -69,13 +72,28 @@ class SingleTaskTrainer(Trainer):
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default: all)
         """
-        super().__init__(loss=loss, valid_split=valid_split, 
-                         tol=tol, pin_memory=pin_memory,
+        super().__init__(loss=loss,
+                         valid_split=valid_split,
+                         tol=tol,
+                         pin_memory=pin_memory,
                          num_workers=num_workers, 
                          save_path=save_path,
                          track_mode=track_mode)
         self.__loss = None
+
+        all_task = ["malignant", "subtype", "grade"]
+        assert task.lower() in all_task, "Task should be one of those options: 'malignant', 'subtype', 'grade'"
         self.__task = task
+
+        assert classes_weights.lower() in ["flat", "balanced"], \
+            "classes_weights should be one of those options: 'Flat', 'Balanced'"
+        weights = {"flat": [[1., 1.],
+                            [1., 1.],
+                            [1., 1.]],
+                   "balanced": [[1 / 0.8, 1 / 1.2],
+                                [2.0840, 0.6578],
+                                [0.7708, 1.4232]]}
+        self.__weights = weights[classes_weights.lower()][all_task.index(task)]
 
     def _init_loss(self, gamma: float) -> None:
         """
@@ -84,12 +102,14 @@ class SingleTaskTrainer(Trainer):
         :param gamma: Gamma parameter of the focal loss.
         """
 
+        weight = torch.Tensor(self.__weights).to(self._device)
+
         if self._loss == "ce":
-            self.__loss = nn.CrossEntropyLoss()
+            self.__loss = nn.CrossEntropyLoss(weight=weight)
         elif self._loss == "bce":
-            self.__loss = nn.BCEWithLogitsLoss()
+            self.__loss = nn.BCEWithLogitsLoss(pos_weight=weight)
         elif self._loss == "focal":
-            self.__loss = FocalLoss(gamma=gamma)
+            self.__loss = FocalLoss(gamma=gamma, weight=weight)
         else:  # loss == "marg"
             raise NotImplementedError
     
