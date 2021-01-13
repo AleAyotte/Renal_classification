@@ -27,6 +27,8 @@ class SingleTaskTrainer(Trainer):
         The name of the loss that will be used during the training.
     __loss : torch.nn
         The loss function that will be used to train the model.
+    _mixed_precision : bool
+        If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
     _soft : torch.nn.Softmax
@@ -34,7 +36,7 @@ class SingleTaskTrainer(Trainer):
     __task : str
         The name of the task on which the model will be train.
     _track_mode : str
-        Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
+        Control the information that are registred by tensorboard. Options: all, low, none.
     __weights : Sequence[Sequence[int]]
         The list of weights that will be used to adjust the loss function
     _writer : SummaryWriter
@@ -50,6 +52,7 @@ class SingleTaskTrainer(Trainer):
                  loss: str = "ce",
                  valid_split: float = 0.2,
                  tol: float = 0.01,
+                 mixed_precision: bool = False,
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  classes_weights: str = "balanced",
@@ -63,6 +66,7 @@ class SingleTaskTrainer(Trainer):
         :param valid_split: Percentage of the trainset that will be used to create the validation set.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
+        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default: False)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
@@ -75,6 +79,7 @@ class SingleTaskTrainer(Trainer):
         super().__init__(loss=loss,
                          valid_split=valid_split,
                          tol=tol,
+                         mixed_precision=mixed_precision,
                          pin_memory=pin_memory,
                          num_workers=num_workers, 
                          save_path=save_path,

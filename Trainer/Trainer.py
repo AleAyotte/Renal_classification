@@ -24,6 +24,8 @@ class Trainer(ABC):
     ----------
     _loss : str
         The name of the loss that will be used during the training.
+    _mixed_precision : bool
+        If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
     __num_work : int
@@ -39,7 +41,7 @@ class Trainer(ABC):
         Represent the tolerance factor. If the loss of a given epoch is below (1 - __tol) * best_loss, 
         then this is consider as an improvement.
     _track_mode : str
-        Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
+        Control the information that are registred by tensorboard. Options: all, low, none.
     __valid_split : float
         Percentage of the trainset that will be used to create the validation set.
     _writer : SummaryWriter
@@ -55,6 +57,7 @@ class Trainer(ABC):
                  loss: str = "ce",
                  valid_split: float = 0.2,
                  tol: float = 0.01,
+                 mixed_precision: bool = False,
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  save_path: str = "",
@@ -62,10 +65,11 @@ class Trainer(ABC):
         """
         The constructor of the trainer class. 
 
-        :param loss: The loss that will be use during mixup epoch. (Default="bce")
+        :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param valid_split: Percentage of the trainset that will be used to create the validation set.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
+        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default: False)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
@@ -83,6 +87,7 @@ class Trainer(ABC):
             "Track mode should be one of those options: 'all', 'low' or 'none'"
         self.__tol = tol
         self.__valid_split = valid_split
+        self._mixed_precision = mixed_precision
         self.__pin_memory = pin_memory
         self.__num_work = num_workers
         self.__save_path = save_path

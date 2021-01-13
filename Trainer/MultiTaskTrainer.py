@@ -31,6 +31,8 @@ class MultiTaskTrainer(Trainer):
         The loss function of the subtype task.
     __g_loss : torch.nn
         The loss function of the grade task.
+    _mixed_precision : bool
+        If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
     _soft : torch.nn.Softmax
@@ -51,6 +53,7 @@ class MultiTaskTrainer(Trainer):
     def __init__(self, loss: str = "ce",
                  valid_split: float = 0.2,
                  tol: float = 0.01,
+                 mixed_precision: bool = False,
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  classes_weights: str = "balanced",
@@ -59,10 +62,11 @@ class MultiTaskTrainer(Trainer):
         """
         The constructor of the trainer class. 
 
-        :param loss: The loss that will be use during mixup epoch. (Default="bce")
+        :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param valid_split: Percentage of the trainset that will be used to create the validation set.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
+        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default: False)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
@@ -78,8 +82,11 @@ class MultiTaskTrainer(Trainer):
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default: all)
         """
-        super().__init__(loss=loss, valid_split=valid_split, 
-                         tol=tol, pin_memory=pin_memory,
+        super().__init__(loss=loss,
+                         valid_split=valid_split,
+                         tol=tol,
+                         mixed_precision=mixed_precision,
+                         pin_memory=pin_memory,
                          num_workers=num_workers, 
                          save_path=save_path,
                          track_mode=track_mode)
@@ -159,7 +166,7 @@ class MultiTaskTrainer(Trainer):
             optimizer.zero_grad()
 
             # training step
-            with amp.autocast():
+            with amp.autocast(enabled=self._mixed_precision):
                 m_pred, s_pred, g_pred = self.model(features)
 
                 m_loss = self.__m_loss(m_pred, m_labels)
@@ -274,7 +281,7 @@ class MultiTaskTrainer(Trainer):
             mixup_key, lamb, permut = self.model.activate_mixup()
 
             # training step
-            with amp.autocast(enabled=False):
+            with amp.autocast(enabled=self._mixed_precision):
                 m_pred, s_pred, g_pred = self.model(features)
                 loss = self._mixup_criterion([m_pred, s_pred, g_pred], 
                                              [m_labels, s_labels, g_labels], 
@@ -312,7 +319,7 @@ class MultiTaskTrainer(Trainer):
         :return: The mean accuracy as float and the loss as float.
         """
 
-        with amp.autocast(enabled=False):
+        with amp.autocast(enabled=self._mixed_precision):
             conf_mat, loss = self._get_conf_matrix(dt_loader=dt_loader, get_loss=True)
             m_conf, s_conf, g_conf = conf_mat
 
