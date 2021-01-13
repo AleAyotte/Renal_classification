@@ -151,7 +151,7 @@ class MultiTaskTrainer(Trainer):
         sum_loss = 0
         n_iters = len(train_loader)
 
-        scaler = amp.grad_scaler.GradScaler()
+        scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
             features, labels = data["sample"].to(self._device), data["labels"]
@@ -175,15 +175,22 @@ class MultiTaskTrainer(Trainer):
 
                 loss = (m_loss + s_loss + g_loss) / 3
 
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
+            if self._mixed_precision:
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+            else:
+                loss.backward()
 
             if grad_clip > 0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
-            scaler.step(optimizer)
-            scheduler.step()
-            scaler.update()
+            if self._mixed_precision:
+                scaler.step(optimizer)
+                scheduler.step()
+                scaler.update()
+            else:
+                optimizer.step()
+                scheduler.step()
 
             # Save the loss
             sum_loss += loss
@@ -264,7 +271,7 @@ class MultiTaskTrainer(Trainer):
         sum_loss = 0
         n_iters = len(train_loader)
 
-        scaler = amp.grad_scaler.GradScaler()
+        scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             features, labels = data["sample"].to(self._device), data["labels"]
 
@@ -288,16 +295,22 @@ class MultiTaskTrainer(Trainer):
                                              lamb, 
                                              permut,
                                              it + epoch*n_iters)
-
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
+            if self._mixed_precision:
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+            else:
+                loss.backward()
 
             if grad_clip > 0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
-            scaler.step(optimizer)
-            scheduler.step()
-            scaler.update()
+            if self._mixed_precision:
+                scaler.step(optimizer)
+                scheduler.step()
+                scaler.update()
+            else:
+                optimizer.step()
+                scheduler.step()
 
             # Save the loss
             sum_loss += loss
