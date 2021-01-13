@@ -1,8 +1,7 @@
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
-from matplotlib import pyplot as plt
 from Model.ResNet import MultiLevelResNet
-from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld, RandGaussianSharpend
+from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, SpatialPadd
 import numpy as np
 from torchsummary import summary
@@ -99,13 +98,15 @@ if __name__ == "__main__":
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
-                      track_mode=args.track_mode)
+                      track_mode=args.track_mode,
+                      mixed_precision=True)
 
     trainer.fit(model=net, 
                 trainset=trainset,
                 validset=validset,
                 mode=args.mode,
-                learning_rate=args.lr, 
+                learning_rate=args.lr,
+                eta_min=args.lr/100,
                 grad_clip=5,
                 warm_up_epoch=args.warm_up,
                 eps=args.eps,
