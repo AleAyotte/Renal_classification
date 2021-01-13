@@ -24,6 +24,8 @@ class Trainer(ABC):
     ----------
     _loss : str
         The name of the loss that will be used during the training.
+    _mixed_precision : bool
+        If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
     __num_work : int
@@ -39,7 +41,7 @@ class Trainer(ABC):
         Represent the tolerance factor. If the loss of a given epoch is below (1 - __tol) * best_loss, 
         then this is consider as an improvement.
     _track_mode : str
-        Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
+        Control the information that are registred by tensorboard. Options: all, low, none.
     __valid_split : float
         Percentage of the trainset that will be used to create the validation set.
     _writer : SummaryWriter
@@ -51,9 +53,11 @@ class Trainer(ABC):
     score(dt_loader: DataLoader, get_loss: bool = False):
         Compute the accuracy of the model on a given data loader.
     """
-    def __init__(self, loss: str = "ce",
+    def __init__(self,
+                 loss: str = "ce",
                  valid_split: float = 0.2,
                  tol: float = 0.01,
+                 mixed_precision: bool = False,
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  save_path: str = "",
@@ -61,10 +65,11 @@ class Trainer(ABC):
         """
         The constructor of the trainer class. 
 
-        :param loss: The loss that will be use during mixup epoch. (Default="bce")
+        :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param valid_split: Percentage of the trainset that will be used to create the validation set.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
+        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default: False)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
@@ -82,6 +87,7 @@ class Trainer(ABC):
             "Track mode should be one of those options: 'all', 'low' or 'none'"
         self.__tol = tol
         self.__valid_split = valid_split
+        self._mixed_precision = mixed_precision
         self.__pin_memory = pin_memory
         self.__num_work = num_workers
         self.__save_path = save_path
@@ -92,7 +98,8 @@ class Trainer(ABC):
         self._loss = loss.lower()
         self._soft = nn.Softmax(dim=-1)
 
-    def fit(self, model: NeuralNet, 
+    def fit(self,
+            model: NeuralNet,
             trainset: RenalDataset,
             validset: RenalDataset,
             num_epoch: int = 200, 
@@ -256,7 +263,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _init_loss")
     
     @abstractmethod
-    def _standard_epoch(self, train_loader: DataLoader, 
+    def _standard_epoch(self,
+                        train_loader: DataLoader,
                         optimizer: Union[torch.optim.Adam, Novograd],
                         scheduler: CosineAnnealingWarmRestarts, 
                         grad_clip: float,
@@ -273,7 +281,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _standard_epoch.")
 
     @abstractmethod
-    def _mixup_criterion(self, pred: torch.Tensor, 
+    def _mixup_criterion(self,
+                         pred: torch.Tensor,
                          target: Variable,
                          lamb: float,
                          permut: Sequence[int],
@@ -290,7 +299,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _mixup_criterion.")
 
     @abstractmethod
-    def _mixup_epoch(self, train_loader: DataLoader, 
+    def _mixup_epoch(self,
+                     train_loader: DataLoader,
                      optimizer: Union[torch.optim.Adam, Novograd],
                      scheduler: CosineAnnealingWarmRestarts,
                      grad_clip: float,
@@ -307,7 +317,8 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _mixup_epoch.")
 
     @abstractmethod
-    def _validation_step(self, dt_loader: DataLoader,
+    def _validation_step(self,
+                         dt_loader: DataLoader,
                          epoch: int,
                          dataset_name: str = "Validation") -> Tuple[float, float]:
         """
@@ -321,9 +332,12 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _validation_step.")
 
     @abstractmethod
-    def _get_conf_matrix(self, dt_loader: DataLoader, 
+    def _get_conf_matrix(self,
+                         dt_loader: DataLoader,
                          get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Sequence[np.array]]:
+                                                          Tuple[np.array, float],
+                                                          Sequence[np.array],
+                                                          np.array]:
         """
         Compute the accuracy of the model on a given data loader
 
@@ -333,9 +347,12 @@ class Trainer(ABC):
         """
         raise NotImplementedError("Must override _get_conf_matrix.")
     
-    def score(self, testset: RenalDataset, 
+    def score(self,
+              testset: RenalDataset,
               batch_size: int = 150) -> Union[Tuple[Sequence[np.array], float],
-                                              Sequence[np.array]]:
+                                              Tuple[np.array, float],
+                                              Sequence[np.array],
+                                              np.array]:
         """
         Compute the accuracy of the model on a given test dataset
 
@@ -349,7 +366,8 @@ class Trainer(ABC):
 
         return self._get_conf_matrix(dt_loader=test_loader)
 
-    def __save_checkpoint(self, epoch: int, 
+    def __save_checkpoint(self,
+                          epoch: int,
                           loss: float, 
                           accuracy: float) -> None:
         """

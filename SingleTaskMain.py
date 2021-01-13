@@ -1,11 +1,11 @@
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
-from Model.ResNet import MultiLevelResNet
+from Model.ResNet import ResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, SpatialPadd
 import numpy as np
 from torchsummary import summary
-from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
+from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from Trainer.Utils import compute_recall
 
 
@@ -37,12 +37,13 @@ def argument_parser():
     parser.add_argument('--pad_mode', type=str, default="constant",
                         choices=["constant", "edge", "reflect", "symmetric"])
     parser.add_argument('--pin_memory', type=bool, default=False)
-    parser.add_argument('--split_level', type=int, default=4)
+    parser.add_argument('--task', type=str, default="malignant",
+                        choices=["malignant", "subtype", "grade"])
     parser.add_argument('--track_mode', type=str, default="all",
                         choices=["all", "low", "none"])
     parser.add_argument('--warm_up', type=int, default=0)
     parser.add_argument('--weights', type=str, default="balanced",
-                        choices=["flat", "balanced", "focused"])                        
+                        choices=["flat", "balanced", "focused"])
     parser.add_argument('--worker', type=int, default=0)
     return parser.parse_args()
 
@@ -51,13 +52,12 @@ if __name__ == "__main__":
     args = argument_parser()
     device = args.device
 
-    data_path = "final_dtset/{}/all.hdf5".format(args.dataset)
+    data_path = "final_dtset/{}/{}.hdf5".format(args.dataset, args.task)
 
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1], prob=0.5),
+        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1, 2], prob=0.5),
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-        # RandGaussianSharpend(keys=["t1", "t2"], prob=0.3),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
         SpatialPadd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
@@ -79,29 +79,31 @@ if __name__ == "__main__":
         del data
         del label
 
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.1)
+    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    net = MultiLevelResNet(mixup=args.mixup,
-                           depth=args.depth,
-                           split_level=args.split_level,
-                           in_shape=in_shape,
-                           first_channels=args.in_channels,
-                           drop_rate=args.dropout,
-                           drop_type=args.drop_type,
-                           act=args.activation).to(args.device)
+    net = ResNet(mixup=args.mixup,
+                 depth=args.depth,
+                 in_shape=in_shape,
+                 first_channels=args.in_channels,
+                 drop_rate=args.dropout,
+                 drop_type=args.drop_type,
+                 act=args.activation,
+                 pre_act=True).to(args.device)
 
     summary(net, (3, 96, 96, 32))
+    # print(net)
+
     trainer = Trainer(save_path="Check_moi_ca2.pth",
                       loss=args.loss,
                       tol=0.05,
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
-                      track_mode=args.track_mode,
-                      mixed_precision=True)
+                      task=args.task,
+                      track_mode=args.track_mode)
 
-    trainer.fit(model=net, 
+    trainer.fit(model=net,
                 trainset=trainset,
                 validset=validset,
                 mode=args.mode,
@@ -116,12 +118,7 @@ if __name__ == "__main__":
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch)
 
-    m_conf, s_conf, g_conf = trainer.score(testset, 32)
+    conf = trainer.score(testset, 32)
+    recall = compute_recall(conf)
 
-    m_acc = compute_recall(m_conf)
-    s_acc = compute_recall(s_conf)
-    g_acc = compute_recall(g_conf)
-    
-    print("m_acc: ", m_acc)
-    print("s_acc: ", s_acc)
-    print("g_acc: ", g_acc)
+    print("Recall: ", recall)

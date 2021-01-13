@@ -31,6 +31,8 @@ class MultiTaskTrainer(Trainer):
         The loss function of the subtype task.
     __g_loss : torch.nn
         The loss function of the grade task.
+    _mixed_precision : bool
+        If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
     _soft : torch.nn.Softmax
@@ -51,6 +53,7 @@ class MultiTaskTrainer(Trainer):
     def __init__(self, loss: str = "ce",
                  valid_split: float = 0.2,
                  tol: float = 0.01,
+                 mixed_precision: bool = False,
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  classes_weights: str = "balanced",
@@ -59,10 +62,11 @@ class MultiTaskTrainer(Trainer):
         """
         The constructor of the trainer class. 
 
-        :param loss: The loss that will be use during mixup epoch. (Default="bce")
+        :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param valid_split: Percentage of the trainset that will be used to create the validation set.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
+        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default: False)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
@@ -78,8 +82,11 @@ class MultiTaskTrainer(Trainer):
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default: all)
         """
-        super().__init__(loss=loss, valid_split=valid_split, 
-                         tol=tol, pin_memory=pin_memory,
+        super().__init__(loss=loss,
+                         valid_split=valid_split,
+                         tol=tol,
+                         mixed_precision=mixed_precision,
+                         pin_memory=pin_memory,
                          num_workers=num_workers, 
                          save_path=save_path,
                          track_mode=track_mode)
@@ -126,7 +133,8 @@ class MultiTaskTrainer(Trainer):
         else:  # loss == "marg"
             raise NotImplementedError
     
-    def _standard_epoch(self, train_loader: DataLoader, 
+    def _standard_epoch(self,
+                        train_loader: DataLoader,
                         optimizer: Union[torch.optim.Adam, Novograd],
                         scheduler: CosineAnnealingWarmRestarts, 
                         grad_clip: float,
@@ -143,7 +151,7 @@ class MultiTaskTrainer(Trainer):
         sum_loss = 0
         n_iters = len(train_loader)
 
-        scaler = amp.grad_scaler.GradScaler()
+        scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
             features, labels = data["sample"].to(self._device), data["labels"]
@@ -158,7 +166,7 @@ class MultiTaskTrainer(Trainer):
             optimizer.zero_grad()
 
             # training step
-            with amp.autocast():
+            with amp.autocast(enabled=self._mixed_precision):
                 m_pred, s_pred, g_pred = self.model(features)
 
                 m_loss = self.__m_loss(m_pred, m_labels)
@@ -167,15 +175,22 @@ class MultiTaskTrainer(Trainer):
 
                 loss = (m_loss + s_loss + g_loss) / 3
 
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
+            if self._mixed_precision:
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+            else:
+                loss.backward()
 
             if grad_clip > 0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
-            scaler.step(optimizer)
-            scheduler.step()
-            scaler.update()
+            if self._mixed_precision:
+                scaler.step(optimizer)
+                scheduler.step()
+                scaler.update()
+            else:
+                optimizer.step()
+                scheduler.step()
 
             # Save the loss
             sum_loss += loss
@@ -190,7 +205,8 @@ class MultiTaskTrainer(Trainer):
 
         return sum_loss.item() / n_iters
 
-    def _mixup_criterion(self, pred: Sequence[torch.Tensor], 
+    def _mixup_criterion(self,
+                         pred: Sequence[torch.Tensor],
                          target: Sequence[Variable],
                          lamb: float,
                          permut: Sequence[int],
@@ -237,7 +253,8 @@ class MultiTaskTrainer(Trainer):
 
         return loss
 
-    def _mixup_epoch(self, train_loader: DataLoader, 
+    def _mixup_epoch(self,
+                     train_loader: DataLoader,
                      optimizer: Union[torch.optim.Adam, Novograd],
                      scheduler: CosineAnnealingWarmRestarts,
                      grad_clip: float,
@@ -254,7 +271,7 @@ class MultiTaskTrainer(Trainer):
         sum_loss = 0
         n_iters = len(train_loader)
 
-        scaler = amp.grad_scaler.GradScaler()
+        scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             features, labels = data["sample"].to(self._device), data["labels"]
 
@@ -271,23 +288,29 @@ class MultiTaskTrainer(Trainer):
             mixup_key, lamb, permut = self.model.activate_mixup()
 
             # training step
-            with amp.autocast(enabled=False):
+            with amp.autocast(enabled=self._mixed_precision):
                 m_pred, s_pred, g_pred = self.model(features)
                 loss = self._mixup_criterion([m_pred, s_pred, g_pred], 
                                              [m_labels, s_labels, g_labels], 
                                              lamb, 
                                              permut,
                                              it + epoch*n_iters)
-
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
+            if self._mixed_precision:
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+            else:
+                loss.backward()
 
             if grad_clip > 0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
-            scaler.step(optimizer)
-            scheduler.step()
-            scaler.update()
+            if self._mixed_precision:
+                scaler.step(optimizer)
+                scheduler.step()
+                scaler.update()
+            else:
+                optimizer.step()
+                scheduler.step()
 
             # Save the loss
             sum_loss += loss
@@ -296,7 +319,8 @@ class MultiTaskTrainer(Trainer):
 
         return sum_loss.item() / n_iters
 
-    def _validation_step(self, dt_loader: DataLoader,
+    def _validation_step(self,
+                         dt_loader: DataLoader,
                          epoch: int,
                          dataset_name: str = "Validation") -> Tuple[float, float]:
         """
@@ -308,17 +332,17 @@ class MultiTaskTrainer(Trainer):
         :return: The mean accuracy as float and the loss as float.
         """
 
-        with amp.autocast(enabled=False):
+        with amp.autocast(enabled=self._mixed_precision):
             conf_mat, loss = self._get_conf_matrix(dt_loader=dt_loader, get_loss=True)
             m_conf, s_conf, g_conf = conf_mat
 
-            m_reccal = compute_recall(m_conf)
-            s_reccal = compute_recall(s_conf)
-            g_reccal = compute_recall(g_conf)
+            m_recall = compute_recall(m_conf)
+            s_recall = compute_recall(s_conf)
+            g_recall = compute_recall(g_conf)
             
-            m_acc = get_mean_accuracy(m_reccal, geometric_mean=True)
-            s_acc = get_mean_accuracy(s_reccal[1:], geometric_mean=True)
-            g_acc = get_mean_accuracy(g_reccal[1:], geometric_mean=True)
+            m_acc = get_mean_accuracy(m_recall, geometric_mean=True)
+            s_acc = get_mean_accuracy(s_recall[1:], geometric_mean=True)
+            g_acc = get_mean_accuracy(g_recall[1:], geometric_mean=True)
             
             mean_acc = get_mean_accuracy([m_acc, s_acc, g_acc], geometric_mean=True)
 
@@ -330,26 +354,29 @@ class MultiTaskTrainer(Trainer):
                                      epoch)
 
             self._writer.add_scalars('{}/Recall/Malignant'.format(dataset_name), 
-                                     {'Recall 0': m_reccal[0],
-                                      'Recall 1': m_reccal[1]}, 
+                                     {'Recall 0': m_recall[0],
+                                      'Recall 1': m_recall[1]},
                                      epoch)
             
             self._writer.add_scalars('{}/Recall/Subtype'.format(dataset_name), 
-                                     {'Recall 0': s_reccal[0],
-                                      'Recall 1': s_reccal[1],
-                                      'Recall 2': s_reccal[2]}, 
+                                     {'Recall 0': s_recall[0],
+                                      'Recall 1': s_recall[1],
+                                      'Recall 2': s_recall[2]},
                                      epoch)
 
             self._writer.add_scalars('{}/Recall/Grade'.format(dataset_name), 
-                                     {'Recall 0': g_reccal[0],
-                                      'Recall 1': g_reccal[1],
-                                      'Recall 2': g_reccal[2]}, 
+                                     {'Recall 0': g_recall[0],
+                                      'Recall 1': g_recall[1],
+                                      'Recall 2': g_recall[2]},
                                      epoch)
         return mean_acc, loss
     
-    def _get_conf_matrix(self, dt_loader: DataLoader, 
+    def _get_conf_matrix(self,
+                         dt_loader: DataLoader,
                          get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Sequence[np.array]]:
+                                                          Tuple[np.array, float],
+                                                          Sequence[np.array],
+                                                          np.array]:
         """
         Compute the accuracy of the model on a given data loader
 
