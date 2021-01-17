@@ -2,7 +2,7 @@ import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import MultiLevelResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
-from monai.transforms import RandSpatialCropd, SpatialPadd
+from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
@@ -22,7 +22,7 @@ def argument_parser():
     parser.add_argument('--dropout', type=float, default=0)
     parser.add_argument('--drop_type', type=str, default="flat",
                         choices=["flat", "linear"])
-    parser.add_argument('--eps', type=float, default=1e-4)
+    parser.add_argument('--eps', type=float, default=1e-1)
     parser.add_argument('--extra_data', type=bool, default=False)
     parser.add_argument('--in_channels', type=int, default=16)
     parser.add_argument('--loss', type=str, default="ce",
@@ -55,11 +55,12 @@ if __name__ == "__main__":
 
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1], prob=0.5),
+        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1, 2], prob=0.5),
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-        # RandGaussianSharpend(keys=["t1", "t2"], prob=0.3),
+        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=10, rotate_range=6.28, translate_range=0.1),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        SpatialPadd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
+        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.95, max_zoom=1.05, keep_size=False),
+        ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
     ])
 

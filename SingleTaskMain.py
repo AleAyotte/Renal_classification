@@ -2,8 +2,9 @@ import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import ResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
-from monai.transforms import RandSpatialCropd, SpatialPadd
+from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
+import torch
 from torchsummary import summary
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from Trainer.Utils import compute_recall
@@ -22,12 +23,13 @@ def argument_parser():
     parser.add_argument('--dropout', type=float, default=0)
     parser.add_argument('--drop_type', type=str, default="flat",
                         choices=["flat", "linear"])
-    parser.add_argument('--eps', type=float, default=1e-4)
+    parser.add_argument('--eps', type=float, default=1e-1)
     parser.add_argument('--extra_data', type=bool, default=False)
     parser.add_argument('--in_channels', type=int, default=16)
     parser.add_argument('--loss', type=str, default="ce",
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--mixed_precision', type=bool, default=True)
     parser.add_argument('--mixup', type=int, action='store', nargs="*", default=[0, 2, 2, 2])
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
@@ -58,8 +60,10 @@ if __name__ == "__main__":
         AddChanneld(keys=["t1", "t2", "roi"]),
         RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1, 2], prob=0.5),
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
+        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=10, rotate_range=6.28, translate_range=0.1),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        SpatialPadd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
+        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.95, max_zoom=1.05, keep_size=False),
+        ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
     ])
 
@@ -101,7 +105,10 @@ if __name__ == "__main__":
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
                       task=args.task,
-                      track_mode=args.track_mode)
+                      track_mode=args.track_mode,
+                      mixed_precision=args.mixed_precision)
+
+    torch.backends.cudnn.benchmark = not args.mixed_precision
 
     trainer.fit(model=net,
                 trainset=trainset,
