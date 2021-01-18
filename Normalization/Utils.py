@@ -71,7 +71,7 @@ def convert_3d_to_2d(imgs: Union[Sequence[np.array], np.array],
         new_mask = np.where(new_mask > 0.9, 1, 0)
 
         new_imgs.append(new_img)
-        new_masks.append(new_masks)
+        new_masks.append(new_mask)
 
     return new_imgs, new_masks
 
@@ -181,7 +181,7 @@ def update_dataset(group: h5py.Group,
                    new_data: np.array) -> None:
     """
     Update the value of a dataset in a given group. If the dataset doesn't exist, it will be create.
-    
+
     :param group: The group that own the dataset.
     :param key: The name of the dataset.
     :param new_data: A numpy array that represent the new dataset.
