@@ -4,6 +4,7 @@ from MRI_image import MRIimage
 import numpy as np
 from os import path
 import os
+from Utils import convert_3d_to_2d, get_group, update_dataset, update_attribute
 
 
 class Patient:
@@ -74,7 +75,7 @@ class Patient:
         the ROI has been merge in another
     """
     def __init__(self,
-                 patient_id: str, 
+                 patient_id: str,
                  _path: str,
                  institution: str,
                  dataset: str):
@@ -381,57 +382,45 @@ class Patient:
     def save_in_hdf5(self,
                      filepath: str,
                      modality: str = "both",
-                     merged_roi: bool = True,
+                     merge_roi: bool = True,
+                     save_roi: bool = True,
+                     convert_in_2_5d: bool = False,
                      metadata: dict = None) -> None:
         """
         Save the images and their merged ROI into an hdf5 file with the clinical data
 
         :param filepath: The filepath of the hdf5 file.
         :param modality: The modality to save into the hdf5 file.
-        :param merged_roi: If true, save the merged ROI instead of the 2 ROI.
+        :param merge_roi: If true, save the merged ROI instead of the 2 ROI.
+        :param save_roi: If true, the ROI is save in the dataset.
+        :param convert_in_2_5d: If true, the images will convert in 2.5D before been saved.
         :param metadata: A dictionnary that contain metadata to save in hdf5 file.
         """
 
-        if merged_roi is False:
-            raise NotImplementedError
+        self.merge_roi() if merge_roi else None
 
         f = h5py.File(filepath, 'a')
-        if self.__dataset in list(f.keys()):
-            dts = f[self.__dataset]
 
-            if self.__id in list(dts.keys()):
-                pat = dts[self.__id]
-            else:
-                pat = dts.create_group(self.__id)
-        else:
-            dts = f.create_group(self.__dataset)
-            pat = dts.create_group(self.__id)
+        dts = get_group(f, self.__dataset)
+        pat = get_group(dts, self.__id)
 
         if modality.lower() in ["t1", "t1c", "both"]:
-            if "t1" in list(pat.keys()):
-                pat["t1"][:] = self.__t1.get_img()
-            else:
-                pat.create_dataset("t1", data=self.__t1.get_img())
+            update_dataset(pat, "t1", self.__t1.get_img())
 
         if modality.lower() in ["t2", "t2wi", "both"]:
-            if "t2" in list(pat.keys()):
-                pat["t2"][:] = self.__t2.get_img()
+            update_dataset(pat, "t2", self.__t2.get_img())
+
+        if save_roi:
+            if merge_roi:
+                update_dataset(pat, "roi", self.__t1.get_roi())
             else:
-                pat.create_dataset("t2", data=self.__t2.get_img())
-
-        self.merge_roi()
-
-        if "roi" in list(pat.keys()):
-            pat["roi"][:] = self.__t1.get_roi()
-        else:
-            pat.create_dataset("roi", data=self.__t1.get_roi())
+                update_dataset(pat, "roi_t1", self.__t1.get_roi())
+                update_dataset(pat, "roi_t2", self.__t2.get_roi())
 
         if metadata is not None:
             for key, value in metadata.items():
-                if key in list(pat.attrs.keys()):
-                    pat.attrs[key] = value
-                else:
-                    pat.attrs.create(key, value)
+                update_attribute(pat, key, value)
+
         f.close()
 
     def set_roi_merged(self):

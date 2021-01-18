@@ -1,6 +1,6 @@
 import h5py
 from typing import Sequence, Tuple, Union
-from Utils import convert_3d_to_2d
+from Utils import convert_3d_to_2d, get_group, update_dataset, update_attribute
 import numpy as np
 
 
@@ -26,36 +26,23 @@ def transform_file(filepath: str,
 
     for split in split:
         dtset = f[split]
-
-        if split in list(f2.keys()):
-            new_dtset = f2[split]
-        else:
-            new_dtset = f2.create_group(split)
+        new_dtset = get_group(f2, split)
 
         for key in list(dtset.keys()):
             t1, t2, roi = dtset[key]["t1"][:], dtset[key]["t2"][:], dtset[key]["roi"][:]
-            new_imgs = convert_3d_to_2d([t1, t2],
-                                        [roi],
-                                        apply_mask_on_img=apply_mask,
-                                        reshape_size=reshape_size,
-                                        reshape=reshape)
+            new_imgs, _ = convert_3d_to_2d([t1, t2],
+                                           [roi],
+                                           apply_mask_on_img=apply_mask,
+                                           reshape_size=reshape_size,
+                                           reshape=reshape)
 
             # If the patient already exist in the new dataset
-            if key in list(new_dtset.keys()):
-                patient = new_dtset[key]
-                patient["t1"][:] = new_imgs[0]
-                patient["t2"][:] = new_imgs[1]
+            patient = get_group(new_dtset, key)
+            update_dataset(patient, "t1", new_imgs[0])
+            update_dataset(patient, "t2", new_imgs[1])
 
-                for attr, value in dtset[key].attrs.items():
-                    patient.attrs[attr] = value
-
-            else:
-                patient = new_dtset.create_group(key)
-                patient.create_dataset("t1", data=new_imgs[0])
-                patient.create_dataset("t2", data=new_imgs[1])
-
-                for attr, value in dtset[key].attrs.items():
-                    patient.attrs.create(attr, value)
+            for attr, value in dtset[key].attrs.items():
+                update_attribute(patient, attr, value)
 
     f.close()
     f2.close()
