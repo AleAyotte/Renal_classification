@@ -383,6 +383,7 @@ class Patient:
                      filepath: str,
                      modality: str = "both",
                      merge_roi: bool = True,
+                     apply_roi: bool = False,
                      save_roi: bool = True,
                      convert_in_2_5d: bool = False,
                      metadata: dict = None) -> None:
@@ -392,6 +393,7 @@ class Patient:
         :param filepath: The filepath of the hdf5 file.
         :param modality: The modality to save into the hdf5 file.
         :param merge_roi: If true, save the merged ROI instead of the 2 ROI.
+        :param apply_roi: If true, the pixel of image will be 0 where the pixel of the roi are 0.
         :param save_roi: If true, the ROI is save in the dataset.
         :param convert_in_2_5d: If true, the images will convert in 2.5D before been saved.
         :param metadata: A dictionnary that contain metadata to save in hdf5 file.
@@ -401,22 +403,37 @@ class Patient:
 
         f = h5py.File(filepath, 'a')
 
+        # Create the patient
         dts = get_group(f, self.__dataset)
         pat = get_group(dts, self.__id)
 
+        # Convert the image in 2.5D
+        if convert_in_2_5d:
+            imgs, rois = convert_3d_to_2d([self.__t1.get_img(), self.__t2.get_img()],
+                                          [self.__t1.get_roi(), self.__t2.get_roi()],
+                                          reshape=False,
+                                          apply_mask_on_img=apply_roi)
+            t1, t2 = imgs[0], imgs[1]
+            roi_t1, roi_t2 = rois[0], rois[1]
+        else:
+            t1, t2 = self.__t1.get_img(), self.__t2.get_img()
+            roi_t1, roi_t2 = self.__t1.get_roi(), self.__t2.get_roi()
+
+        # Save the images
         if modality.lower() in ["t1", "t1c", "both"]:
-            update_dataset(pat, "t1", self.__t1.get_img())
+            update_dataset(pat, "t1", t1)
 
         if modality.lower() in ["t2", "t2wi", "both"]:
-            update_dataset(pat, "t2", self.__t2.get_img())
+            update_dataset(pat, "t2", t2)
 
         if save_roi:
             if merge_roi:
-                update_dataset(pat, "roi", self.__t1.get_roi())
+                update_dataset(pat, "roi", roi_t1)
             else:
-                update_dataset(pat, "roi_t1", self.__t1.get_roi())
-                update_dataset(pat, "roi_t2", self.__t2.get_roi())
+                update_dataset(pat, "roi_t1", roi_t1)
+                update_dataset(pat, "roi_t2", roi_t2)
 
+        # Save the metadata
         if metadata is not None:
             for key, value in metadata.items():
                 update_attribute(pat, key, value)
