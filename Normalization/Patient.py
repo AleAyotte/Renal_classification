@@ -439,10 +439,3 @@ class Patient:
                 update_attribute(pat, key, value)
 
         f.close()
-
-    def set_roi_merged(self):
-        """
-        Change the state of the attribute self.roi_merged to True. Usefull if the user know that
-        the ROI has been merge in another
-        """
-        self.__roi_merged = True
