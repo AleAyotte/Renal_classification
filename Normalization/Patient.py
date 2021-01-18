@@ -73,7 +73,11 @@ class Patient:
         Change the state of the attribute self.roi_merged to True. Usefull if the user know that
         the ROI has been merge in another
     """
-    def __init__(self, patient_id: str, _path: str, institution: str, dataset: str):
+    def __init__(self,
+                 patient_id: str, 
+                 _path: str,
+                 institution: str,
+                 dataset: str):
         self.__id = patient_id
         self.__path = _path
         self.__inst = institution
@@ -94,7 +98,9 @@ class Patient:
                           "roi_distance": []}
         self.__roi_merged = False
 
-    def apply_n4(self, save: bool = False, save_path=""):
+    def apply_n4(self,
+                 save: bool = False,
+                 save_path="") -> None:
         """
         Apply the n4_bias_feild_correction on the image with Antspy and save it if requested
 
@@ -102,10 +108,12 @@ class Patient:
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
         """
-        self.__t1.apply_n4(save=save, save_path=save_path, )
+        self.__t1.apply_n4(save=save, save_path=save_path)
         self.__t2.apply_n4(save=save, save_path=save_path)
 
-    def apply_znorm(self, save: bool = False, save_path=""):
+    def apply_znorm(self,
+                    save: bool = False,
+                    save_path="") -> None:
         """
         Apply the z normalization on the image and save it if requested
 
@@ -145,7 +153,9 @@ class Patient:
     def get_t2(self) -> MRIimage:
         return self.__t2
 
-    def merge_roi(self, save: bool = False, save_path: str = ""):
+    def merge_roi(self,
+                  save: bool = False,
+                  save_path: str = "") -> None:
         """
         Merge the ROI of the t1 image and the t2 image and set the new ROI to the images T1 and T2.
 
@@ -167,7 +177,10 @@ class Patient:
         self.__t2.update_roi(new_roi=new_roi, save=save, save_path=save_path)
         self.__roi_merged = True
 
-    def plot_image_and_roi(self, slice_t1: int = -1, slice_t2: int = -1, slice_orientation: str = "axial"):
+    def plot_image_and_roi(self,
+                           slice_t1: int = -1,
+                           slice_t2: int = -1,
+                           slice_orientation: str = "axial") -> None:
         """
         Plot the images and their corresponding ROI in axial view.
 
@@ -205,7 +218,7 @@ class Patient:
 
         plt.show()
 
-    def __read_measure(self):
+    def __read_measure(self) -> None:
         """
         Compute usefull measure about the ROI of each image.
         """
@@ -227,8 +240,12 @@ class Patient:
         self.__measure['t1_voxel_spacing'] = self.__t1.get_metadata()["voxel_spacing"]
         self.__measure['t2_voxel_spacing'] = self.__t2.get_metadata()["voxel_spacing"]
 
-    def register(self, t1_fixed: bool = True, type_of_transform: str = "Translation", focus_mask: bool = False,
-                 save: bool = False, save_path: str = ""):
+    def register(self,
+                 t1_fixed: bool = True,
+                 type_of_transform: str = "Translation",
+                 focus_mask: bool = False,
+                 save: bool = False,
+                 save_path: str = "") -> None:
         """
         Register the image T2 on the image T1 (Or the opposite if t1_fixed is False) and adjust the ROI.
 
@@ -273,9 +290,16 @@ class Patient:
             if path.exists(file):
                 os.remove(file)
 
-    def resample_and_crop(self, resample_params, crop_shape, interp_type: int = 1, threshold: float = 50,
-                          register: bool = False, register_mode: str = "threshold", merge_roi: bool = False,
-                          save: bool = False, save_path: str = ""):
+    def resample_and_crop(self,
+                          resample_params,
+                          crop_shape,
+                          interp_type: int = 1,
+                          threshold: float = 50,
+                          register: bool = False,
+                          register_mode: str = "threshold",
+                          merge_roi: bool = False,
+                          save: bool = False,
+                          save_path: str = "") -> None:
         """
         Resample both images and their ROI, crop them and if requested merge the ROI together.
 
@@ -336,7 +360,10 @@ class Patient:
         if merge_roi:
             self.merge_roi(save=save, save_path=save_path)
 
-    def save_images(self, modality: str = "both", save_path: str = "", with_roi: bool = False):
+    def save_images(self,
+                    modality: str = "both",
+                    save_path: str = "",
+                    with_roi: bool = False) -> None:
         """
         Save the image (ROI) in a NIFTI file and update reading path.
 
@@ -351,7 +378,11 @@ class Patient:
         if modality.lower() in ["t2", "t2wi", "both"]:
             self.__t2.save_image(path=save_path, with_roi=with_roi)
 
-    def save_in_hdf5(self, filepath: str, modality: str = "both", merged_roi: bool = True, metadata: dict = None):
+    def save_in_hdf5(self,
+                     filepath: str,
+                     modality: str = "both",
+                     merged_roi: bool = True,
+                     metadata: dict = None) -> None:
         """
         Save the images and their merged ROI into an hdf5 file with the clinical data
 
