@@ -79,15 +79,39 @@ def convert_3d_to_2d(imgs: Union[Sequence[np.array], np.array],
 def get_group(parent: Union[h5py.File, h5py.Group],
               key: str) -> h5py.Group:
     """
+    Return a group in a given h5py file or group. If the group doesn't exist, it will be create.
 
-    :param parent:
-    :param key:
-    :return:
+    :param parent: The parent h5py file or group of the seeked group.
+    :param key: The name of the group.
+    :return: A h5py group
     """
     if key in list(parent.keys()):
         return parent[key]
     else:
         return parent.create_group(key)
+
+
+def read_metadata(filename: str,
+                  group: str) -> dict:
+    """
+    Read the attributes of all patient that are member of a given group in a given hdf5 file.
+
+    :param filename:The path of the hdf5 file.
+    :param group:The name of the group.
+    :return: A dictionnary of dictonnary where keys are the PatientID.
+    """
+    f = h5py.File(filename, 'r')
+    group = f[group]
+    patient_list = list(group.keys())
+
+    metadata = {}
+    for patient in patient_list:
+        patient_data = {}
+        for attr, value in group[patient].attrs.items():
+            patient_data[attr] = value
+        metadata[patient] = patient_data
+
+    return metadata
 
 
 def rotate_and_compare(img: np.array,
@@ -156,11 +180,11 @@ def update_dataset(group: h5py.Group,
                    key: str,
                    new_data: np.array) -> None:
     """
-
-    :param group:
-    :param key:
-    :param new_data:
-    :return:
+    Update the value of a dataset in a given group. If the dataset doesn't exist, it will be create.
+    
+    :param group: The group that own the dataset.
+    :param key: The name of the dataset.
+    :param new_data: A numpy array that represent the new dataset.
     """
     if key in list(group.keys()):
         group[key][:] = new_data
@@ -171,6 +195,13 @@ def update_dataset(group: h5py.Group,
 def update_attribute(group: h5py.Group,
                      key: str,
                      new_data) -> None:
+    """
+    Update the value of a attribute in a given group. If the attribute doesn't exist, it will be create.
+
+    :param group: The group that own the dataset.
+    :param key: The name of the attribute.
+    :param new_data: The new value of the attribute to update.
+    """
     if key in list(group.attrs.keys()):
         group.attrs[key] = new_data
     else:
