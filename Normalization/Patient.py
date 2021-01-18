@@ -16,12 +16,8 @@ class Patient:
     ...
     Attributes
     ----------
-    __dataset : string
-        Indicate the patient is part of which dataset. {Option: Train, Test1, Test2}
     __id : string
         The patient identificator. (Exemple: "Kidney-TCGA-008")
-    __inst : string
-        Indicate the is part of which institution.
     __measure : Dict
         A dictionnary that contain usefull statistic about the images and their ROI.
             roi_size : List[float]
@@ -76,13 +72,9 @@ class Patient:
     """
     def __init__(self,
                  patient_id: str,
-                 _path: str,
-                 institution: str,
-                 dataset: str):
+                 _path: str):
         self.__id = patient_id
         self.__path = _path
-        self.__inst = institution
-        self.__dataset = dataset
         self.__t1 = MRIimage(modality="T1C",
                              path_image=path.join(self.__path, patient_id + "__T1C" + ".MRscan__VOL"),
                              path_roi=path.join(self.__path, patient_id + "__T1C" + ".MRscan__ROI"))
@@ -165,7 +157,7 @@ class Patient:
         :param save_path: A string that indicate the path where the images will be save.
         """
         _ = self.get_measure()
-        assert (self.__measure["t1_shape"] == self.__measure["t2_shape"]).all(), \
+        assert self.__measure["t1_shape"] == self.__measure["t2_shape"], \
             "The ROI do not have the same shape. You should resample and crop the two ROI before merging them." \
             "\n{}, {}".format(self.__measure["t1_shape"], self.__measure["t2_shape"])
 
@@ -358,6 +350,8 @@ class Patient:
                        save=False if merge_roi else save,
                        save_path=save_path)
 
+        self.__read_measure()
+
         if merge_roi:
             self.merge_roi(save=save, save_path=save_path)
 
@@ -381,6 +375,7 @@ class Patient:
 
     def save_in_hdf5(self,
                      filepath: str,
+                     dataset: str,
                      modality: str = "both",
                      merge_roi: bool = True,
                      apply_roi: bool = False,
@@ -391,6 +386,7 @@ class Patient:
         Save the images and their merged ROI into an hdf5 file with the clinical data
 
         :param filepath: The filepath of the hdf5 file.
+        :param dataset: Indicate the patient is part of which dataset. {Option: Train, Test1, Test2}
         :param modality: The modality to save into the hdf5 file.
         :param merge_roi: If true, save the merged ROI instead of the 2 ROI.
         :param apply_roi: If true, the pixel of image will be 0 where the pixel of the roi are 0.
@@ -404,7 +400,7 @@ class Patient:
         f = h5py.File(filepath, 'a')
 
         # Create the patient
-        dts = get_group(f, self.__dataset)
+        dts = get_group(f, dataset)
         pat = get_group(dts, self.__id)
 
         # Convert the image in 2.5D
@@ -415,6 +411,9 @@ class Patient:
                                           apply_mask_on_img=apply_roi)
             t1, t2 = imgs[0], imgs[1]
             roi_t1, roi_t2 = rois[0], rois[1]
+
+            t1 = (t1 - np.mean(t1)) / np.std(t1)
+            t2 = (t2 - np.mean(t2)) / np.std(t2)
         else:
             t1, t2 = self.__t1.get_img(), self.__t2.get_img()
             roi_t1, roi_t2 = self.__t1.get_roi(), self.__t2.get_roi()

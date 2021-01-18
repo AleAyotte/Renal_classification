@@ -96,7 +96,7 @@ for f in tqdm(folder):
 
         for pat_id in tqdm(list(patient_list.keys()), leave=False):
             try:
-                pat = Patient(pat_id, path_images + f, "NA", d)
-                pat.save_in_hdf5(path_images + "final_dtset/" + f + "all.hdf5", metadata=patient_list[pat_id])
+                pat = Patient(pat_id, path_images + f, )
+                pat.save_in_hdf5(path_images + "final_dtset/" + f + "all.hdf5", d, metadata=patient_list[pat_id])
             except Exception as e:
                 continue

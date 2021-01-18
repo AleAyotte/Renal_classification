@@ -31,7 +31,7 @@ for i in range(len(institution)):
         patient_id = institution[i] + "-" + _nb
 
         if patient_id not in exclude:
-            pat = Patient(patient_id, _path, institution[i], "Train")
+            pat = Patient(patient_id, _path)
             pat.apply_n4(save=True, save_path=temp_path)
 
 
@@ -51,11 +51,11 @@ for k in range(4):
             patient_id = institution[i] + "-" + _nb
 
             if patient_id not in exclude:
-                pat = Patient(patient_id, read_path[k], institution[i], "Train")
+                pat = Patient(patient_id, read_path[k])
 
                 pat.resample_and_crop(resample_params=voxel_size,
                                       crop_shape=crop_shape[k],
                                       interp_type=0,
-                                      save=True,
+                                      save=False,
                                       save_path=save_path[k])
                 pat.apply_znorm(save=True, save_path=save_path[k])
