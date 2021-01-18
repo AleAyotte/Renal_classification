@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import Sequence, Tuple, Union
+from skimage.transform import resize
+from scipy import interpolate
 
 
 def rotate_and_compare(img: np.array,
@@ -67,15 +69,19 @@ def rotate_and_compare(img: np.array,
 
 def convert_3d_to_2d(imgs: Union[Sequence[np.array], np.array],
                      masks: Union[Sequence[np.array], np.array],
-                     apply_mask_on_img: bool = True) -> Tuple[Sequence[np.array], Sequence[np.array]]:
+                     reshape_size: Sequence[int] = None,
+                     reshape: bool = False,
+                     apply_mask_on_img: bool = True) -> Sequence[np.array]:
     """
     Converte one or many single channel 3D images into 3 channels 2.5D images where the 3 channels represent the
     axial, corronal and sagittal view. Apply the same transformation on the maks.
 
     :param imgs: An image or a list of image to convert in 2.5D.
     :param masks:A mask or a list of mask to convert in 2.5D
+    :param reshape_size: The size of the reshaped 2.5D image (Default: [256, 256]).
+    :param reshape: A boolean that indicate if the images must be reshape.
     :param apply_mask_on_img: If true, the pixel of image will 0 where the pixel of the mask are 0.
-    :return: A list of images and a list of masks.
+    :return: A list of images.
     """
     imgs = [imgs] if type(imgs) is not list else imgs
     masks = [masks] if type(masks) is not list else masks
@@ -87,7 +93,6 @@ def convert_3d_to_2d(imgs: Union[Sequence[np.array], np.array],
                                        "\n nb imgs: {}, nb masks {}".format(len(imgs), len(masks))
 
     new_imgs = []
-    new_masks = []
 
     for img, mask in zip(imgs, masks):
 
@@ -96,20 +101,25 @@ def convert_3d_to_2d(imgs: Union[Sequence[np.array], np.array],
         img_shape = np.array(np.shape(img))
         assert len(img_shape) == 3, "One or many image are not in 3D with one channel"
 
-        # Extract the middle slice
-        mid_slice = np.floor(img_shape / 2).astype(int)
-        new_img = np.array([img[mid_slice[0], :, :],
-                            img[:, mid_slice[1], :],
-                            img[:, :, mid_slice[2]]])
-        new_mask = np.array([mask[mid_slice[0], :, :],
-                             mask[:, mid_slice[1], :],
-                             mask[:, :, mid_slice[2]]])
-
         # Apply the mask on the image
         if apply_mask_on_img:
-            new_img = np.where(new_mask > 0, new_img, 0)
+            img = np.where(mask > 0, img, 0)
+
+        # Extract the middle slice
+        mid_slice = np.floor(img_shape / 2).astype(int)
+
+        if reshape:
+            new_img = np.array(
+                [resize(img[mid_slice[0], :, :], output_shape=reshape_size, preserve_range=True),
+                 resize(img[:, mid_slice[1], :], output_shape=reshape_size, preserve_range=True),
+                 resize(img[:, :, mid_slice[2]], output_shape=reshape_size, preserve_range=True)]
+            )
+
+        else:
+            new_img = np.array([img[mid_slice[0], :, :],
+                                img[:, mid_slice[1], :],
+                                img[:, :, mid_slice[2]]])
 
         new_imgs.append(new_img)
-        new_masks.append(new_mask)
 
-    return new_imgs, new_masks
+    return new_imgs
