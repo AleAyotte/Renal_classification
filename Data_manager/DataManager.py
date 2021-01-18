@@ -154,49 +154,6 @@ class RenalDataset(Dataset):
         return {"sample": sample, "labels": labels}
 
 
-def get_dataloader(dataset: RenalDataset, 
-                   bsize: int = 32,
-                   pin_memory: bool = False,
-                   num_workers: int = 0,
-                   validation_split: float = 0.2, 
-                   random_seed: int = 0) -> Tuple[DataLoader, DataLoader]:
-    """
-    Transform a dataset into a training dataloader and a validation dataloader.
-
-    :param dataset: The dataset to split.
-    :param bsize: The batch size.
-    :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
-                       copied into the CUDA pinned memory. (Default=False)
-    :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
-                        the main process will be used for the data augmentation. (Default: 0)
-    :param validation_split: A float that indicate the percentage of the dataset that will be used to create the 
-                             validation dataloader.
-    :param random_seed: The seed that will be used to randomly split the dataset.
-    :return: Two dataloader, one for training and one for the validation.
-    """
-    dataset_size = len(dataset)
-    indices = list(range(dataset_size))
-    split = int(np.floor(validation_split * dataset_size))
-    np.random.seed(random_seed)
-    np.random.shuffle(indices)
-
-    train_indices, val_indices = indices[split:], indices[:split]
-    train_sampler = SubsetRandomSampler(train_indices)
-    valid_sampler = SubsetRandomSampler(val_indices)
-
-    train_loader = DataLoader(dataset,
-                              batch_size=bsize,
-                              pin_memory=pin_memory,
-                              num_workers=num_workers,
-                              sampler=train_sampler,
-                              drop_last=True)
-    valid_loader = DataLoader(dataset,
-                              batch_size=bsize,
-                              sampler=valid_sampler)
-
-    return train_loader, valid_loader
-
-
 def split_trainset(trainset: RenalDataset,
                    validset: RenalDataset,
                    validation_split: float = 0.2,

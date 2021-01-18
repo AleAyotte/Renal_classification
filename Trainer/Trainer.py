@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from Data_manager.DataManager import RenalDataset, get_dataloader
+from Data_manager.DataManager import RenalDataset
 from Model.NeuralNet import NeuralNet
 from monai.optimizers import Novograd
 import numpy as np
