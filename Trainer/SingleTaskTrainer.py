@@ -139,34 +139,21 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            features, labels = data["sample"].to(self._device), data["labels"].to(self._device)
-            features, labels = Variable(features), Variable(labels)
+            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
+            images, labels = Variable(images), Variable(labels)
+            features = None
+
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
 
             optimizer.zero_grad()
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
-                pred = self.model(features)
+                pred = self.model(images) if features is None else self.model(images, features)
                 loss = self.__loss(pred, labels)
 
-            if self._mixed_precision:
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-            else:
-                loss.backward()
-
-            if grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
-
-            if self._mixed_precision:
-                scaler.step(optimizer)
-                scheduler.step()
-                scaler.update()
-            else:
-                optimizer.step()
-                scheduler.step()
-
-            # Save the loss
+            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
             sum_loss += loss
 
             if self._track_mode == "all":
@@ -232,8 +219,13 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            features, labels = data["sample"].to(self._device), data["labels"].to(self._device)
-            features, labels = Variable(features), Variable(labels)
+            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
+            images, labels = Variable(images), Variable(labels)
+            features = None
+
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
+
             optimizer.zero_grad()
 
             # Mixup activation
@@ -241,30 +233,14 @@ class SingleTaskTrainer(Trainer):
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
-                pred = self.model(features)
+                pred = self.model(images) if features is None else self.model(images, features)
                 loss = self._mixup_criterion([pred], 
                                              [labels], 
                                              lamb, 
                                              permut,
                                              it + epoch*n_iters)
-            if self._mixed_precision:
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-            else:
-                loss.backward()
 
-            if grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
-
-            if self._mixed_precision:
-                scaler.step(optimizer)
-                scheduler.step()
-                scaler.update()
-            else:
-                optimizer.step()
-                scheduler.step()
-
-            # Save the loss
+            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
             sum_loss += loss
 
             self.model.disable_mixup(mixup_key)
