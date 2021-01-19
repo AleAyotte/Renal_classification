@@ -5,6 +5,7 @@ from monai.optimizers import Novograd
 import numpy as np
 from Trainer.Utils import init_weights
 import torch
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch import nn
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
@@ -252,6 +253,42 @@ class Trainer(ABC):
 
         self._writer.close()
         self.model.restore(self.__save_path)
+
+    def _update_model(self,
+                      scaler: Union[GradScaler, None],
+                      optimizer: Union[torch.optim.Adam, Novograd],
+                      scheduler: CosineAnnealingWarmRestarts,
+                      grad_clip: float,
+                      loss: torch.FloatTensor) -> None:
+        """
+        Scale the loss if self._mixed_precision is True and update the weights of the model.
+
+        :param scaler: The gradient scaler that will be used to scale the loss if self._mixed_precision is True.
+        :param optimizer: The torch optimizer that will used to train the model.
+        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :param loss: The loss of the current epoch.
+        """
+        # Mixed precision enabled
+        if self._mixed_precision:
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+
+            if grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
+
+            scaler.step(optimizer)
+            scaler.update()
+
+        # Mixed precision disabled
+        else:
+            loss.backward()
+
+            if grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
+
+            optimizer.step()
+        scheduler.step()
 
     @abstractmethod
     def _init_loss(self, gamma: float) -> None:
