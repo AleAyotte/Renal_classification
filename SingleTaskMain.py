@@ -23,13 +23,14 @@ def argument_parser():
     parser.add_argument('--dropout', type=float, default=0)
     parser.add_argument('--drop_type', type=str, default="flat",
                         choices=["flat", "linear"])
-    parser.add_argument('--eps', type=float, default=1e-1)
+    parser.add_argument('--eps', type=float, default=1e-3)
+    parser.add_argument('--eta_min', type=float, default=1e-6)
     parser.add_argument('--extra_data', type=bool, default=False)
     parser.add_argument('--in_channels', type=int, default=16)
     parser.add_argument('--loss', type=str, default="ce",
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--mixed_precision', type=bool, default=True)
+    parser.add_argument('--mixed_precision', type=bool, default=False)
     parser.add_argument('--mixup', type=int, action='store', nargs="*", default=[0, 2, 2, 2])
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
@@ -58,11 +59,13 @@ if __name__ == "__main__":
 
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1, 2], prob=0.5),
+        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1], prob=0.5),
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=10, rotate_range=6.28, translate_range=0.1),
+        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=10,
+                    rotate_range=[6.28, 6.28, 0], translate_range=0.1),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.95, max_zoom=1.05, keep_size=False),
+        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.95, max_zoom=1.05,
+                  keep_size=False, mode="trilinear", align_corners=True),
         ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
     ])
@@ -72,12 +75,12 @@ if __name__ == "__main__":
         ToTensord(keys=["t1", "t2", "roi"])
     ])
 
-    trainset = RenalDataset(data_path, transform=transform)
-    validset = RenalDataset(data_path, transform=test_transform, split=None)
-    testset = RenalDataset(data_path, transform=test_transform, split="test")
+    trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
+    validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=None)
+    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split="test")
 
     if args.extra_data:
-        trainset2 = RenalDataset(data_path, transform=transform, split="test2")
+        trainset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"], split="test2")
         data, label, _ = trainset2.extract_data(np.arange(len(trainset2)))
         trainset.add_data(data, label)
         del data
@@ -96,7 +99,6 @@ if __name__ == "__main__":
                  pre_act=True).to(args.device)
 
     summary(net, (3, 96, 96, 32))
-    # print(net)
 
     trainer = Trainer(save_path="Check_moi_ca2.pth",
                       loss=args.loss,
@@ -115,7 +117,7 @@ if __name__ == "__main__":
                 validset=validset,
                 mode=args.mode,
                 learning_rate=args.lr,
-                eta_min=args.lr/100,
+                eta_min=args.eta_min,
                 grad_clip=5,
                 warm_up_epoch=args.warm_up,
                 eps=args.eps,
