@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from Data_manager.DataManager import RenalDataset
 from Model.NeuralNet import NeuralNet
+from Model.ResNet_2D import ResNet2D
 from monai.optimizers import Novograd
 import numpy as np
 from Trainer.Utils import init_weights
@@ -100,7 +101,7 @@ class Trainer(ABC):
         self._soft = nn.Softmax(dim=-1)
 
     def fit(self,
-            model: NeuralNet,
+            model: Union[NeuralNet, ResNet2D],
             trainset: RenalDataset,
             validset: RenalDataset,
             num_epoch: int = 200, 
@@ -153,7 +154,7 @@ class Trainer(ABC):
         # Initialization of the model.
         self._device = device
         self.model = model.to(device)
-        self.model.set_mixup(batch_size)
+        self.model.set_mixup(batch_size) if mode.lower() == "mixup" else None
         self._init_loss(gamma=gamma)
 
         if retrain:

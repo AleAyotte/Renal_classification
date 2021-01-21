@@ -30,7 +30,7 @@ class RenalDataset(Dataset):
         self.__with_clinical = clinical_features is not None
         self.__imgs_keys = imgs_keys
         self.__data = np.array([])
-        self.__clinical_data = np.array([])
+        self.__clinical_data = np.empty(shape=(0, len(clinical_features)))
         self.__labels = np.array([])
 
         if split is not None:
@@ -52,7 +52,6 @@ class RenalDataset(Dataset):
         """
         self.__data = np.append(self.__data, data, 0)
         self.__labels = np.append(self.__labels, label, 0)
-
         if clinical_data is not None:
             self.__clinical_data = np.append(self.__clinical_data, clinical_data, 0)
 
