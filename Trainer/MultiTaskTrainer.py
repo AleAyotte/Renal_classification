@@ -363,10 +363,13 @@ class MultiTaskTrainer(Trainer):
         g_labels = torch.empty(0).long()
 
         for data in dt_loader:
-            features, labels = data["sample"].to(self._device), data["labels"]
+            images, labels = data["sample"].to(self._device), data["labels"]
 
+            features = None
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
             with torch.no_grad():
-                m_out, s_out, g_out = self.model(features)
+                m_out, s_out, g_out = self.model(images) if features is None else self.model(images, features)
 
                 m_outs = torch.cat([m_outs, m_out])
                 s_outs = torch.cat([s_outs, s_out])

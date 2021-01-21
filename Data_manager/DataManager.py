@@ -158,7 +158,7 @@ class RenalDataset(Dataset):
             labels = torch.tensor(self.__labels[idx]).long().squeeze()
 
         if self.__with_clinical:
-            features = torch.tensor(self.__clinical_data[idx])
+            features = torch.tensor(self.__clinical_data[idx]).long().squeeze()
             return {"sample": sample, "labels": labels, "features": features}
 
         else:

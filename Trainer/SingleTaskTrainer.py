@@ -298,10 +298,14 @@ class SingleTaskTrainer(Trainer):
         labels = torch.empty(0).long()
 
         for data in dt_loader:
-            features, label = data["sample"].to(self._device), data["labels"]
+            images, label = data["sample"].to(self._device), data["labels"]
+            features = None
+
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
 
             with torch.no_grad():
-                out = self.model(features)
+                out = self.model(images) if images is None else self.model(images, features)
 
                 outs = torch.cat([outs, out])
                 labels = torch.cat([labels, label])
