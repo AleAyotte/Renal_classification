@@ -54,6 +54,7 @@ for i in range(len(institution)):
                 pat.resample_and_crop(resample_params=voxel_size,
                                       crop_shape=crop_shape,
                                       interp_type=0,
+                                      ponderate_center=False,
                                       save=False,
                                       save_path=save_path)
 
@@ -64,7 +65,7 @@ for i in range(len(institution)):
                                          apply_roi=True,
                                          convert_in_2_5d=True,
                                          save_roi=False,
-                                        metadata=metadata[t][dts][patient_id])
+                                         metadata=metadata[t][dts][patient_id])
             except Exception as e:
                 print(patient_id, " problem during saving in hdf5: ", e)
                 continue

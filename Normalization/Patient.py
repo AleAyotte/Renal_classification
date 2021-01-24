@@ -290,6 +290,7 @@ class Patient:
                           threshold: float = 50,
                           register: bool = False,
                           register_mode: str = "threshold",
+                          ponderate_center: bool = True,
                           merge_roi: bool = False,
                           save: bool = False,
                           save_path: str = "") -> None:
@@ -305,6 +306,9 @@ class Patient:
         :param register_mode: A string that indicate when the registration is applied. (Option: 'threshold', 'always')
                               If threashold then the image t1 is register on image t2 if the distance between
                               the two center of mass is too high.
+        :param ponderate_center: If true, the crop will be centered on the ponderate center of mass. Else,
+                                 the images will be crop on their respective center of mass. The center of mass
+                                 of an image is define by it ROI.
         :param merge_roi: A boolean that indicate if the ROI will be merge at the end of the process.
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
@@ -338,15 +342,19 @@ class Patient:
             if distance > threshold:
                 raise Exception("The distance between the two center of mass is too high.".format(distance))
 
-        roi_center = self.__get_ponderate_center()
+        if ponderate_center:
+            roi_center_t1 = roi_center_t2 = self.__get_ponderate_center()
+        else:
+            roi_center_t1 = np.array(self.__t1.get_roi_measure()["center_mm"])
+            roi_center_t2 = np.array(self.__t2.get_roi_measure()["center_mm"])
 
         self.__t1.crop(crop_shape=crop_shape,
-                       center=roi_center,
+                       center=roi_center_t1,
                        save=False if merge_roi else save,
                        save_path=save_path)
 
         self.__t2.crop(crop_shape=crop_shape,
-                       center=roi_center,
+                       center=roi_center_t2,
                        save=False if merge_roi else save,
                        save_path=save_path)
 
