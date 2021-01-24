@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models
+from typing import Tuple
 
 
 class ResNet2D(nn.Module):
@@ -24,8 +25,10 @@ class ResNet2D(nn.Module):
         self.fc_out = nn.Sequential(nn.Dropout(p=drop_rate),
                                     nn.Linear(24+self._nb_clin_features, 2))
 
-    def forward(self, images_t1, images_t2, clin_features):
+    def forward(self, images, clin_features):
         # Forward pass in the backend
+        images_t1, images_t2 = images[:, 0, :, :, :], images[:, 1, :, :, :]
+
         t1_features = self.t1_net(images_t1)
         t2_features = self.t2_net(images_t2)
 
@@ -33,3 +36,15 @@ class ResNet2D(nn.Module):
         out = self.fc_out(torch.cat((imgs_out, clin_features), -1))
 
         return out
+
+    def restore(self, checkpoint_path) -> Tuple[int, float, float]:
+        """
+        Restore the weight from the last checkpoint saved during training
+
+        :param checkpoint_path:
+        """
+
+        if checkpoint_path is not None:
+            checkpoint = torch.load(checkpoint_path)
+            self.load_state_dict(checkpoint['model_state_dict'])
+            return checkpoint['epoch'], checkpoint['loss'], checkpoint['accuracy']
