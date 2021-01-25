@@ -58,10 +58,10 @@ if __name__ == "__main__":
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
         RandAffined(keys=["t1", "t2"], prob=0.5, shear_range=10,
                     rotate_range=6.28, translate_range=0.1),
-        # RandSpatialCropd(keys=["t1", "t2"], roi_size=86, random_center=False),
+        RandSpatialCropd(keys=["t1", "t2"], roi_size=[3, 86, 86], random_center=False),
         RandZoomd(keys=["t1", "t2"], prob=0.5, min_zoom=0.95, max_zoom=1.05,
-                  keep_size=True),
-        # ResizeWithPadOrCropd(keys=["1", "t2"], spatial_size=[128, 128], mode=args.pad_mode),
+                  keep_size=False),
+        ResizeWithPadOrCropd(keys=["t1", "t2"], spatial_size=[3, 128, 128], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2"])
     ])
 
@@ -69,8 +69,9 @@ if __name__ == "__main__":
         AddChanneld(keys=["t1", "t2"]),
         ToTensord(keys=["t1", "t2"])
     ])
-    
-    clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
+
+    # clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
+    clin_features = ["Sex", "size", "metastasis"]
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"],
                             clinical_features=clin_features)
     validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=None,
