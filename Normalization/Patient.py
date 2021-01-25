@@ -342,19 +342,15 @@ class Patient:
             if distance > threshold:
                 raise Exception("The distance between the two center of mass is too high.".format(distance))
 
-        if ponderate_center:
-            roi_center_t1 = roi_center_t2 = self.__get_ponderate_center()
-        else:
-            roi_center_t1 = np.array(self.__t1.get_roi_measure()["center_mm"])
-            roi_center_t2 = np.array(self.__t2.get_roi_measure()["center_mm"])
+        roi_center = self.__get_ponderate_center() if ponderate_center else None
 
         self.__t1.crop(crop_shape=crop_shape,
-                       center=roi_center_t1,
+                       center=roi_center,
                        save=False if merge_roi else save,
                        save_path=save_path)
 
         self.__t2.crop(crop_shape=crop_shape,
-                       center=roi_center_t2,
+                       center=roi_center,
                        save=False if merge_roi else save,
                        save_path=save_path)
 
