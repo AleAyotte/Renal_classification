@@ -1,8 +1,9 @@
 from itertools import product
 import numpy as np
+import os
 from Patient import Patient
 from tqdm import trange
-from Utils import read_metadata
+from Utils import get_temporary_files, read_metadata
 
 path_images = "/home/alex/Data/Corrected/"
 temp_path = "/home/alex/Data/Temp/"
@@ -24,9 +25,11 @@ task_list = ["malignant", "subtype", "grade"]
 file_list = ["grade.hdf5", "malignant.hdf5", "subtype.hdf5"]
 newfile_list = ["new_grade.hdf5", "new_malignant.hdf5", "new_subtype.hdf5"]
 
-# -----------------------------
-#        Read metadata
-# -----------------------------
+
+tempfiles = set(get_temporary_files(folder_path="/tmp"))
+# -------------------------------------
+#            Read metadata
+# -------------------------------------
 metadata = {}
 
 for task, file in zip(task_list, file_list):
@@ -49,6 +52,9 @@ for i in range(len(institution)):
 
         if patient_id not in exclude:
             try:
+                # -------------------------------------
+                #         Normalize the image
+                # -------------------------------------
                 pat = Patient(patient_id, path_images)
 
                 pat.resample_and_crop(resample_params=voxel_size,
@@ -58,6 +64,9 @@ for i in range(len(institution)):
                                       save=False,
                                       save_path=save_path)
 
+                # -------------------------------------
+                #        Save in all hdf5 files
+                # -------------------------------------
                 for (t, savefile), dts in product(zip(task_list, newfile_list), dtset):
                     if patient_id in list(metadata[t][dts].keys()):
                         pat.save_in_hdf5(savefile, dts,
@@ -66,6 +75,13 @@ for i in range(len(institution)):
                                          convert_in_2_5d=True,
                                          save_roi=False,
                                          metadata=metadata[t][dts][patient_id])
+
+                # -------------------------------------
+                #           Delete temp files
+                # -------------------------------------
+                new_tempfiles = set(get_temporary_files(folder_path="/tmp"))
+                for tempfile in list(new_tempfiles.difference(tempfiles)):
+                    os.remove(tempfile)
             except Exception as e:
-                print(patient_id, " problem during saving in hdf5: ", e)
+                print(patient_id, " problem: ", e)
                 continue

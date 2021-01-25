@@ -1,6 +1,7 @@
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 from typing import Sequence, Tuple, Union
 from skimage.transform import resize
 
@@ -74,6 +75,23 @@ def convert_3d_to_2d(imgs: Union[Sequence[np.array], np.array],
         new_masks.append(new_mask)
 
     return new_imgs, new_masks
+
+
+def get_temporary_files(folder_path: str, extension: str = "nii.gz") -> Sequence[str]:
+    """
+    List all files with a given extension in a given directory. Can be used to list the temporary
+    files created by antspy.
+
+    :param folder_path: The path to the temporary files.
+    :param extension: Only the files that finish with this extension will be return.
+    :return: A list of string that correspond to a list of filepath.
+    """
+    filelist = []
+    for file in os.listdir(folder_path):
+        if file.endswith(extension):
+            filelist.append(str(os.path.join(folder_path, file)))
+
+    return filelist
 
 
 def get_group(parent: Union[h5py.File, h5py.Group],
