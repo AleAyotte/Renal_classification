@@ -172,8 +172,8 @@ class MRIimage:
         self.__roi_measure['center_mm'] = self.voxel_to_spatial(center_voxel)
 
     def crop(self,
-             crop_shape,
-             center=None,
+             crop_shape: Sequence[int],
+             center: Union[Sequence[int], None] = None,
              save: bool = False,
              save_path: str = "") -> None:
         """
@@ -194,6 +194,11 @@ class MRIimage:
         center = self.__roi_measure['center_mm'] if center is None else center
         center_min = np.floor(self.spatial_to_voxel(center)).astype(int)
         center_max = np.ceil(self.spatial_to_voxel(center)).astype(int)
+
+        # If center_max and center_min are equal we add 1 to center_max to avoid trouble with crop.
+        for i in range(3):
+            center_max[i] += 1 if center_max[i] == center_min[i] else 0
+
         img_shape = self.__metadata['img_shape']
 
         # Pad the image and the ROI if its necessary
@@ -212,9 +217,9 @@ class MRIimage:
         center_max = [center_max[i] + padding[i][0] for i in range(3)]
 
         # Crop the image
-        img = img[center_min[0]-radius[0]:center_max[0]+radius[0] + 1,
-                  center_min[1]-radius[1]:center_max[1]+radius[1] + 1,
-                  center_min[2]-radius[2]:center_max[2]+radius[2] + 1]
+        img = img[center_min[0] - radius[0]:center_max[0] + radius[0] + 1,
+                  center_min[1] - radius[1]:center_max[1] + radius[1] + 1,
+                  center_min[2] - radius[2]:center_max[2] + radius[2] + 1]
         roi = roi[center_min[0] - radius[0]:center_max[0] + radius[0] + 1,
                   center_min[1] - radius[1]:center_max[1] + radius[1] + 1,
                   center_min[2] - radius[2]:center_max[2] + radius[2] + 1]
@@ -542,9 +547,9 @@ class MRIimage:
         :param save_path: A string that indicate the path where the images will be save
         """
 
-        assert (np.array(new_roi.shape) == self.__metadata['img_shape']).all(), \
-            "The new ROI do not have same shape as the image." "New roi shape: {}, image shape: {}".format(
-                new_roi.shape, self.__metadata['img_shape'])
+        if not (np.array(new_roi.shape) == self.__metadata['img_shape']).all():
+            raise Exception("The new ROI do not have same shape as the image. New roi shape: {}, "
+                            "image shape: {}".format(new_roi.shape, self.__metadata['img_shape']))
 
         self.__roi = nib.Nifti1Image(new_roi, affine=self.__img.affine, header=self.__img.header)
         self.__compute_roi_measure()
