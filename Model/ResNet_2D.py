@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from Trainer.Utils import init_weights
 from torchvision import models
 from typing import Tuple
 
@@ -24,6 +25,11 @@ class ResNet2D(nn.Module):
                                        nn.Linear(1024, 24))
         self.fc_out = nn.Sequential(nn.Dropout(p=drop_rate),
                                     nn.Linear(24+self._nb_clin_features, 2))
+        self.__initialize_weight()
+
+    def __initialize_weight(self):
+        self.fc_images.apply(init_weights)
+        self.fc_out.apply(init_weights)
 
     def forward(self, images, clin_features):
         # Forward pass in the backend

@@ -3,7 +3,7 @@ from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act
 from Model.NeuralNet import NeuralNet
 import numpy as np
-from random import randint
+from Trainer.Utils import init_weights
 import torch
 import torch.nn as nn
 from typing import Sequence, Tuple, Union
@@ -291,6 +291,8 @@ class ResNet(NeuralNet):
 
         self.fc_layer = nn.Linear(self.__num_flat_features, num_classes)
 
+        self.apply(init_weights)
+
     def __make_layer(self,
                      block,
                      num_block: int,
@@ -498,6 +500,8 @@ class MultiLevelResNet(NeuralNet):
 
         self.fc_layer_grade_1 = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 3))
         self.fc_layer_grade_2 = torch.nn.Sequential(torch.nn.Linear(5, 3))
+
+        self.apply(init_weights)
 
     def __make_layer(self,
                      block,

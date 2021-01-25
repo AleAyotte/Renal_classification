@@ -160,7 +160,6 @@ class Trainer(ABC):
         if retrain:
             start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.save_path)
         else:
-            self.model.apply(init_weights)
             start_epoch = 0
 
         # Initialization of the dataloader
