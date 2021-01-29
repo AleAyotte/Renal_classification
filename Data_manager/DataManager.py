@@ -70,14 +70,14 @@ class RenalDataset(Dataset):
         mask = np.ones(len(self.__data), dtype=bool)
         mask[idx] = False
 
-        data = self.__data[mask]
-        labels = self.__labels[mask]
-        clin = self.__clinical_data[mask] if self.__with_clinical else None
+        data = self.__data[~mask]
+        labels = self.__labels[~mask]
+        clin = self.__clinical_data[~mask] if self.__with_clinical else None
 
         if pop:
-            self.__data = self.__data[~mask]
-            self.__labels = self.__labels[~mask]
-            self.__clinical_data = self.__clinical_data[~mask] if self.__with_clinical else None
+            self.__data = self.__data[mask]
+            self.__labels = self.__labels[mask]
+            self.__clinical_data = self.__clinical_data[mask] if self.__with_clinical else None
 
         return data, labels, clin
 
@@ -185,7 +185,6 @@ def split_trainset(trainset: RenalDataset,
     np.random.shuffle(indices)
 
     val_indices = indices[:split]
-
     data, label, clin = trainset.extract_data(idx=val_indices)
     validset.add_data(data, label, clin)
 
