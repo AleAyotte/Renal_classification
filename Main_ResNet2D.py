@@ -5,7 +5,6 @@ from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose,
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
 import torch
-from torchsummary import summary
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from Trainer.Utils import compute_recall
 
@@ -48,10 +47,11 @@ def argument_parser():
 
 if __name__ == "__main__":
     args = argument_parser()
-    device = args.device
+    data_path = "dataset_2D/Data_with_N4/{}.hdf5".format(args.task)
 
-    data_path = "dataset_2D/Data_without_N4/{}.hdf5".format(args.task)
-
+    # --------------------------------------------
+    #              DATA AUGMENTATION
+    # --------------------------------------------
     transform = Compose([
         AddChanneld(keys=["t1", "t2"]),
         RandFlipd(keys=["t1", "t2"], spatial_axis=[0, 1], prob=0.5),
@@ -70,8 +70,11 @@ if __name__ == "__main__":
         ToTensord(keys=["t1", "t2"])
     ])
 
-    # clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
-    clin_features = ["Sex", "size", "metastasis"]
+    # --------------------------------------------
+    #               CREATE DATASET
+    # --------------------------------------------
+    clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
+    # clin_features = ["Sex", "size", "metastasis"]
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"],
                             clinical_features=clin_features)
     validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=None,
@@ -89,12 +92,23 @@ if __name__ == "__main__":
 
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
+    # --------------------------------------------
+    #             NORMALIZE THE DATA
+    # --------------------------------------------
+    mean, std = trainset.normalize_clin_data(get_norm_param=True)
+    validset.normalize_clin_data(mean=mean, std=std)
+    testset.normalize_clin_data(mean=mean, std=std)
+
+    # --------------------------------------------
+    #                NEURAL NETWORK
+    # --------------------------------------------
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     net = ResNet2D(drop_rate=0.5,
                    nb_clinical_data=len(clin_features)).to(args.device)
 
-    # summary(net, (3, 96, 96, 32))
-
+    # --------------------------------------------
+    #                   TRAINER
+    # --------------------------------------------
     trainer = Trainer(save_path="Check_moi_ca2.pth",
                       loss=args.loss,
                       tol=0.05,
