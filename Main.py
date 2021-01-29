@@ -24,7 +24,7 @@ def argument_parser():
                         choices=["flat", "linear"])
     parser.add_argument('--eps', type=float, default=1e-3)
     parser.add_argument('--eta_min', type=float, default=1e-6)
-    parser.add_argument('--extra_data', type=bool, default=False)
+    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True)
     parser.add_argument('--in_channels', type=int, default=16)
     parser.add_argument('--loss', type=str, default="ce",
                         choices=["ce", "bce", "focal"])
@@ -37,7 +37,7 @@ def argument_parser():
                         choices=["adam", "novograd"])
     parser.add_argument('--pad_mode', type=str, default="constant",
                         choices=["constant", "edge", "reflect", "symmetric"])
-    parser.add_argument('--pin_memory', type=bool, default=False)
+    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True)
     parser.add_argument('--split_level', type=int, default=4)
     parser.add_argument('--track_mode', type=str, default="all",
                         choices=["all", "low", "none"])
