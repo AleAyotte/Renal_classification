@@ -81,6 +81,34 @@ class RenalDataset(Dataset):
 
         return data, labels, clin
 
+    def normalize_clin_data(self,
+                            mean: Union[Sequence[float], np.array, None] = None,
+                            std: Union[Sequence[float], np.array, None] = None,
+                            get_norm_param: bool = False) -> Union[Tuple[Union[Sequence[float], np.array],
+                                                                         Union[Sequence[float], np.array]],
+                                                                   None]:
+        """
+
+        :param mean: An array of length equal to the number of clinical features (not the number of clinical data)
+                     that will be substract to the clinical features.
+        :param std: An array of length equal to the number of clinical features (not the number of clinical data)
+                     that will divide the substracted clinical features.
+        :param get_norm_param: If True, the mean and the std of the current dataset are return.
+        :return: If get_norm_param is True then the mean and the std of the current dataset will be return. Otherwise,
+                 nothing will be return.
+        """
+
+        assert type(mean) == type(std), "The mean and the std should has the same type."
+        assert self.__with_clinical, "No clinical has been loaded."
+        if mean is None and std is None:
+            mean = np.mean(self.__clinical_data, axis=0)
+            std = np.std(self.__clinical_data, axis=0)
+
+        self.__clinical_data = (self.__clinical_data - mean) / std
+
+        if get_norm_param:
+            return mean, std
+
     def __read_hdf5(self,
                     filepath: str,
                     split: str,
