@@ -213,9 +213,9 @@ class Trainer(ABC):
 
                 # We make a training epoch
                 if current_mode == "Mixup":
-                    training_loss = self._mixup_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
+                    _ = self._mixup_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
                 else:
-                    training_loss = self._standard_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
+                    _ = self._standard_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
 
                 self.model.eval()
 
