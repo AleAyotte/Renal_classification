@@ -30,8 +30,11 @@ class RenalDataset(Dataset):
         self.__with_clinical = clinical_features is not None
         self.__imgs_keys = imgs_keys
         self.__data = np.array([])
-        self.__clinical_data = np.empty(shape=(0, len(clinical_features)))
+        self.__clinical_data = None
         self.__labels = np.array([])
+
+        if clinical_features is not None:
+            self.__clinical_data = np.empty(shape=(0, len(clinical_features)))
 
         if split is not None:
             if self.__with_clinical and type(clinical_features) is not list:
