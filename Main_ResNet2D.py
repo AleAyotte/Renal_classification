@@ -1,7 +1,7 @@
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet_2D import ResNet2D
-from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
+from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld, Rand2DElasticd
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
 import torch
@@ -12,15 +12,11 @@ from Trainer.Utils import compute_recall
 def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--b_size', type=int, default=32)
-    parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50])
     parser.add_argument('--device', type=str, default="cuda:0")
-    parser.add_argument('--dropout', type=float, default=0)
-    parser.add_argument('--drop_type', type=str, default="flat",
-                        choices=["flat", "linear"])
+    parser.add_argument('--dropout', type=float, default=0.5)
     parser.add_argument('--eps', type=float, default=1e-3)
     parser.add_argument('--eta_min', type=float, default=1e-6)
     parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True)
-    parser.add_argument('--in_channels', type=int, default=16)
     parser.add_argument('--loss', type=str, default="ce",
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -55,9 +51,10 @@ if __name__ == "__main__":
     transform = Compose([
         RandFlipd(keys=["t1", "t2"], spatial_axis=[0, 1], prob=0.5),
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-        RandAffined(keys=["t1", "t2"], prob=0.5, shear_range=10,
+        RandAffined(keys=["t1", "t2"], prob=0.8, shear_range=0.5,
                     rotate_range=6.28, translate_range=0.1),
-        RandSpatialCropd(keys=["t1", "t2"], roi_size=[180, 180], random_center=False),
+        Rand2DElasticd(keys=["t1", "t2"], spacing=10, magnitude_range=(0, 1), prob=1),
+        RandSpatialCropd(keys=["t1", "t2"], roi_size=[148, 148], random_center=False),
         RandZoomd(keys=["t1", "t2"], prob=0.5, min_zoom=0.95, max_zoom=1.05,
                   keep_size=False),
         ResizeWithPadOrCropd(keys=["t1", "t2"], spatial_size=[224, 224], mode=args.pad_mode),
@@ -73,8 +70,7 @@ if __name__ == "__main__":
     #               CREATE DATASET
     # --------------------------------------------
     clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
-    # clin_features = ["Sex", "size", "metastasis"]
-    
+
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"],
                             clinical_features=clin_features)
     validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=None,
@@ -85,10 +81,11 @@ if __name__ == "__main__":
     if args.extra_data:
         trainset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"], split="test2",
                                  clinical_features=clin_features)
-        data, label, _ = trainset2.extract_data(np.arange(len(trainset2)))
-        trainset.add_data(data, label)
+        data, label, clin = trainset2.extract_data(np.arange(len(trainset2)))
+        trainset.add_data(data, label, clin)
         del data
         del label
+        del clin
 
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
@@ -103,7 +100,7 @@ if __name__ == "__main__":
     #                NEURAL NETWORK
     # --------------------------------------------
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    net = ResNet2D(drop_rate=0.5,
+    net = ResNet2D(drop_rate=args.dropout,
                    nb_clinical_data=len(clin_features)).to(args.device)
 
     # --------------------------------------------
@@ -111,7 +108,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     trainer = Trainer(save_path="Check_moi_ca2.pth",
                       loss=args.loss,
-                      tol=0.05,
+                      tol=3.00,
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
