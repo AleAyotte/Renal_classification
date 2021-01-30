@@ -21,9 +21,14 @@ class ResNet2D(nn.Module):
         self.t1_net.fc = nn.Identity()
         self.t2_net.fc = nn.Identity()
 
-        self.fc_images = nn.Sequential(nn.Linear(4096, 1024),
+        # self.fc_images = nn.Sequential(nn.Linear(4096, 1024),
+        #                                nn.Linear(1024, 24))
+
+        self.fc_images = nn.Sequential(nn.Dropout(p=drop_rate),
+                                       nn.Linear(4096, 1024),
+                                       nn.Dropout(p=drop_rate),
                                        nn.Linear(1024, 24))
-        self.fc_out = nn.Sequential(nn.Dropout(p=drop_rate),
+        self.fc_out = nn.Sequential(  # nn.Dropout(p=drop_rate),
                                     nn.Linear(24+self._nb_clin_features, 2))
         self.__initialize_weight()
 
@@ -37,8 +42,8 @@ class ResNet2D(nn.Module):
 
         t1_features = self.t1_net(images_t1)
         t2_features = self.t2_net(images_t2)
-
         imgs_out = self.fc_images(torch.cat((t1_features, t2_features), -1))
+
         out = self.fc_out(torch.cat((imgs_out, clin_features), -1))
 
         return out
