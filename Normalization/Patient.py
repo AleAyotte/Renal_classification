@@ -385,6 +385,8 @@ class Patient:
                      apply_roi: bool = False,
                      save_roi: bool = True,
                      convert_in_2_5d: bool = False,
+                     per_channel_norm: bool = True,
+                     epsilon: float = 1e-3,
                      metadata: dict = None) -> None:
         """
         Save the images and their merged ROI into an hdf5 file with the clinical data
@@ -396,6 +398,8 @@ class Patient:
         :param apply_roi: If true, the pixel of image will be 0 where the pixel of the roi are 0.
         :param save_roi: If true, the ROI is save in the dataset.
         :param convert_in_2_5d: If true, the images will convert in 2.5D before been saved.
+        :param per_channel_norm: If true, the normalization of the 2.5D images will be done per channel individually.
+        :param epsilon: Numerical stability parameters used to normalize 2.5D images.
         :param metadata: A dictionnary that contain metadata to save in hdf5 file.
         """
 
@@ -416,8 +420,13 @@ class Patient:
             t1, t2 = imgs[0], imgs[1]
             roi_t1, roi_t2 = rois[0], rois[1]
 
-            t1 = (t1 - np.mean(t1)) / np.std(t1)
-            t2 = (t2 - np.mean(t2)) / np.std(t2)
+            # Per channel standardization
+            if per_channel_norm:
+                t1 = np.array([(chan - np.mean(chan)) / (np.std(chan) + epsilon) for chan in t1])
+                t2 = np.array([(chan - np.mean(chan)) / (np.std(chan) + epsilon) for chan in t2])
+            else:
+                t1 = (t1 - np.mean(t1)) / (np.std(t1) + epsilon)
+                t2 = (t2 - np.mean(t2)) / (np.std(t2) + epsilon)
         else:
             t1, t2 = self.__t1.get_img(), self.__t2.get_img()
             roi_t1, roi_t2 = self.__t1.get_roi(), self.__t2.get_roi()
