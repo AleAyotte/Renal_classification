@@ -1,3 +1,14 @@
+"""
+    @file:              MRI_image.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:   Contain the MRIimage class, that handle the reading, transformation and normalization of an
+                    MRI_image (in NIFTI format) and its corresponding region of interest (ROI) that is also stored
+                    in a NIFTI file.
+"""
 import glob
 import matplotlib.pyplot as plt
 import numpy as np

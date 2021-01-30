@@ -1,5 +1,16 @@
+"""
+    @file:              TransferHeader.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:       This script has been use to transfer header from a first image save in a NIFTI file to another
+                        images and its corresponding ROI. This has been done by finding the pair of image that math
+                        together according to their name and the value of the voxel. Most of the job has been done by
+                        using the MRIimage class.
+"""
 from MRI_image import MRIimage
-from os import path as p
 from tqdm import trange
 
 
@@ -31,8 +42,7 @@ for i in range(len(institution)):
                     path_image = str(path + "/" + patient_id) + "__" + moda
                     my_image = MRIimage(modality=moda,
                                         path_image=path_image + ".MRscan__VOL",
-                                        path_roi=path_image + ".MRscan__ROI",
-                                        keep_mem=True)
+                                        path_roi=path_image + ".MRscan__ROI")
                     my_image.transfer_header(npy_dir=path_npy,
                                              nifti_dir=path_nifti,
                                              medomics_code_path=pythonCodePATH,

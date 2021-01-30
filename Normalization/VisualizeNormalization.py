@@ -1,3 +1,13 @@
+"""
+    @file:              VisualizeNormalization.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     11/2020
+    @Last modification: 01//2021
+
+    @Description: This fill can be used to normalize the images of a patient and visualize the transformation at each
+                  step.
+"""
 from Patient import Patient
 import argparse
 

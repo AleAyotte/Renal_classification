@@ -1,11 +1,21 @@
+"""
+    @file:              Normalize2D.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:       This script used to be the pipeline to normalize the images, transform them in 2.5D and save
+                        then in a hdf5.file by using the Patient class.
+"""
 from itertools import product
-import numpy as np
 import os
 from Patient import Patient
 from tqdm import trange
 from Utils import get_temporary_files, read_metadata
 
-path_images = "/home/alex/Data/Corrected/"
+# path_images = "/home/alex/Data/Corrected/"
+path_images = "/home/alex/Data/n4_temp/"
 temp_path = "/home/alex/Data/Temp/"
 exclude = ["Kidney-Penn-238", "Kidney-Penn-254", "Kidney-Penn-337", "Kidney-Penn-357", 'Kidney-Penn-086',
            'Kidney-Penn-115', 'Kidney-Penn-125', 'Kidney-Penn-169', 'Kidney-Penn-329', 'Kidney-Penn-556',
@@ -14,11 +24,11 @@ exclude = ["Kidney-Penn-238", "Kidney-Penn-254", "Kidney-Penn-337", "Kidney-Penn
 institution = ["Kidney-XY2", "Kidney-Penn", "Kidney-CH", "Kidney-TCGA", "Kidney-Mayo", "Kidney-HP"]
 nb_patient = [25, 833, 112, 56, 118, 50]
 
-folder = "Option1_without_N4/"
-voxel_size = [0.77, 0.75, 0.72]
-crop_shape = [128, 128, 128]
+folder = "Option1_with_N4/"
+voxel_size = [0.44, 0.43, 0.41]
+crop_shape = [224, 224, 224]
 
-save_path = "Option1_without_N4"
+save_path = "Option1_with_N4"
 dtset = ["train", "test", "test2"]
 task_list = ["malignant", "subtype", "grade"]
 
@@ -56,6 +66,8 @@ for i in range(len(institution)):
                 #         Normalize the image
                 # -------------------------------------
                 pat = Patient(patient_id, path_images)
+
+                # pat.apply_n4(save=False)
 
                 pat.resample_and_crop(resample_params=voxel_size,
                                       crop_shape=crop_shape,

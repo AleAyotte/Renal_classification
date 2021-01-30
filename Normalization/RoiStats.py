@@ -1,3 +1,15 @@
+"""
+    @file:              RoiStats.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:       This script has been use to compute pertinent statistics about the region of interest (ROI) of
+                        our dataset by using the Patient class. These statistics are about the size of the ROI along
+                        each dimension, the image lenght along each dimension, the voxel size along each dimension and
+                        the distance between the center of mass of the t1 and t2 ROIs.
+"""
 import numpy as np
 from Patient import Patient
 from scipy import stats

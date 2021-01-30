@@ -1,3 +1,12 @@
+"""
+    @file:              Utils.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:       This file contain several usefull function for the normalization that cannot be add to a class.
+"""
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np

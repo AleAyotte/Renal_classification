@@ -1,3 +1,13 @@
+"""
+    @file:              Normalize.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:       This script has been use has a pipeline to normalize a set of 3D images by using the Patient
+                        class. Take note that the images were then saved in hdf5 with Transfer_in_hdf5.py.
+"""
 from Patient import Patient
 from tqdm import trange
 

@@ -1,3 +1,15 @@
+"""
+    @file:              Patient.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:       Contain the Patient class, that create two MRIimages objects (image t1 and t2) and handle
+                        reading, transformation and normalization of those images by considering both ROI. Also,
+                        this class handle the writing of the information in a hdf5 dataset.
+"""
+
 import h5py
 from matplotlib import pyplot as plt
 from MRI_image import MRIimage
