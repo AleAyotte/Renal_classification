@@ -305,7 +305,7 @@ class SingleTaskTrainer(Trainer):
                 features = Variable(data["features"].to(self._device))
 
             with torch.no_grad():
-                out = self.model(images) if images is None else self.model(images, features)
+                out = self.model(images) if features is None else self.model(images, features)
 
                 outs = torch.cat([outs, out])
                 labels = torch.cat([labels, label])
