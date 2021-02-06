@@ -2,7 +2,7 @@ from Data_manager.DataManager import RenalDataset
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import auc, confusion_matrix, roc_curve
 from Trainer.Trainer import Trainer
 from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 import torch
@@ -291,7 +291,7 @@ class SingleTaskTrainer(Trainer):
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
-        :param get_loss: Return also the loss if True.
+        :param get_loss: Return the loss instead of the auc score.
         :return: The confusion matrix and the average loss if get_loss == True.
         """
         outs = torch.empty(0, 2).to(self._device)
@@ -319,4 +319,6 @@ class SingleTaskTrainer(Trainer):
         if get_loss:
             return conf_mat, loss.item()
         else:
-            return conf_mat
+            fpr, tpr, thresh = roc_curve(y_true=labels.numpy(), y_score=outs[:, 1].cpu().numpy())
+            auc_score = auc(fpr, tpr)
+            return conf_mat, auc_score

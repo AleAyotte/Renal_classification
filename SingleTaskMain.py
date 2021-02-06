@@ -2,7 +2,7 @@ import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import ResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
-from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
+from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand3DElasticd
 import numpy as np
 import torch
 from torchsummary import summary
@@ -31,7 +31,7 @@ def argument_parser():
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True)
-    parser.add_argument('--mixup', type=int, action='store', nargs="*", default=[0, 2, 2, 2])
+    parser.add_argument('--mixup', type=int, action='store', nargs="*", default=[0, 2, 2, 0])
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
     parser.add_argument('--num_epoch', type=int, default=100)
@@ -59,12 +59,14 @@ if __name__ == "__main__":
 
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0, 1], prob=0.5),
-        RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=10,
-                    rotate_range=[6.28, 0, 0], translate_range=0.1),
+        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
+        # RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[1], prob=0.5),
+        # RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
+        Rand3DElasticd(keys=["t1", "t2", "roi"], sigma_range=(3, 3), magnitude_range=(15, 35), prob=0.5),
+        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
+                    rotate_range=[0, 0, 6.28], translate_range=0, padding_mode="zeros"),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.95, max_zoom=1.05,
+        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=1.00, max_zoom=1.05,
                   keep_size=False, mode="trilinear", align_corners=True),
         ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
@@ -102,7 +104,7 @@ if __name__ == "__main__":
 
     trainer = Trainer(save_path="Check_moi_ca2.pth",
                       loss=args.loss,
-                      tol=0.05,
+                      tol=0.2,
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
@@ -125,9 +127,15 @@ if __name__ == "__main__":
                 device=args.device,
                 optim=args.optim,
                 num_epoch=args.num_epoch,
-                t_0=args.num_epoch)
+                t_0=args.num_epoch,
+                retrain=True)
 
-    conf = trainer.score(testset, 32)
+    # conf = trainer.score(validset, 2)
+    conf, auc = trainer.score(testset, 2)
     recall = compute_recall(conf)
-
+    print("AUC: ", auc)
     print("Recall: ", recall)
+
+    # conf = trainer.score(testset2, 2)
+    # recall = compute_recall(conf)
+    # print("Recall: ", recall)
