@@ -41,7 +41,7 @@ task_list = ["malignant", "subtype", "grade"]
 file_list = ["grade.hdf5", "malignant.hdf5", "subtype.hdf5"]
 newfile_list = ["new_grade.hdf5", "new_malignant.hdf5", "new_subtype.hdf5"]
 
-batch_size = 4
+batch_size = 2
 
 
 @ray.remote
