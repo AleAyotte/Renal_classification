@@ -158,7 +158,7 @@ class Trainer(ABC):
         self._init_loss(gamma=gamma)
 
         if retrain:
-            start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.save_path)
+            start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.__save_path)
         else:
             start_epoch = 0
 
