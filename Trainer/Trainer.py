@@ -116,7 +116,8 @@ class Trainer(ABC):
             mode: str = "standard", 
             warm_up_epoch: int = 0,
             optim: str = "Adam", 
-            retrain: bool = False, 
+            retrain: bool = False,
+            transfer_path: str = None,
             device: str = "cuda:0", 
             verbose: bool = True) -> None:
         """
@@ -139,6 +140,8 @@ class Trainer(ABC):
         :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
         :param optim: A string that indicate the optimizer that will be used for training. (Default='Adam')
         :param retrain: If false, the weights of the model will initialize. (Default=False)
+        :param transfer_path: If not None, initialize the model with transfer learning by loading the weight of
+                              the model at the given path.
         :param device: The device on which the training will be done. (Default="cuda:0", first GPU)
         :param verbose: If true, show the progress of the training. (Default=True)
         """
@@ -159,6 +162,8 @@ class Trainer(ABC):
 
         if retrain:
             start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.__save_path)
+        elif transfer_path is not None:
+            _, _, _ = self.model.restore(transfer_path)
         else:
             start_epoch = 0
 
