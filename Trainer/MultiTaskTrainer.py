@@ -154,20 +154,22 @@ class MultiTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            features, labels = data["sample"].to(self._device), data["labels"]
+            images, labels = data["sample"].to(self._device), data["labels"]
+            images = Variable(images)
 
-            m_labels = labels["malignant"].to(self._device)
-            s_labels = labels["subtype"].to(self._device)
-            g_labels = labels["grade"].to(self._device)
+            m_labels = Variable(labels["malignant"].to(self._device))
+            s_labels = Variable(labels["subtype"].to(self._device))
+            g_labels = Variable(labels["grade"].to(self._device))
 
-            features = Variable(features)
-            m_labels, s_labels, g_labels = Variable(m_labels), Variable(s_labels), Variable(g_labels)
+            features = None
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
 
             optimizer.zero_grad()
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
-                m_pred, s_pred, g_pred = self.model(features)
+                m_pred, s_pred, g_pred = self.model(images) if features is None else self.model(images, features)
 
                 m_loss = self.__m_loss(m_pred, m_labels)
                 s_loss = self.__s_loss(s_pred, s_labels)
@@ -175,24 +177,7 @@ class MultiTaskTrainer(Trainer):
 
                 loss = (m_loss + s_loss + g_loss) / 3
 
-            if self._mixed_precision:
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-            else:
-                loss.backward()
-
-            if grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
-
-            if self._mixed_precision:
-                scaler.step(optimizer)
-                scheduler.step()
-                scaler.update()
-            else:
-                optimizer.step()
-                scheduler.step()
-
-            # Save the loss
+            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
             sum_loss += loss
 
             if self._track_mode == "all":
@@ -273,14 +258,16 @@ class MultiTaskTrainer(Trainer):
 
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
-            features, labels = data["sample"].to(self._device), data["labels"]
+            images, labels = data["sample"].to(self._device), data["labels"]
+            images = Variable(images)
 
-            m_labels = labels["malignant"].to(self._device)
-            s_labels = labels["subtype"].to(self._device)
-            g_labels = labels["grade"].to(self._device)
+            m_labels = Variable(labels["malignant"].to(self._device))
+            s_labels = Variable(labels["subtype"].to(self._device))
+            g_labels = Variable(labels["grade"].to(self._device))
 
-            features = Variable(features)
-            m_labels, s_labels, g_labels = Variable(m_labels), Variable(s_labels), Variable(g_labels)
+            features = None
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
 
             optimizer.zero_grad()
 
@@ -289,33 +276,16 @@ class MultiTaskTrainer(Trainer):
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
-                m_pred, s_pred, g_pred = self.model(features)
+                m_pred, s_pred, g_pred = self.model(images) if features is None else self.model(images, features)
                 loss = self._mixup_criterion([m_pred, s_pred, g_pred], 
                                              [m_labels, s_labels, g_labels], 
                                              lamb, 
                                              permut,
                                              it + epoch*n_iters)
-            if self._mixed_precision:
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-            else:
-                loss.backward()
 
-            if grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
-
-            if self._mixed_precision:
-                scaler.step(optimizer)
-                scheduler.step()
-                scaler.update()
-            else:
-                optimizer.step()
-                scheduler.step()
-
-            # Save the loss
-            sum_loss += loss
-
+            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
             self.model.disable_mixup(mixup_key)
+            sum_loss += loss
 
         return sum_loss.item() / n_iters
 
@@ -393,10 +363,13 @@ class MultiTaskTrainer(Trainer):
         g_labels = torch.empty(0).long()
 
         for data in dt_loader:
-            features, labels = data["sample"].to(self._device), data["labels"]
+            images, labels = data["sample"].to(self._device), data["labels"]
 
+            features = None
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
             with torch.no_grad():
-                m_out, s_out, g_out = self.model(features)
+                m_out, s_out, g_out = self.model(images) if features is None else self.model(images, features)
 
                 m_outs = torch.cat([m_outs, m_out])
                 s_outs = torch.cat([s_outs, s_out])

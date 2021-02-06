@@ -1,3 +1,13 @@
+"""
+    @file:              VisualizeNormalization.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     11/2020
+    @Last modification: 01//2021
+
+    @Description: This fill can be used to normalize the images of a patient and visualize the transformation at each
+                  step.
+"""
 from Patient import Patient
 import argparse
 
@@ -14,7 +24,7 @@ def argument_parser():
     return parser.parse_args()
 
 
-_path = "E:/WORKSPACE_RadiomicsComputation/Kidney/Corrected"
+_path = "/home/alex/Data/Corrected/"
 
 if __name__ == "__main__":
 
@@ -25,7 +35,7 @@ if __name__ == "__main__":
     print("# *********************************************** "
           "\n#             Visualize the patient "
           "\n# ***********************************************")
-    pat = Patient(patient_id, _path, "Penn", "Train")
+    pat = Patient(patient_id, _path)
 
     t1 = pat.get_t1()
     t2 = pat.get_t2()

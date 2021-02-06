@@ -1,3 +1,14 @@
+"""
+    @file:              MRI_image.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:   Contain the MRIimage class, that handle the reading, transformation and normalization of an
+                    MRI_image (in NIFTI format) and its corresponding region of interest (ROI) that is also stored
+                    in a NIFTI file.
+"""
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,6 +17,7 @@ import nibabel as nib
 import os.path
 from scipy.ndimage import center_of_mass
 import sys
+from typing import Sequence, Tuple, Union
 from Utils import rotate_and_compare
 
 
@@ -78,7 +90,10 @@ class MRIimage:
         Change the nifti image and its ROI.
     """
 
-    def __init__(self, modality: str, path_image: str, path_roi: str):
+    def __init__(self,
+                 modality: str,
+                 path_image: str,
+                 path_roi: str):
 
         self.__path = os.path.dirname(path_image)
         self.__path_roi = os.path.dirname(path_roi)
@@ -97,7 +112,9 @@ class MRIimage:
                               'center_voxel': []}
         self.__read_metadata()
 
-    def apply_n4(self, save: bool = False, save_path=""):
+    def apply_n4(self,
+                 save: bool = False,
+                 save_path="") -> None:
         """
         Apply the n4_bias_feild_correction on the image with Antspy and save it if requested
 
@@ -120,7 +137,9 @@ class MRIimage:
         if save:
             self.save_image(path=save_path)
 
-    def apply_znorm(self, save: bool = False, save_path=""):
+    def apply_znorm(self,
+                    save: bool = False,
+                    save_path="") -> None:
         """
         Apply the z normalization on the image and save it if requested
 
@@ -137,7 +156,7 @@ class MRIimage:
         if save:
             self.save_image(path=save_path)
 
-    def __compute_roi_measure(self):
+    def __compute_roi_measure(self) -> None:
         """
         Compute some usefull statistics and measure about
         """
@@ -163,7 +182,11 @@ class MRIimage:
         self.__roi_measure['center_voxel'] = list(np.array(center_voxel).astype(int))
         self.__roi_measure['center_mm'] = self.voxel_to_spatial(center_voxel)
 
-    def crop(self, crop_shape, center=None, save: bool = False, save_path: str = ""):
+    def crop(self,
+             crop_shape: Sequence[int],
+             center: Union[Sequence[int], None] = None,
+             save: bool = False,
+             save_path: str = "") -> None:
         """
         Crop a part of the image and the ROI and save the image and the ROI if requested.
 
@@ -182,6 +205,11 @@ class MRIimage:
         center = self.__roi_measure['center_mm'] if center is None else center
         center_min = np.floor(self.spatial_to_voxel(center)).astype(int)
         center_max = np.ceil(self.spatial_to_voxel(center)).astype(int)
+
+        # If center_max and center_min are equal we add 1 to center_max to avoid trouble with crop.
+        for i in range(3):
+            center_max[i] += 1 if center_max[i] == center_min[i] else 0
+
         img_shape = self.__metadata['img_shape']
 
         # Pad the image and the ROI if its necessary
@@ -200,9 +228,9 @@ class MRIimage:
         center_max = [center_max[i] + padding[i][0] for i in range(3)]
 
         # Crop the image
-        img = img[center_min[0]-radius[0]:center_max[0]+radius[0] + 1,
-                  center_min[1]-radius[1]:center_max[1]+radius[1] + 1,
-                  center_min[2]-radius[2]:center_max[2]+radius[2] + 1]
+        img = img[center_min[0] - radius[0]:center_max[0] + radius[0] + 1,
+                  center_min[1] - radius[1]:center_max[1] + radius[1] + 1,
+                  center_min[2] - radius[2]:center_max[2] + radius[2] + 1]
         roi = roi[center_min[0] - radius[0]:center_max[0] + radius[0] + 1,
                   center_min[1] - radius[1]:center_max[1] + radius[1] + 1,
                   center_min[2] - radius[2]:center_max[2] + radius[2] + 1]
@@ -216,7 +244,7 @@ class MRIimage:
         self.__img = nib.Nifti1Image(img, affine=self.__img.affine, header=self.__img.header)
         self.update_roi(new_roi=roi, save=save, save_path=save_path)
 
-    def __find_rotation(self, ref_img: np.array):
+    def __find_rotation(self, ref_img: np.array) -> Tuple[bool, np.array, np.array]:
         """
         Try every set of rotation to find which one can match the original image with the image of reference.
 
@@ -249,7 +277,7 @@ class MRIimage:
     def get_roi(self) -> np.array:
         return np.array(self.get_nifti(roi=True).dataobj)
 
-    def _get_path(self, roi: bool = False):
+    def _get_path(self, roi: bool = False) -> str:
         """
         Return the complete path (directory + filename) were the image (ROI) is (or will be) saved.
 
@@ -270,7 +298,10 @@ class MRIimage:
             self.__compute_roi_measure()
         return self.__roi_measure
 
-    def plot(self, _slice, axis: str = "all", roi: bool = False):
+    def plot(self,
+             _slice,
+             axis: str = "all",
+             roi: bool = False) -> None:
         """
         Load and plot the image (ROI) along a given axis or along each axis.
 
@@ -306,7 +337,7 @@ class MRIimage:
 
         plt.show()
 
-    def __read_metadata(self):
+    def __read_metadata(self) -> None:
         """
         Read the header of the NIFTI image and get some major metadata about the image like voxel dimension.
         """
@@ -330,7 +361,9 @@ class MRIimage:
             raise Exception("ERROR for patient {}, unknow orientation {}".format(self.__filename,
                                                                                  nib.aff2axcodes(self.__img.affine)))
 
-    def __read_study_time(self, npy_dir: str, medomics_code_path: str) -> str:
+    def __read_study_time(self,
+                          npy_dir: str,
+                          medomics_code_path: str) -> str:
         """
         Read the npy file and return the study date concatened with the study time.
 
@@ -347,8 +380,12 @@ class MRIimage:
 
         return sData[2][-1].StudyDate + sData[2][-1].StudyTime
 
-    def resample(self, resample_params, interp_type: int = 1, save: bool = False, save_path: str = "",
-                 reorient: bool = True):
+    def resample(self,
+                 resample_params,
+                 interp_type: int = 1,
+                 save: bool = False,
+                 save_path: str = "",
+                 reorient: bool = True) -> None:
         """
         Resample an image using antspy according to the new voxel dimension given.
 
@@ -389,7 +426,9 @@ class MRIimage:
         self.__read_metadata()
         self.update_roi(new_roi=new_roi, save=save, save_path=save_path)
 
-    def save_image(self, path: str = "", with_roi: bool = False):
+    def save_image(self,
+                   path: str = "",
+                   with_roi: bool = False) -> None:
         """
         Save the image (ROI) in a NIFTI file and update reading path.
 
@@ -432,7 +471,9 @@ class MRIimage:
         translation = affine[:3, 3]
         return m.dot(voxel_pos) + translation
 
-    def to_canonical(self, save: bool = False, save_path: str = ""):
+    def to_canonical(self,
+                     save: bool = False,
+                     save_path: str = "") -> None:
         """
         Modify the orientation of the image and the ROI to be as closest canonical possible. So the orientation
         will be set to RAS (Left to Right, Posterior to Anterior, Inferior to Superior).
@@ -450,8 +491,12 @@ class MRIimage:
         self.__read_metadata()
         self.update_roi(new_roi=np.array(roi.dataobj), save=save, save_path=save_path)
 
-    def transfer_header(self, npy_dir: str, nifti_dir: str, medomics_code_path: str,
-                        save: bool = False, save_path: str = ""):
+    def transfer_header(self,
+                        npy_dir: str,
+                        nifti_dir: str,
+                        medomics_code_path: str,
+                        save: bool = False,
+                        save_path: str = "") -> None:
         """
         Transfer the header of a nifti file created with MRIcroGL to the NIFTI image and ROI
         generated by the medomics code.
@@ -481,8 +526,11 @@ class MRIimage:
                 self.__filename
             ))
 
-    def update_nifti(self, new_img: nib.nifti1.Nifti1Image, new_roi: np.array,
-                     save: bool = False, save_path: str = ""):
+    def update_nifti(self,
+                     new_img: nib.nifti1.Nifti1Image,
+                     new_roi: np.array,
+                     save: bool = False,
+                     save_path: str = "") -> None:
         """
         Change the nifti image and its ROI.
 
@@ -497,7 +545,10 @@ class MRIimage:
         self.__read_metadata()
         self.update_roi(new_roi, save=save, save_path=save_path)
 
-    def update_roi(self, new_roi: np.array, save: bool = False, save_path: str = ""):
+    def update_roi(self,
+                   new_roi: np.array,
+                   save: bool = False,
+                   save_path: str = "") -> None:
         """
         Change the dataobj of the ROI and update the roi_measure.
 
@@ -507,9 +558,9 @@ class MRIimage:
         :param save_path: A string that indicate the path where the images will be save
         """
 
-        assert (np.array(new_roi.shape) == self.__metadata['img_shape']).all(), \
-            "The new ROI do not have same shape as the image." "New roi shape: {}, image shape: {}".format(
-                new_roi.shape, self.__metadata['img_shape'])
+        if not (np.array(new_roi.shape) == self.__metadata['img_shape']).all():
+            raise Exception("The new ROI do not have same shape as the image. New roi shape: {}, "
+                            "image shape: {}".format(new_roi.shape, self.__metadata['img_shape']))
 
         self.__roi = nib.Nifti1Image(new_roi, affine=self.__img.affine, header=self.__img.header)
         self.__compute_roi_measure()

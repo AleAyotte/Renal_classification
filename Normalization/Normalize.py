@@ -1,3 +1,13 @@
+"""
+    @file:              Normalize.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     10/2020
+    @Last modification: 01//2021
+
+    @Description:       This script has been use has a pipeline to normalize a set of 3D images by using the Patient
+                        class. Take note that the images were then saved in hdf5 with Transfer_in_hdf5.py.
+"""
 from Patient import Patient
 from tqdm import trange
 
@@ -12,9 +22,9 @@ institution = ["Kidney-XY2", "Kidney-Penn", "Kidney-CH", "Kidney-TCGA", "Kidney-
 nb_patient = [25, 833, 112, 56, 118, 50]
 
 voxel_size = [1.1, 1.1, 5.0]
-crop_shape = [[89, 87, 19], [69, 65, 15], [89, 87, 19], [69, 65, 15]]  # Option 1 and Option 2
+crop_shape = [[96, 96, 32], [96, 96, 32]]
 read_path = [temp_path, temp_path, _path, _path]
-save_path = ["Option1_with_N4", "Option2_with_N4", "Option1_without_N4", "Option2_without_N4"]
+save_path = ["Option1_with_N4", "Option1_without_N4"]
 
 # *************************************************
 #              Apply n4 bias on image
@@ -31,7 +41,7 @@ for i in range(len(institution)):
         patient_id = institution[i] + "-" + _nb
 
         if patient_id not in exclude:
-            pat = Patient(patient_id, _path, institution[i], "Train")
+            pat = Patient(patient_id, _path)
             pat.apply_n4(save=True, save_path=temp_path)
 
 
@@ -51,11 +61,11 @@ for k in range(4):
             patient_id = institution[i] + "-" + _nb
 
             if patient_id not in exclude:
-                pat = Patient(patient_id, read_path[k], institution[i], "Train")
+                pat = Patient(patient_id, read_path[k])
 
                 pat.resample_and_crop(resample_params=voxel_size,
                                       crop_shape=crop_shape[k],
                                       interp_type=0,
-                                      save=True,
+                                      save=False,
                                       save_path=save_path[k])
                 pat.apply_znorm(save=True, save_path=save_path[k])

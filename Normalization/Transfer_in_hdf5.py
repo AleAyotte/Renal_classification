@@ -1,3 +1,13 @@
+"""
+    @file:              Transfer_in_hdf5.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 01//2021
+
+    @Description:       This script has been used to read the clinical data of each Patient and saving those data with
+                        the images of each Patient in a hdf5 file by using the class Patient.
+"""
 import pandas as pd
 from Patient import Patient
 from tqdm.auto import tqdm
@@ -96,7 +106,7 @@ for f in tqdm(folder):
 
         for pat_id in tqdm(list(patient_list.keys()), leave=False):
             try:
-                pat = Patient(pat_id, path_images + f, "NA", d)
-                pat.save_in_hdf5(path_images + "final_dtset/" + f + "all.hdf5", metadata=patient_list[pat_id])
+                pat = Patient(pat_id, path_images + f, )
+                pat.save_in_hdf5(path_images + "final_dtset/" + f + "all.hdf5", d, metadata=patient_list[pat_id])
             except Exception as e:
                 continue

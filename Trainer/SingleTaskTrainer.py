@@ -2,7 +2,7 @@ from Data_manager.DataManager import RenalDataset
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import auc, confusion_matrix, roc_curve
 from Trainer.Trainer import Trainer
 from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 import torch
@@ -139,34 +139,21 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            features, labels = data["sample"].to(self._device), data["labels"].to(self._device)
-            features, labels = Variable(features), Variable(labels)
+            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
+            images, labels = Variable(images), Variable(labels)
+            features = None
+
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
 
             optimizer.zero_grad()
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
-                pred = self.model(features)
+                pred = self.model(images) if features is None else self.model(images, features)
                 loss = self.__loss(pred, labels)
 
-            if self._mixed_precision:
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-            else:
-                loss.backward()
-
-            if grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
-
-            if self._mixed_precision:
-                scaler.step(optimizer)
-                scheduler.step()
-                scaler.update()
-            else:
-                optimizer.step()
-                scheduler.step()
-
-            # Save the loss
+            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
             sum_loss += loss
 
             if self._track_mode == "all":
@@ -232,8 +219,13 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            features, labels = data["sample"].to(self._device), data["labels"].to(self._device)
-            features, labels = Variable(features), Variable(labels)
+            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
+            images, labels = Variable(images), Variable(labels)
+            features = None
+
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
+
             optimizer.zero_grad()
 
             # Mixup activation
@@ -241,30 +233,14 @@ class SingleTaskTrainer(Trainer):
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
-                pred = self.model(features)
+                pred = self.model(images) if features is None else self.model(images, features)
                 loss = self._mixup_criterion([pred], 
                                              [labels], 
                                              lamb, 
                                              permut,
                                              it + epoch*n_iters)
-            if self._mixed_precision:
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-            else:
-                loss.backward()
 
-            if grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
-
-            if self._mixed_precision:
-                scaler.step(optimizer)
-                scheduler.step()
-                scaler.update()
-            else:
-                optimizer.step()
-                scheduler.step()
-
-            # Save the loss
+            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
             sum_loss += loss
 
             self.model.disable_mixup(mixup_key)
@@ -315,17 +291,21 @@ class SingleTaskTrainer(Trainer):
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
-        :param get_loss: Return also the loss if True.
+        :param get_loss: Return the loss instead of the auc score.
         :return: The confusion matrix and the average loss if get_loss == True.
         """
         outs = torch.empty(0, 2).to(self._device)
         labels = torch.empty(0).long()
 
         for data in dt_loader:
-            features, label = data["sample"].to(self._device), data["labels"]
+            images, label = data["sample"].to(self._device), data["labels"]
+            features = None
+
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
 
             with torch.no_grad():
-                out = self.model(features)
+                out = self.model(images) if features is None else self.model(images, features)
 
                 outs = torch.cat([outs, out])
                 labels = torch.cat([labels, label])
@@ -339,4 +319,6 @@ class SingleTaskTrainer(Trainer):
         if get_loss:
             return conf_mat, loss.item()
         else:
-            return conf_mat
+            fpr, tpr, thresh = roc_curve(y_true=labels.numpy(), y_score=outs[:, 1].cpu().numpy())
+            auc_score = auc(fpr, tpr)
+            return conf_mat, auc_score

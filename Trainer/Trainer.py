@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
-from Data_manager.DataManager import RenalDataset, get_dataloader
+from Data_manager.DataManager import RenalDataset
 from Model.NeuralNet import NeuralNet
+from Model.ResNet_2D import ResNet2D
 from monai.optimizers import Novograd
 import numpy as np
 from Trainer.Utils import init_weights
 import torch
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch import nn
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
@@ -99,7 +101,7 @@ class Trainer(ABC):
         self._soft = nn.Softmax(dim=-1)
 
     def fit(self,
-            model: NeuralNet,
+            model: Union[NeuralNet, ResNet2D],
             trainset: RenalDataset,
             validset: RenalDataset,
             num_epoch: int = 200, 
@@ -114,7 +116,8 @@ class Trainer(ABC):
             mode: str = "standard", 
             warm_up_epoch: int = 0,
             optim: str = "Adam", 
-            retrain: bool = False, 
+            retrain: bool = False,
+            transfer_path: str = None,
             device: str = "cuda:0", 
             verbose: bool = True) -> None:
         """
@@ -137,6 +140,8 @@ class Trainer(ABC):
         :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
         :param optim: A string that indicate the optimizer that will be used for training. (Default='Adam')
         :param retrain: If false, the weights of the model will initialize. (Default=False)
+        :param transfer_path: If not None, initialize the model with transfer learning by loading the weight of
+                              the model at the given path.
         :param device: The device on which the training will be done. (Default="cuda:0", first GPU)
         :param verbose: If true, show the progress of the training. (Default=True)
         """
@@ -152,13 +157,14 @@ class Trainer(ABC):
         # Initialization of the model.
         self._device = device
         self.model = model.to(device)
-        self.model.set_mixup(batch_size)
+        self.model.set_mixup(batch_size) if mode.lower() == "mixup" else None
         self._init_loss(gamma=gamma)
 
         if retrain:
-            start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.save_path)
+            start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.__save_path)
+        elif transfer_path is not None:
+            _, _, _ = self.model.restore(transfer_path)
         else:
-            self.model.apply(init_weights)
             start_epoch = 0
 
         # Initialization of the dataloader
@@ -212,9 +218,9 @@ class Trainer(ABC):
 
                 # We make a training epoch
                 if current_mode == "Mixup":
-                    training_loss = self._mixup_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
+                    _ = self._mixup_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
                 else:
-                    training_loss = self._standard_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
+                    _ = self._standard_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
 
                 self.model.eval()
 
@@ -252,6 +258,42 @@ class Trainer(ABC):
 
         self._writer.close()
         self.model.restore(self.__save_path)
+
+    def _update_model(self,
+                      scaler: Union[GradScaler, None],
+                      optimizer: Union[torch.optim.Adam, Novograd],
+                      scheduler: CosineAnnealingWarmRestarts,
+                      grad_clip: float,
+                      loss: torch.FloatTensor) -> None:
+        """
+        Scale the loss if self._mixed_precision is True and update the weights of the model.
+
+        :param scaler: The gradient scaler that will be used to scale the loss if self._mixed_precision is True.
+        :param optimizer: The torch optimizer that will used to train the model.
+        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :param loss: The loss of the current epoch.
+        """
+        # Mixed precision enabled
+        if self._mixed_precision:
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+
+            if grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
+
+            scaler.step(optimizer)
+            scaler.update()
+
+        # Mixed precision disabled
+        else:
+            loss.backward()
+
+            if grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
+
+            optimizer.step()
+        scheduler.step()
 
     @abstractmethod
     def _init_loss(self, gamma: float) -> None:
