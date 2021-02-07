@@ -260,7 +260,7 @@ class ResNet(NeuralNet):
                                 out_channels=self.__in_channels,
                                 kernel_size=first_kernel,
                                 act=act,
-                                conv_only=~pre_act)
+                                conv_only=pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
                                          self.__in_channels,
@@ -453,7 +453,7 @@ class MultiLevelResNet(NeuralNet):
                                 out_channels=self.__in_channels,
                                 kernel_size=first_kernel,
                                 act=act,
-                                conv_only=~pre_act)
+                                conv_only=pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
                                          self.__in_channels,
