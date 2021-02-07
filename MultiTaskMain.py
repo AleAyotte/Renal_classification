@@ -95,6 +95,7 @@ if __name__ == "__main__":
         trainset.add_data(data, label)
         del data
         del label
+
     # Else the second test set will be used to access the performance of the dataset at the end.
     else:
         testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
