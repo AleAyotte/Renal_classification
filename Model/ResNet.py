@@ -28,7 +28,11 @@ class PreResBlock(nn.Module):
         :param fmap_out: Number of output feature maps
         :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
         :param strides: Convolution strides.
+        :param groups: Number of group in the convolutions.
+        :param split_layer: If true, then the first convolution and the shortcut
+                            will ignore the groups parameter.
         :param drop_rate: The hyperparameter of the Dropout3D module.
+        :param activation: The activation function that will be used in the model.
         """
         super().__init__()
 
@@ -51,14 +55,101 @@ class PreResBlock(nn.Module):
 
         res_layer = [
             nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides,
-                      padding=padding, bias=True,
+                      padding=padding, bias=False,
                       groups=groups if split_layer is False else 1,),
             nn.BatchNorm3d(fmap_out),
             Act[activation](),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1,
-                      padding=padding, bias=True,
+                      padding=padding, bias=False,
                       groups=groups),
 
+        ]
+
+        if drop_rate > 0:
+            res_layer.extend([nn.Dropout3d(drop_rate)])
+
+        self.residual_layer = nn.Sequential(*res_layer)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Residual layer
+
+        :param x: Input tensor of the convolutional layer
+        :return: Output tensor of the residual block
+        """
+
+        out = self.bn1(x)
+        out = self.activation1(out)
+
+        if self.subsample:
+            shortcut = self.sub_conv(out)
+        else:
+            shortcut = x
+
+        out = self.residual_layer(out) + shortcut
+
+        return out
+
+
+class PreResBottleneck(nn.Module):
+    expansion = 4
+
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 kernel: Union[Sequence[int], int] = 3,
+                 strides: Union[Sequence[int], int] = 1,
+                 groups: int = 1,
+                 split_layer: bool = False,
+                 drop_rate: float = 0,
+                 activation: str = "relu"):
+        """
+        Create a PreActivation Residual Block
+
+        :param fmap_in: Number of input feature maps
+        :param fmap_out: Number of output feature maps
+        :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
+        :param strides: Convolution strides.
+        :param groups: Number of group in the convolutions.
+        :param split_layer: If true, then the first convolution and the shortcut
+                            will ignore the groups parameter.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
+        :param activation: The activation function that will be used in the model.
+        """
+        super().__init__()
+
+        if type(strides) == int and strides == 1:
+            self.subsample = False
+        elif type(strides) == Sequence and np.sum(strides) == 3:
+            self.subsample = False
+        else:
+            self.subsample = True
+            self.sub_conv = nn.Conv3d(fmap_in, fmap_out*self.expansion, kernel_size=1,
+                                      stride=strides, bias=False,
+                                      groups=groups if split_layer is False else 1)
+
+        self.bn1 = nn.BatchNorm3d(fmap_in)
+        self.activation1 = Act[activation]()
+
+        if type(kernel) == int:
+            padding = int((kernel - 1)/2)
+        else:
+            padding = [int((ker - 1)/2) for ker in kernel]
+
+        res_layer = [
+            nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
+                      stride=1, bias=False,
+                      groups=groups if split_layer is False else 1,),
+            nn.BatchNorm3d(fmap_out),
+            Act[activation](),
+            nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
+                      stride=strides, padding=padding, bias=False,
+                      groups=groups),
+            nn.BatchNorm3d(fmap_out),
+            Act[activation](),
+            nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
+                      stride=1, bias=False,
+                      groups=groups),
         ]
 
         if drop_rate > 0:
@@ -116,43 +207,6 @@ class ResBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.res(x)
-
-        return out
-
-
-class PreResBlock2(nn.Module):
-    expansion = 1
-
-    def __init__(self,
-                 fmap_in: int,
-                 fmap_out: int,
-                 kernel: Union[Sequence[int], int] = 3,
-                 strides: Union[Sequence[int], int] = 1,
-                 drop_rate: float = 0,
-                 activation: str = "ReLU"):
-        """
-        Create a PreActivation Residual Block using MONAI
-
-        :param fmap_in: Number of input feature maps
-        :param fmap_out: Number of output feature maps
-        :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
-        :param strides: Convolution strides.
-        :param drop_rate: The hyperparameter of the Dropout3D module.
-        :param activation: The activation function that will be used
-        """
-        super().__init__()
-
-        self.bn = nn.BatchNorm3d(fmap_in)
-        self.act = Act[activation]()
-        self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
-                                kernel_size=kernel, strides=strides, dropout=drop_rate,
-                                dropout_dim=3, act=activation, norm="BATCH",
-                                last_conv_only=True)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.bn(x)
-        out = self.act(out)
-        out = self.res(out)
 
         return out
 
@@ -220,14 +274,11 @@ class ResNet(NeuralNet):
             if mixup[i] > 0:
                 self.mixup[str(i)] = Mixup(mixup[i])
 
-        if depth in [50, 101]:
-            raise NotImplementedError
-
         # --------------------------------------------
         #                    BLOCK
         # --------------------------------------------
         if pre_act:
-            block = {18: PreResBlock2, 34: PreResBlock2}
+            block = {18: PreResBlock, 34: PreResBlock, 50: PreResBottleneck, 101: PreResBottleneck}
         else:
             block = {18: ResBlock, 34: ResBlock}
 
