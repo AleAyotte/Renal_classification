@@ -42,6 +42,8 @@ def argument_parser():
     parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True)
     parser.add_argument('--task', type=str, default="malignant",
                         choices=["malignant", "subtype", "grade"])
+    parser.add_argument('--testset', type=str, default="stratified",
+                        choices=["stratified", "independant"], help="The testset used to access the model")
     parser.add_argument('--track_mode', type=str, default="all",
                         choices=["all", "low", "none"])
     parser.add_argument('--warm_up', type=int, default=0)
@@ -53,14 +55,14 @@ def argument_parser():
 
 if __name__ == "__main__":
     args = argument_parser()
-    device = args.device
-
     data_path = "final_dtset/{}/{}.hdf5".format(args.dataset, args.task)
 
+    # --------------------------------------------
+    #              DATA AUGMENTATION
+    # --------------------------------------------
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
         RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-        # RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[1], prob=0.5),
         # RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
         Rand3DElasticd(keys=["t1", "t2", "roi"], sigma_range=(3, 3), magnitude_range=(15, 35), prob=0.5),
         RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
@@ -77,19 +79,32 @@ if __name__ == "__main__":
         ToTensord(keys=["t1", "t2", "roi"])
     ])
 
+    # --------------------------------------------
+    #               CREATE DATASET
+    # --------------------------------------------
+    # "test" is the stratified test and test2 is the independant test.
+    test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
+
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
     validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=None)
-    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split="test")
+    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test1)
 
+    # If we want to use some extra data, then will we used the data of the second test set.
     if args.extra_data:
-        trainset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"], split="test2")
-        data, label, _ = trainset2.extract_data(np.arange(len(trainset2)))
+        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"], split=test2)
+        data, label, _ = testset2.extract_data(np.arange(len(testset2)))
         trainset.add_data(data, label)
         del data
         del label
+    # Else the second test set will be used to access the performance of the dataset at the end.
+    else:
+        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
 
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
+    # --------------------------------------------
+    #                NEURAL NETWORK
+    # --------------------------------------------
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     net = ResNet(mixup=args.mixup,
                  depth=args.depth,
@@ -102,6 +117,9 @@ if __name__ == "__main__":
 
     summary(net, (3, 96, 96, 32))
 
+    # --------------------------------------------
+    #                   TRAINER
+    # --------------------------------------------
     trainer = Trainer(save_path="Check_moi_ca2.pth",
                       loss=args.loss,
                       tol=0.2,
@@ -128,14 +146,34 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                retrain=True)
+                retrain=False)
 
-    # conf = trainer.score(validset, 2)
+    # --------------------------------------------
+    #                    SCORE
+    # --------------------------------------------
+    print("**************************************")
+    print("**{:^34s}**".format("VALIDATION SCORE"))
+    print("**************************************")
+    conf, auc = trainer.score(validset, 2)
+    recall = compute_recall(conf)
+    print("AUC: ", auc)
+    print("Recall: ", recall)
+
+    test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDANT TEST SCORE"
+    print("**************************************")
+    print("**{:^34s}**".format(test1_label))
+    print("**************************************")
     conf, auc = trainer.score(testset, 2)
     recall = compute_recall(conf)
     print("AUC: ", auc)
     print("Recall: ", recall)
 
-    # conf = trainer.score(testset2, 2)
-    # recall = compute_recall(conf)
-    # print("Recall: ", recall)
+    if not args.extra_data:
+        test2_label = "INDEPENDANT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
+        print("**************************************")
+        print("**{:^34s}**".format(test2_label))
+        print("**************************************")
+        conf, auc = trainer.score(testset2, 2)
+        recall = compute_recall(conf)
+        print("AUC: ", auc)
+        print("Recall: ", recall)

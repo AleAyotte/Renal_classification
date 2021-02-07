@@ -31,7 +31,9 @@ def argument_parser():
                         choices=["constant", "edge", "reflect", "symmetric"])
     parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True)
     parser.add_argument('--task', type=str, default="grade",
-                        choices=["malignant", "subtype", "grade"])
+                        choices=["malignant", "subtype", "grade"]),
+    parser.add_argument('--testset', type=str, default="stratified",
+                        choices=["stratified", "independant"], help="The testset used to access the model")
     parser.add_argument('--track_mode', type=str, default="all",
                         choices=["all", "low", "none"])
     parser.add_argument('--warm_up', type=int, default=0)
@@ -49,12 +51,12 @@ if __name__ == "__main__":
     #              DATA AUGMENTATION
     # --------------------------------------------
     transform = Compose([
-        RandFlipd(keys=["t1", "t2"], spatial_axis=[0, 1], prob=0.5),
+        RandFlipd(keys=["t1", "t2"], spatial_axis=[0], prob=0.5),
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
         RandAffined(keys=["t1", "t2"], prob=0.8, shear_range=0.5,
                     rotate_range=6.28, translate_range=0.1),
-        Rand2DElasticd(keys=["t1", "t2"], spacing=10, magnitude_range=(0, 1), prob=1),
-        RandSpatialCropd(keys=["t1", "t2"], roi_size=[148, 148], random_center=False),
+        # Rand2DElasticd(keys=["t1", "t2"], spacing=10, magnitude_range=(0, 1), prob=1),
+        # RandSpatialCropd(keys=["t1", "t2"], roi_size=[148, 148], random_center=False),
         RandZoomd(keys=["t1", "t2"], prob=0.5, min_zoom=0.95, max_zoom=1.05,
                   keep_size=False),
         ResizeWithPadOrCropd(keys=["t1", "t2"], spatial_size=[224, 224], mode=args.pad_mode),
@@ -69,23 +71,30 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
+    # "test" is the stratified test and test2 is the independant test.
+    test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
     clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
 
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"],
                             clinical_features=clin_features)
     validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=None,
                             clinical_features=clin_features)
-    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split="test",
+    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=test1,
                            clinical_features=clin_features)
 
+    # If we want to use some extra data, then will we used the data of the second test set.
     if args.extra_data:
-        trainset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"], split="test2",
-                                 clinical_features=clin_features)
-        data, label, clin = trainset2.extract_data(np.arange(len(trainset2)))
+        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"], split=test2,
+                                clinical_features=clin_features)
+        data, label, clin = testset2.extract_data(np.arange(len(testset2)))
         trainset.add_data(data, label, clin)
         del data
         del label
         del clin
+    # Else the second test set will be used to access the performance of the dataset at the end.
+    else:
+        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=test2,
+                                clinical_features=clin_features)
 
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
@@ -133,7 +142,32 @@ if __name__ == "__main__":
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch)
 
-    conf = trainer.score(testset, 32)
+    # --------------------------------------------
+    #                    SCORE
+    # --------------------------------------------
+    print("**************************************")
+    print("**{:^34s}**".format("VALIDATION SCORE"))
+    print("**************************************")
+    conf, auc = trainer.score(validset, 2)
     recall = compute_recall(conf)
-
+    print("AUC: ", auc)
     print("Recall: ", recall)
+
+    test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDANT TEST SCORE"
+    print("**************************************")
+    print("**{:^34s}**".format(test1_label))
+    print("**************************************")
+    conf, auc = trainer.score(testset, 2)
+    recall = compute_recall(conf)
+    print("AUC: ", auc)
+    print("Recall: ", recall)
+
+    if not args.extra_data:
+        test2_label = "INDEPENDANT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
+        print("**************************************")
+        print("**{:^34s}**".format(test2_label))
+        print("**************************************")
+        conf, auc = trainer.score(testset2, 2)
+        recall = compute_recall(conf)
+        print("AUC: ", auc)
+        print("Recall: ", recall)
