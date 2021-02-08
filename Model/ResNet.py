@@ -211,6 +211,42 @@ class ResBlock(nn.Module):
         return out
 
 
+class PreResBlock2(nn.Module):
+    expansion = 1
+
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 kernel: Union[Sequence[int], int] = 3,
+                 strides: Union[Sequence[int], int] = 1,
+                 drop_rate: float = 0,
+                 activation: str = "ReLU"):
+        """
+        Create a PreActivation Residual Block using MONAI
+        :param fmap_in: Number of input feature maps
+        :param fmap_out: Number of output feature maps
+        :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
+        :param strides: Convolution strides.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
+        :param activation: The activation function that will be used
+        """
+        super().__init__()
+
+        self.bn = nn.BatchNorm3d(fmap_in)
+        self.act = Act[activation]()
+        self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
+                                kernel_size=kernel, strides=strides, dropout=drop_rate,
+                                dropout_dim=3, act=activation, norm="BATCH",
+                                last_conv_only=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.bn(x)
+        out = self.act(out)
+        out = self.res(out)
+
+        return out
+
+
 class ResNet(NeuralNet):
     """
     Create a pre activation or post activation 3D Residual Network.
