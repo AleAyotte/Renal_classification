@@ -5,10 +5,20 @@ from typing import Tuple, Sequence
 
 class Mixup(torch.nn.Module):
     """
-    Create a pre activation or post activation 3D Residual Network.
+    Create a MixUp module.
      ...
     Attributes
     ----------
+    __beta: float
+        The parameter of beta distribution. The lamb parameter will be sample in a distribution Beta(__beta, __beta)
+    lamb: float
+        The parameter that will be used to compute the simplex between two images.
+    __batch_size: int
+        The length of the image batch that will mix.
+    permut: Sequence[int]
+        The permutation indices that will be used to shuffle the features before the next foward pass.
+    enable: bool
+        If true, the current module will mix the next batch of images.
     """
     def __init__(self, beta_params):
         """
@@ -16,7 +26,7 @@ class Mixup(torch.nn.Module):
         :param beta_params: One single value for the two parameters of a beta distribution
         """
 
-        torch.nn.Module.__init__(self)
+        super().__init__()
         self.__beta = beta_params
         self.lamb = 1
         self.__batch_size = 0
