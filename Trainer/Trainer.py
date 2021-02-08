@@ -175,7 +175,7 @@ class Trainer(ABC):
                                   shuffle=True,
                                   drop_last=True)
         valid_loader = DataLoader(validset,
-                                  batch_size=batch_size,
+                                  batch_size=2,
                                   pin_memory=self.__pin_memory,
                                   num_workers=self.__num_work,
                                   shuffle=False,
