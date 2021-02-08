@@ -73,7 +73,11 @@ if __name__ == "__main__":
     # --------------------------------------------
     # "test" is the stratified test and test2 is the independant test.
     test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
-    clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
+
+    if args.task in ["subtype", "grade"]:
+        clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
+    else:
+        clin_features = ["Age", "Sex", "size"]
 
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"],
                             clinical_features=clin_features)
@@ -104,6 +108,7 @@ if __name__ == "__main__":
     mean, std = trainset.normalize_clin_data(get_norm_param=True)
     validset.normalize_clin_data(mean=mean, std=std)
     testset.normalize_clin_data(mean=mean, std=std)
+    testset2.normalize_clin_data(mean=mean, std=std) if not args.extra_data else None
 
     # --------------------------------------------
     #                NEURAL NETWORK
