@@ -350,19 +350,19 @@ class ResNet(NeuralNet):
                                 conv_only=pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
-                                         self.__in_channels,
+                                         first_channels,
                                          kernel=kernel, strides=[2, 2, 1],
                                          drop_rate=dropout[0], act=act)
         self.layers2 = self.__make_layer(block[depth], layers[depth][1],
-                                         self.__in_channels * 2,
+                                         first_channels * 2,
                                          kernel=kernel, strides=[2, 2, 2],
                                          drop_rate=dropout[1], act=act)
         self.layers3 = self.__make_layer(block[depth], layers[depth][2],
-                                         self.__in_channels * 2,
+                                         first_channels * 4,
                                          kernel=kernel, strides=[2, 2, 2],
                                          drop_rate=dropout[2], act=act)
         self.layers4 = self.__make_layer(block[depth], layers[depth][3],
-                                         self.__in_channels * 2,
+                                         first_channels * 8,
                                          kernel=kernel, strides=[2, 2, 2],
                                          drop_rate=dropout[3], act=act)
 
@@ -507,7 +507,7 @@ class MultiLevelResNet(NeuralNet):
         #                    BLOCK
         # --------------------------------------------
         if pre_act:
-            block = {18: PreResBlock, 34: PreResBlock}
+            block = {18: PreResBlock, 34: PreResBlock, 50: PreResBottleneck, 101: PreResBottleneck}
         else:
             block = {18: ResBlock, 34: ResBlock}
 
@@ -543,25 +543,25 @@ class MultiLevelResNet(NeuralNet):
                                 conv_only=pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
-                                         self.__in_channels,
+                                         first_channels,
                                          kernel=kernel, strides=[2, 2, 1],
                                          drop_rate=dropout[0], act=act,
                                          split_layer=(1 == split_level),
                                          groups=3 if 1 >= split_level else 1)
         self.layers2 = self.__make_layer(block[depth], layers[depth][1],
-                                         self.__in_channels * 2,
+                                         first_channels * 2,
                                          kernel=kernel, strides=[2, 2, 2],
                                          drop_rate=dropout[1], act=act,
                                          split_layer=(2 == split_level),
                                          groups=3 if 2 >= split_level else 1)
         self.layers3 = self.__make_layer(block[depth], layers[depth][2],
-                                         self.__in_channels * 2,
+                                         first_channels * 4,
                                          kernel=kernel, strides=[2, 2, 2],
                                          drop_rate=dropout[2], act=act,
                                          split_layer=(3 == split_level),
                                          groups=3 if 3 >= split_level else 1)
         self.layers4 = self.__make_layer(block[depth], layers[depth][3],
-                                         self.__in_channels * 2,
+                                         first_channels * 8,
                                          kernel=kernel, strides=[2, 2, 2],
                                          drop_rate=dropout[3], act=act,
                                          split_layer=(4 == split_level),
