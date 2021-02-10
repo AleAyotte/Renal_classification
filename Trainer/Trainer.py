@@ -229,7 +229,7 @@ class Trainer(ABC):
 
                 train_acc, train_loss = self._validation_step(dt_loader=train_loader, 
                                                               epoch=epoch,
-                                                              dataset_name="training")
+                                                              dataset_name="Training")
 
                 self._writer.add_scalars('Accuracy', 
                                          {'Training': train_acc,

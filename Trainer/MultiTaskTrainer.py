@@ -175,7 +175,10 @@ class MultiTaskTrainer(Trainer):
                 s_loss = self.__s_loss(s_pred, s_labels)
                 g_loss = self.__g_loss(g_pred, g_labels)
 
-                loss = (m_loss + s_loss + g_loss) / 3
+                losses = torch.stack((m_loss, s_loss, g_loss))
+                loss = self.model.uncertainty_loss(losses)
+
+                # loss = (m_loss + s_loss + g_loss) / 3
 
             self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
             sum_loss += loss
@@ -225,8 +228,10 @@ class MultiTaskTrainer(Trainer):
             m_loss = lamb*self.__m_loss(m_pred, m_target) + (1-lamb)*self.__m_loss(m_pred, m_target[permut])
             s_loss = lamb*self.__s_loss(s_pred, s_target) + (1-lamb)*self.__s_loss(s_pred, s_target[permut])
             g_loss = lamb*self.__g_loss(g_pred, g_target) + (1-lamb)*self.__g_loss(g_pred, g_target[permut])
-        
-        loss = (m_loss + s_loss + g_loss) / 3
+
+        losses = torch.stack((m_loss, s_loss, g_loss))
+        loss = self.model.uncertainty_loss(losses)
+        # loss = (m_loss + s_loss + g_loss) / 3
 
         if self._track_mode == "all":
             self._writer.add_scalars('Training/Loss', 
@@ -339,6 +344,13 @@ class MultiTaskTrainer(Trainer):
                                       'Recall 1': g_recall[1],
                                       'Recall 2': g_recall[2]},
                                      epoch)
+            if dataset_name == "Validation":
+                phi = self.model.phi.detach().cpu().numpy()
+                self._writer.add_scalars("Other/Uncertainty",
+                                         {"phi_Malignant": phi[0],
+                                          "phi_Subtype": phi[1],
+                                          "phi_Grade": phi[2]},
+                                         epoch)
         return mean_acc, loss
     
     def _get_conf_matrix(self,
@@ -395,7 +407,9 @@ class MultiTaskTrainer(Trainer):
             s_loss = self.__s_loss(s_outs, s_target.to(self._device))
             g_loss = self.__g_loss(g_outs, g_target.to(self._device))
 
-            total_loss = (m_loss + s_loss + g_loss) / 3
+            losses = torch.stack((m_loss, s_loss, g_loss))
+            total_loss = self.model.uncertainty_loss(losses)
+            # total_loss = (m_loss + s_loss + g_loss) / 3
 
         m_conf = confusion_matrix(m_labels.numpy(), m_pred.cpu().numpy())
         s_conf = confusion_matrix(s_labels.numpy(), s_pred.cpu().numpy())

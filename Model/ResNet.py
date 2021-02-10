@@ -61,8 +61,7 @@ class PreResBlock(nn.Module):
             Act[activation](),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1,
                       padding=padding, bias=False,
-                      groups=groups),
-
+                      groups=groups)
         ]
 
         if drop_rate > 0:
@@ -504,6 +503,11 @@ class MultiLevelResNet(NeuralNet):
             raise NotImplementedError
 
         # --------------------------------------------
+        #              UNCERTAINTY LOSS
+        # --------------------------------------------
+        self.phi = torch.nn.Parameter(data=torch.Tensor([0, 0, 0]), requires_grad=True)
+
+        # --------------------------------------------
         #                    BLOCK
         # --------------------------------------------
         if pre_act:
@@ -601,7 +605,7 @@ class MultiLevelResNet(NeuralNet):
                      groups: int = 1,
                      split_layer: bool = False) -> nn.Sequential:
 
-        fmap_out = fmap_out * 3 if split_layer else fmap_out
+        fmap_out = fmap_out * groups
         layers = []
         for i in range(num_block):
             layers.append(block(fmap_in=self.__in_channels, fmap_out=fmap_out,
@@ -647,7 +651,17 @@ class MultiLevelResNet(NeuralNet):
             out_sub = self.fc_layer_sub_1(features[:, 1, :])
             out_grade = self.fc_layer_grade_1(features[:, 2, :])
 
-        sub_pred = self.fc_layer_sub_2(torch.cat((out_sub, mal_pred), dim=1))
-        grade_pred = self.fc_layer_grade_2(torch.cat((out_grade, mal_pred), dim=1))
-
+        # sub_pred = self.fc_layer_sub_2(torch.cat((out_sub, mal_pred.detach()), dim=1))
+        # grade_pred = self.fc_layer_grade_2(torch.cat((out_grade, mal_pred.detach()), dim=1))
+        sub_pred = out_sub
+        grade_pred = out_grade
         return mal_pred, sub_pred, grade_pred
+
+    def uncertainty_loss(self, losses: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the uncertainty loss
+
+        :param losses: A torch.Tensor that represent the vector of lenght 3 that contain the losses.
+        :return: A torch.Tensor that represent the uncertainty loss (multi-task loss).
+        """
+        return torch.dot(torch.exp(-self.phi), losses) + torch.sum(self.phi / 2)
