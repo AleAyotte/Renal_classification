@@ -108,7 +108,8 @@ class Trainer(ABC):
             batch_size: int = 32,
             gamma: float = 2.,
             learning_rate: float = 1e-3, 
-            eps: float = 1e-4, 
+            eps: float = 1e-4,
+            mom: float = 0.9,
             l2: float = 1e-4, 
             t_0: int = 200,
             eta_min: float = 1e-4, 
@@ -127,11 +128,12 @@ class Trainer(ABC):
         :param trainset: The dataset that will be used to train the model.
         :param validset: The dataset that will be used to mesure the model performance.
         :param num_epoch: Maximum number of epoch during the training. (Default=200)
-        :param batch_size: The batch size that will be used during the training. (Default=150)
+        :param batch_size: The batch size that will be used during the training. (Default=32)
         :param gamma: Gamma parameter of the focal loss. (Default=2.0)
-        :param learning_rate: Start learning rate of the Adam optimizer. (Default=0.1)
-        :param eps: The epsilon parameter of the Adam Optimizer.
-        :param l2: L2 regularization coefficient.
+        :param learning_rate: Start learning rate of the Adam optimizer. (Default=1e-3)
+        :param eps: The epsilon parameter of the Adam Optimizer. (Default=1e-4)
+        :param mom: The momentum parameter of the SGD Optimizer. (Default=0.9)
+        :param l2: L2 regularization coefficient. (Default=1e-4)
         :param t_0: Number of epoch before the first restart. (Default=200)
         :param eta_min: Minimum value of the learning rate. (Default=1e-4)
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient. (Default=0)
@@ -182,13 +184,21 @@ class Trainer(ABC):
                                   drop_last=True)
 
         # Initialization of the optimizer and the scheduler
-        assert optim.lower() in ["adam", "novograd"]
+        assert optim.lower() in ["adam", "sgd", "novograd"]
         if optim.lower() == "adam": 
             optimizer = torch.optim.Adam(
                 self.model.parameters(),
                 lr=learning_rate,
                 weight_decay=l2,
                 eps=eps
+            )
+        elif optim.lower() == "SGD":
+            optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=learning_rate,
+                weight_decay=l2,
+                momentum=mom,
+                nesterov=True
             )
         else:
             optimizer = Novograd(
