@@ -29,21 +29,21 @@ def argument_parser():
     parser.add_argument('--in_channels', type=int, default=16)
     parser.add_argument('--loss', type=str, default="ce",
                         choices=["ce", "bce", "focal"])
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True)
     parser.add_argument('--mixup', type=int, action='store', nargs="*", default=[0, 2, 2, 0])
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
     parser.add_argument('--num_epoch', type=int, default=100)
-    parser.add_argument('--optim', type=str, default="adam",
-                        choices=["adam", "novograd"])
+    parser.add_argument('--optim', type=str, default="sgd",
+                        choices=["adam", "novograd", "sgd"])
     parser.add_argument('--pad_mode', type=str, default="constant",
                         choices=["constant", "edge", "reflect", "symmetric"])
     parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True)
     parser.add_argument('--task', type=str, default="malignant",
                         choices=["malignant", "subtype", "grade"])
     parser.add_argument('--testset', type=str, default="stratified",
-                        choices=["stratified", "independant"], help="The testset used to access the model")
+                        choices=["stratified", "independent"], help="The testset used to access the model")
     parser.add_argument('--track_mode', type=str, default="all",
                         choices=["all", "low", "none"])
     parser.add_argument('--warm_up', type=int, default=0)
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
                     rotate_range=[0, 0, 6.28], translate_range=0.1, padding_mode="zeros"),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=1.00, max_zoom=1.05,
+        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.85, max_zoom=1.15,
                   keep_size=False, mode="trilinear", align_corners=True),
         ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    # "test" is the stratified test and test2 is the independant test.
+    # "test" is the stratified test and test2 is the independent test.
     test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
 
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     print("AUC: ", auc)
     print("Recall: ", recall)
 
-    test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDANT TEST SCORE"
+    test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDENT TEST SCORE"
     print("**************************************")
     print("**{:^34s}**".format(test1_label))
     print("**************************************")
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     print("Recall: ", recall)
 
     if not args.extra_data:
-        test2_label = "INDEPENDANT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
+        test2_label = "INDEPENDENT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
         print("**************************************")
         print("**{:^34s}**".format(test2_label))
         print("**************************************")
