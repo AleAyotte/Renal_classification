@@ -41,6 +41,49 @@ class SluiceUnit(torch.nn.Module):
         return out.transpose(1, 5)
 
 
+class CrossStitchUnit(torch.nn.Module):
+    """
+    Create a Cross-Stitch Unit
+    ...
+    Attributes
+    ----------
+    alpha: torch.nn.Parameter
+        A torch Tensor that represent parameters of the Cross-Stitch Unit. Those parameters are
+        a matrix NxN that learned how the information between N subspace should be shared.
+    """
+    def __init__(self,
+                 nb_channels: int,
+                 nb_task: int,
+                 c=0.9,
+                 spread=0.1):
+        """
+
+        :param nb_task: The number of network to combine.
+        :param nb_channels: Number of channels in the latent space PER NETWORK.
+        :param c: A float that represent the conservation parameter.
+        :param spread: A float that represent the spread parameters.
+        """
+        super().__init__()
+        mean = (1 - c) / (nb_task - 1)
+        std = spread / (nb_task - 1)
+
+        alpha = []
+        for t in range(nb_task):
+            temp = np.random.normal(mean, std, (nb_channels, nb_task))
+            temp[:, t] = c
+            alpha.append(temp)
+
+        alpha = torch.from_numpy(np.array(alpha)).float().swapaxes(1, 2)
+        alpha = alpha.swapaxes(1, 2)  # Output, Task, Channels
+
+        self.alpha = torch.nn.Parameter(data=alpha, requires_grad=True)
+
+    def forward(self, x):
+        # Output, Task, Batch, Channels, Depth, Width, Height
+        out = torch.mul(self.alpha[:, :, None, :, None, None, None], x[None, :, :, :, :, :, :])
+        return out.sum(1)
+
+
 class Mixup(torch.nn.Module):
     """
     Create a MixUp module.
