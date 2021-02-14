@@ -3,10 +3,48 @@ import torch
 from typing import Tuple, Sequence
 
 
+class SluiceUnit(torch.nn.Module):
+    """
+    Create a SluiceUnit
+    ...
+    Attributes
+    ----------
+    alpha: torch.nn.Parameter
+        A torch Tensor that represent parameters of the Sluice Unit. Those parameters are
+        a matrix NxN that learned how the information between N subspace should be shared.
+    """
+    def __init__(self,
+                 nb_subspace: int,
+                 c: float = 0.9,
+                 spread: float = 0.1):
+        """
+        Initialize a sluice units.
+
+        :param nb_subspace: The number of subspace that will be shared.
+        :param c: A float that represent the conservation parameter.
+        :param spread: A float that represent the spread parameters.
+        """
+        super().__init__()
+        mean = (1-c)/(nb_subspace - 1)
+        std = spread/(nb_subspace - 1)
+
+        alpha = np.random.normal(mean, std, (nb_subspace, nb_subspace))
+        alpha[np.diag_indices_from(alpha)] = c
+
+        alpha = torch.from_numpy(alpha).float()
+        self.alpha = torch.nn.Parameter(data=alpha, requires_grad=True)
+        # Batch, Subspace, Channels, Depth, Height, Width
+
+    def forward(self, x):
+        x = x.transpose(1, x.ndim - 1)  # We transpose the subspace dimension with the last dimension
+        out = torch.matmul(x[:, :, :, :, :, None, :], self.alpha).squeeze()
+        return out.transpose(1, 5)
+
+
 class Mixup(torch.nn.Module):
     """
     Create a MixUp module.
-     ...
+    ...
     Attributes
     ----------
     __beta: float
