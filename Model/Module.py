@@ -38,7 +38,7 @@ class SluiceUnit(torch.nn.Module):
     def forward(self, x):
         x = x.transpose(1, x.ndim - 1)  # We transpose the subspace dimension with the last dimension
         out = torch.matmul(x[:, :, :, :, :, None, :], self.alpha).squeeze()
-        return out.transpose(1, 5)
+        return out.transpose(1, x.ndim - 1)
 
 
 class CrossStitchUnit(torch.nn.Module):

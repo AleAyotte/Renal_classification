@@ -42,7 +42,7 @@ class SharedNet(NeuralNet):
                  malignant_net: NeuralNet,
                  subtype_net: NeuralNet,
                  grade_net: NeuralNet,
-                 sharing_unit: str = "Sluice",
+                 sharing_unit: str = "sluice",
                  mixup: Sequence[float] = None,
                  subspace_1: Union[Sequence[int], None] = None,
                  subspace_2: Union[Sequence[int], None] = None,
@@ -87,6 +87,11 @@ class SharedNet(NeuralNet):
                 self.mixup[str(i)] = Mixup(mixup[i])
 
         # --------------------------------------------
+        #              UNCERTAINTY LOSS
+        # --------------------------------------------
+        self.phi = torch.nn.Parameter(data=torch.Tensor([0, 0, 0]), requires_grad=True)
+
+        # --------------------------------------------
         #               SHARING UNITS
         # --------------------------------------------
         assert sharing_unit.lower() in ["sluice", "cross_stitch"], \
@@ -104,20 +109,54 @@ class SharedNet(NeuralNet):
             assert len(num_shared_channels) == 4, "You must give the number of shared channels PER NETWORK for each " \
                                                   "shared unit. Only {} were gived".format(len(num_shared_channels))
 
-        sharing_units_dict = nn.ModuleDict()
-        for i in range(4):
-            if sharing_unit.lower == "sluice":
-                sharing_units_dict[str(i)] = SluiceUnit(self.__subspace[i].sum(),
-                                                        c,
-                                                        spread)
+        self.sharing_units_dict = nn.ModuleDict()
+        for i in range(1, 5):
+            if sharing_unit.lower() == "sluice":
+                self.sharing_units_dict[str(i)] = SluiceUnit(self.__subspace[i - 1].sum(),
+                                                             c,
+                                                             spread)
             else:
-                sharing_units_dict[str(i)] = CrossStitchUnit(nb_channels=num_shared_channels[i],
-                                                             nb_task=NB_TASK,
-                                                             c=c,
-                                                             spread=spread)
+                self.sharing_units_dict[str(i)] = CrossStitchUnit(nb_channels=num_shared_channels[i - 1],
+                                                                  nb_task=NB_TASK,
+                                                                  c=c,
+                                                                  spread=spread)
+
+    def shared_forward(self,
+                       x: Sequence[torch.Tensor],
+                       sharing_level: int):
+
+        num_chan = [x[0].size()[1], x[1].size()[1], x[2].size()[1]]
+        b_size, _, depth, width, height = x[0].size()
+        num_sub = self.__subspace[sharing_level - 1]
+
+        if self.__sharing_unit == "sluice":
+            """
+            torch.cat([
+                x[0].view(b_size, num_sub[0], int(num_chan[i] / num_sub[0]), depth, width, height),
+                x[1].view(b_size, num_sub[1], int(b_size / num_sub[1]), depth, width, height),
+                x[2].view(b_size, num_sub[2], int(b_size / num_sub[2]), depth, width, height)
+            ], dim=1)
+            """
+            out = torch.cat([
+                x[i].view(b_size, num_sub[i], int(num_chan[i] / num_sub[i]), depth, width, height) for i in range(3)
+            ], dim=1)
+
+            out = self.sharing_units_dict[str(sharing_level)](out)
+            out_mal, out_sub, out_grade = torch.split(out, tuple(num_sub), dim=1)
+
+            out_mal = out_mal.reshape(b_size, num_chan[0], depth, width, height)
+            out_sub = out_sub.reshape(b_size, num_chan[1], depth, width, height)
+            out_grade = out_grade.reshape(b_size, num_chan[2], depth, width, height)
+
+            return out_mal, out_sub, out_grade
+
+        else:
+            out = self.sharing_units_dict[str(sharing_level)](torch.stack(x, dim=0))
+            return out[0], out[1], out[2]
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         mixup_key_list = list(self.mixup.keys())
+        b_size = x.size()[0]
 
         out = self.mixup["0"](x) if "0" in mixup_key_list else x
 
@@ -135,6 +174,8 @@ class SharedNet(NeuralNet):
         out_sub = self.nets["sub"].layers1(out_sub)
         out_grade = self.nets["grade"].layers1(out_grade)
 
+        out_mal, out_sub, out_grade = self.shared_forward([out_mal, out_sub, out_grade], 1)
+
         if "1" in mixup_key_list:
             out_mal = self.mixup["1"](out_mal)
             out_sub = self.mixup["1"](out_sub)
@@ -146,6 +187,8 @@ class SharedNet(NeuralNet):
         out_mal = self.nets["mal"].layers2(out_mal)
         out_sub = self.nets["sub"].layers2(out_sub)
         out_grade = self.nets["grade"].layers2(out_grade)
+
+        out_mal, out_sub, out_grade = self.shared_forward([out_mal, out_sub, out_grade], 2)
 
         if "2" in mixup_key_list:
             out_mal = self.mixup["2"](out_mal)
@@ -159,6 +202,8 @@ class SharedNet(NeuralNet):
         out_sub = self.nets["sub"].layers3(out_sub)
         out_grade = self.nets["grade"].layers3(out_grade)
 
+        out_mal, out_sub, out_grade = self.shared_forward([out_mal, out_sub, out_grade], 3)
+
         if "3" in mixup_key_list:
             out_mal = self.mixup["3"](out_mal)
             out_sub = self.mixup["3"](out_sub)
@@ -171,6 +216,7 @@ class SharedNet(NeuralNet):
         out_sub = self.nets["sub"].layers4(out_sub)
         out_grade = self.nets["grade"].layers4(out_grade)
 
+        out_mal, out_sub, out_grade = self.shared_forward([out_mal, out_sub, out_grade], 4)
         # --------------------------------------------
         #                   POOLING
         # --------------------------------------------
@@ -181,12 +227,21 @@ class SharedNet(NeuralNet):
         # --------------------------------------------
         #                   FC_LAYERS
         # --------------------------------------------
-        feat_mal = out_mal.view(out_mal.size()[0], -1)
-        feat_sub = out_mal.view(out_sub.size()[0], -1)
-        feat_grade = out_mal.view(out_grade.size()[0], -1)
+        feat_mal = out_mal.view(b_size, -1)
+        feat_sub = out_sub.view(b_size, -1)
+        feat_grade = out_grade.view(b_size, -1)
 
-        out_mal = self.nets["mal"].fc_layers(feat_mal)
-        out_sub = self.nets["sub"].fc_layers(feat_sub)
-        out_grade = self.nets["grade"].fc_layers(feat_grade)
+        out_mal = self.nets["mal"].fc_layer(feat_mal)
+        out_sub = self.nets["sub"].fc_layer(feat_sub)
+        out_grade = self.nets["grade"].fc_layer(feat_grade)
 
         return out_mal, out_sub, out_grade
+
+    def uncertainty_loss(self, losses: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the uncertainty loss
+
+        :param losses: A torch.Tensor that represent the vector of lenght 3 that contain the losses.
+        :return: A torch.Tensor that represent the uncertainty loss (multi-task loss).
+        """
+        return torch.dot(torch.exp(-self.phi), losses) + torch.sum(self.phi / 2)
