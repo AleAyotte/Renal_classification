@@ -31,7 +31,7 @@ def argument_parser():
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True)
-    parser.add_argument('--mixup', type=int, action='store', nargs="*", default=[0, 2, 2, 0])
+    parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 0])
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
     parser.add_argument('--num_epoch', type=int, default=100)
@@ -138,7 +138,7 @@ if __name__ == "__main__":
                 mode=args.mode,
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
-                grad_clip=5,
+                grad_clip=2,
                 warm_up_epoch=args.warm_up,
                 eps=args.eps,
                 batch_size=args.b_size,

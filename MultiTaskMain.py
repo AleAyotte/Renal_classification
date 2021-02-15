@@ -14,7 +14,7 @@ def argument_parser():
     parser.add_argument('--activation', type=str, default='ReLU',
                         choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
     parser.add_argument('--b_size', type=int, default=32)
-    parser.add_argument('--dataset', type=str, default='Option1_with_N4',
+    parser.add_argument('--dataset', type=str, default='Option1_without_N4',
                         choices=['Option1_with_N4', 'Option1_without_N4',
                                  'Option2_with_N4', 'Option2_without_N4'])
     parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50])
@@ -29,7 +29,7 @@ def argument_parser():
     parser.add_argument('--loss', type=str, default="ce",
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--mixup', type=int, action='store', nargs="*", default=[0, 2, 2, 2])
+    parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 2])
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
     parser.add_argument('--num_epoch', type=int, default=100)
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     args = argument_parser()
     device = args.device
 
-    data_path = "final_dtset/{}/all.hdf5".format(args.dataset)
+    data_path = "final_dtset/{}/new_all.hdf5".format(args.dataset)
 
     # --------------------------------------------
     #              DATA AUGMENTATION
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
         RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-        # RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
+        RandScaleIntensityd(keys=["t1", "t2"], factors=0.1, prob=0.5),
         # Rand3DElasticd(keys=["t1", "t2", "roi"], sigma_range=(3, 3), magnitude_range=(15, 35), prob=0.5),
         RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
                     rotate_range=[0, 0, 6.28], translate_range=0, padding_mode="zeros"),
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     else:
         testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
 
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.1)
+    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     summary(net, (3, 96, 96, 32))
     trainer = Trainer(save_path="Check_moi_ca2.pth",
                       loss=args.loss,
-                      tol=0.05,
+                      tol=1.00,
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
@@ -141,7 +141,8 @@ if __name__ == "__main__":
                 device=args.device,
                 optim=args.optim,
                 num_epoch=args.num_epoch,
-                t_0=args.num_epoch)
+                t_0=args.num_epoch,
+                l2=1e-6)
 
     # --------------------------------------------
     #                    SCORE
