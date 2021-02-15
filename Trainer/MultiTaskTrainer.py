@@ -91,18 +91,14 @@ class MultiTaskTrainer(Trainer):
                          save_path=save_path,
                          track_mode=track_mode)
 
-        assert classes_weights.lower() in ["flat", "balanced", "focused"], \
-            "classes_weights should be one of those options: 'Flat', 'Balanced' or 'Focused'"
-        weights = {"flat": [[1., 1.], 
-                            [1., 1., 1.], 
-                            [1., 1., 1.]],
-                   "balanced": [[1/0.8, 1/1.2], 
-                                [1/1.2, 1/0.414, 1/1.386], 
-                                [1/1.2, 1/1.206, 1/0.594]],
-                   "focused": [[1/0.8, 1/1.2], 
-                               [1/(2 * 1.2), 1 / (0.75 * 0.414), 1 / (0.75 * 1.386)],
-                               [1/(2 * 1.2), 1 / (0.75 * 1.206), 1 / (0.75 * 0.594)]]}
-
+        assert classes_weights.lower() in ["flat", "balanced"], \
+            "classes_weights should be one of those options: 'Flat' or 'Balanced'"
+        weights = {"flat": [[1., 1.],
+                            [1., 1.],
+                            [1., 1.]],
+                   "balanced": [[1 / 0.8, 1 / 1.2],
+                                [2.0840, 0.6578],
+                                [0.7708, 1.4232]]}
         self.__weights = weights[classes_weights.lower()]
         self.__m_loss = None
         self.__s_loss = None
@@ -171,14 +167,15 @@ class MultiTaskTrainer(Trainer):
             with amp.autocast(enabled=self._mixed_precision):
                 m_pred, s_pred, g_pred = self.model(images) if features is None else self.model(images, features)
 
+                s_mask = torch.where(s_labels > 0, 1, 0).bool()
+                g_mask = torch.where(g_labels > 0, 1, 0).bool()
+
                 m_loss = self.__m_loss(m_pred, m_labels)
-                s_loss = self.__s_loss(s_pred, s_labels)
-                g_loss = self.__g_loss(g_pred, g_labels)
+                s_loss = self.__s_loss(s_pred[s_mask], s_labels[s_mask] - 1)
+                g_loss = self.__g_loss(g_pred[g_mask], g_labels[g_mask] - 1)
 
                 losses = torch.stack((m_loss, s_loss, g_loss))
                 loss = self.model.uncertainty_loss(losses)
-
-                # loss = (m_loss + s_loss + g_loss) / 3
 
             self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
             sum_loss += loss
@@ -195,7 +192,7 @@ class MultiTaskTrainer(Trainer):
 
     def _mixup_criterion(self,
                          pred: Sequence[torch.Tensor],
-                         target: Sequence[Variable],
+                         labels: Sequence[Variable],
                          lamb: float,
                          permut: Sequence[int],
                          it: int) -> torch.FloatTensor:
@@ -203,18 +200,24 @@ class MultiTaskTrainer(Trainer):
         Transform target into one hot vector and apply mixup on it
 
         :param pred: A matrix of the prediction of the model. 
-        :param target: Vector of the ground truth.
+        :param labels: Vector of the ground truth.
         :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass.
         :param permut: A numpy array that indicate which images has been shuffle during the foward pass.
         :return: The mixup loss as torch tensor.
         """
         m_pred, s_pred, g_pred = pred
-        m_target, s_target, g_target = target
+        m_labels, s_labels, g_labels = labels
+
+        s_mask = torch.where(s_labels > 0, 1, 0).bool()
+        g_mask = torch.where(g_labels > 0, 1, 0).bool()
+
+        s_labels = s_labels[s_mask] - 1
+        g_labels = g_labels[g_mask] - 1
 
         if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
-            m_hot_target = to_one_hot(m_target, 2, self._device)
-            s_hot_target = to_one_hot(s_target, 3, self._device)
-            g_hot_target = to_one_hot(g_target, 3, self._device)
+            m_hot_target = to_one_hot(m_labels, 2, self._device)
+            s_hot_target = to_one_hot(s_labels, 2, self._device)
+            g_hot_target = to_one_hot(g_labels, 2, self._device)
 
             m_mixed_target = lamb*m_hot_target + (1-lamb)*m_hot_target[permut]
             s_mixed_target = lamb*s_hot_target + (1-lamb)*s_hot_target[permut]
@@ -225,13 +228,12 @@ class MultiTaskTrainer(Trainer):
             g_loss = self.__g_loss(g_pred, g_mixed_target)
 
         else:
-            m_loss = lamb*self.__m_loss(m_pred, m_target) + (1-lamb)*self.__m_loss(m_pred, m_target[permut])
-            s_loss = lamb*self.__s_loss(s_pred, s_target) + (1-lamb)*self.__s_loss(s_pred, s_target[permut])
-            g_loss = lamb*self.__g_loss(g_pred, g_target) + (1-lamb)*self.__g_loss(g_pred, g_target[permut])
+            m_loss = lamb*self.__m_loss(m_pred, m_labels) + (1-lamb)*self.__m_loss(m_pred, m_labels[permut])
+            s_loss = lamb*self.__s_loss(s_pred, s_labels) + (1-lamb)*self.__s_loss(s_pred, s_labels[permut])
+            g_loss = lamb*self.__g_loss(g_pred, g_labels) + (1-lamb)*self.__g_loss(g_pred, g_labels[permut])
 
         losses = torch.stack((m_loss, s_loss, g_loss))
         loss = self.model.uncertainty_loss(losses)
-        # loss = (m_loss + s_loss + g_loss) / 3
 
         if self._track_mode == "all":
             self._writer.add_scalars('Training/Loss', 
@@ -316,9 +318,9 @@ class MultiTaskTrainer(Trainer):
             g_recall = compute_recall(g_conf)
             
             m_acc = get_mean_accuracy(m_recall, geometric_mean=True)
-            s_acc = get_mean_accuracy(s_recall[1:], geometric_mean=True)
-            g_acc = get_mean_accuracy(g_recall[1:], geometric_mean=True)
-            
+            s_acc = get_mean_accuracy(s_recall, geometric_mean=True)
+            g_acc = get_mean_accuracy(g_recall, geometric_mean=True)
+
             mean_acc = get_mean_accuracy([m_acc, s_acc, g_acc], geometric_mean=True)
 
         if self._track_mode != "none":
@@ -335,14 +337,12 @@ class MultiTaskTrainer(Trainer):
             
             self._writer.add_scalars('{}/Recall/Subtype'.format(dataset_name), 
                                      {'Recall 0': s_recall[0],
-                                      'Recall 1': s_recall[1],
-                                      'Recall 2': s_recall[2]},
+                                      'Recall 1': s_recall[1]},
                                      epoch)
 
             self._writer.add_scalars('{}/Recall/Grade'.format(dataset_name), 
                                      {'Recall 0': g_recall[0],
-                                      'Recall 1': g_recall[1],
-                                      'Recall 2': g_recall[2]},
+                                      'Recall 1': g_recall[1]},
                                      epoch)
             if dataset_name == "Validation":
                 phi = self.model.phi.detach().cpu().numpy()
@@ -367,8 +367,8 @@ class MultiTaskTrainer(Trainer):
         :return: The confusion matrix for each task and the average loss if get_loss == True.
         """
         m_outs = torch.empty(0, 2).to(self._device)
-        s_outs = torch.empty(0, 3).to(self._device)
-        g_outs = torch.empty(0, 3).to(self._device)
+        s_outs = torch.empty(0, 2).to(self._device)
+        g_outs = torch.empty(0, 2).to(self._device)
 
         m_labels = torch.empty(0).long()
         s_labels = torch.empty(0).long()
@@ -392,10 +392,23 @@ class MultiTaskTrainer(Trainer):
                 g_labels = torch.cat([g_labels, labels["grade"]])
         
         with torch.no_grad():
+            # ---------------------------------------
+            #               TEMPORAIRE
+            # ---------------------------------------
+            s_mask = torch.where(s_labels > 0, 1, 0).bool()
+            g_mask = torch.where(g_labels > 0, 1, 0).bool()
+
+            s_labels = s_labels[s_mask] - 1
+            g_labels = g_labels[g_mask] - 1
+            s_outs = s_outs[s_mask]
+            g_outs = g_outs[g_mask]
+            # ---------------------------------------
+            #               TEMPORAIRE
+            # ---------------------------------------
+
             m_pred = torch.argmax(m_outs, dim=1)
             s_pred = torch.argmax(s_outs, dim=1)
             g_pred = torch.argmax(g_outs, dim=1)
-
             if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
                 m_target = to_one_hot(m_labels, 2, self._device)
                 s_target = to_one_hot(s_labels, 3, self._device)
@@ -409,12 +422,10 @@ class MultiTaskTrainer(Trainer):
 
             losses = torch.stack((m_loss, s_loss, g_loss))
             total_loss = self.model.uncertainty_loss(losses)
-            # total_loss = (m_loss + s_loss + g_loss) / 3
 
         m_conf = confusion_matrix(m_labels.numpy(), m_pred.cpu().numpy())
         s_conf = confusion_matrix(s_labels.numpy(), s_pred.cpu().numpy())
         g_conf = confusion_matrix(g_labels.numpy(), g_pred.cpu().numpy())
-
         if get_loss:
             return [m_conf, s_conf, g_conf], total_loss.item()
         else:
