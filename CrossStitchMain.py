@@ -1,7 +1,7 @@
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import ResNet
-from Model.CrossStitch import SharedNet
+from Model.SharedNet import SharedNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand3DElasticd
 import numpy as np
