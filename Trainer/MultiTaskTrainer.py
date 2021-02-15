@@ -35,6 +35,9 @@ class MultiTaskTrainer(Trainer):
         If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
+    __shared_net: bool
+        If true, the model to train will be a SharedNet. In this we need to optimizer, one for the subnets and
+        one for the sharing units and the Uncertainty loss parameters.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
     _track_mode : str
@@ -57,6 +60,7 @@ class MultiTaskTrainer(Trainer):
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  classes_weights: str = "balanced",
+                 shared_net: bool = False,
                  save_path: str = "",
                  track_mode: str = "all"):
         """
@@ -77,6 +81,8 @@ class MultiTaskTrainer(Trainer):
                                           classes in the training set.
                                 Focused: Same as balanced but in the subtype and grade task, the total weights of the 
                                          two not none classes are 4 times higher than the weight class.
+        :param shared_net: If true, the model to train will be a SharedNet. In this we need to optimizer, one for the
+                           subnets and one for the sharing units and the Uncertainty loss parameters.
         :param save_path: Indicate where the weights of the network and the result will be saved.
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
@@ -131,16 +137,16 @@ class MultiTaskTrainer(Trainer):
     
     def _standard_epoch(self,
                         train_loader: DataLoader,
-                        optimizer: Union[torch.optim.Adam, Novograd],
-                        scheduler: CosineAnnealingWarmRestarts, 
+                        optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                        schedulers: Sequence[CosineAnnealingWarmRestarts],
                         grad_clip: float,
                         epoch: int) -> float:
         """
         Make a standard training epoch
 
         :param train_loader: A torch data_loader that contain the features and the labels for training.
-        :param optimizer: The torch optimizer that will used to train the model.
-        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param optimizers: The torch optimizers that will used to train the model.
+        :param schedulers: The learning rate schedulers that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :return: The average training loss.
         """
@@ -161,7 +167,8 @@ class MultiTaskTrainer(Trainer):
             if "features" in list(data.keys()):
                 features = Variable(data["features"].to(self._device))
 
-            optimizer.zero_grad()
+            for optimizer in optimizers:
+                optimizer.zero_grad()
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
@@ -177,7 +184,7 @@ class MultiTaskTrainer(Trainer):
                 losses = torch.stack((m_loss, s_loss, g_loss))
                 loss = self.model.uncertainty_loss(losses)
 
-            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
+            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
             sum_loss += loss
 
             if self._track_mode == "all":
@@ -247,16 +254,16 @@ class MultiTaskTrainer(Trainer):
 
     def _mixup_epoch(self,
                      train_loader: DataLoader,
-                     optimizer: Union[torch.optim.Adam, Novograd],
-                     scheduler: CosineAnnealingWarmRestarts,
+                     optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                     schedulers: Sequence[CosineAnnealingWarmRestarts],
                      grad_clip: float,
                      epoch: int) -> float:
         """
         Make a manifold mixup epoch
 
         :param train_loader: A torch data_loader that contain the features and the labels for training.
-        :param optimizer: The torch optimizer that will used to train the model.
-        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param optimizers: The torch optimizers that will used to train the model.
+        :param schedulers: The learning rate schedulers that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :return: The average training loss.
         """
@@ -276,7 +283,8 @@ class MultiTaskTrainer(Trainer):
             if "features" in list(data.keys()):
                 features = Variable(data["features"].to(self._device))
 
-            optimizer.zero_grad()
+            for optimizer in optimizers:
+                optimizer.zero_grad()
 
             # Mixup activation
             mixup_key, lamb, permut = self.model.activate_mixup()
@@ -290,7 +298,7 @@ class MultiTaskTrainer(Trainer):
                                              permut,
                                              it + epoch*n_iters)
 
-            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
+            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
             self.model.disable_mixup(mixup_key)
             sum_loss += loss
 

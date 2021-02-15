@@ -153,6 +153,7 @@ if __name__ == "__main__":
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
+                      shared_net=True,
                       track_mode=args.track_mode,
                       mixed_precision=True)
 
