@@ -499,8 +499,8 @@ class MultiLevelResNet(NeuralNet):
             if mixup[i] > 0:
                 self.mixup[str(i)] = Mixup(mixup[i])
 
-        if depth in [50, 101]:
-            raise NotImplementedError
+        # if depth in [50, 101]:
+        #     raise NotImplementedError
 
         # --------------------------------------------
         #              UNCERTAINTY LOSS
@@ -585,12 +585,8 @@ class MultiLevelResNet(NeuralNet):
             self.__num_flat_features = int(self.__in_channels / 3)
 
         self.fc_layer_mal = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 2))
-
-        self.fc_layer_sub_1 = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 3))
-        self.fc_layer_sub_2 = torch.nn.Sequential(torch.nn.Linear(5, 3))
-
-        self.fc_layer_grade_1 = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 3))
-        self.fc_layer_grade_2 = torch.nn.Sequential(torch.nn.Linear(5, 3))
+        self.fc_layer_sub_1 = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 2))
+        self.fc_layer_grade_1 = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 2))
 
         self.apply(init_weights)
 
@@ -641,20 +637,16 @@ class MultiLevelResNet(NeuralNet):
             features = out.view(-1, self.__num_flat_features)
 
             mal_pred = self.fc_layer_mal(features)
-            out_sub = self.fc_layer_sub_1(features)
-            out_grade = self.fc_layer_grade_1(features)
+            sub_pred = self.fc_layer_sub_1(features)
+            grade_pred = self.fc_layer_grade_1(features)
 
         else:
             features = out.view(-1, 3, self.__num_flat_features)
-            
-            mal_pred = self.fc_layer_mal(features[:, 0, :])
-            out_sub = self.fc_layer_sub_1(features[:, 1, :])
-            out_grade = self.fc_layer_grade_1(features[:, 2, :])
 
-        # sub_pred = self.fc_layer_sub_2(torch.cat((out_sub, mal_pred.detach()), dim=1))
-        # grade_pred = self.fc_layer_grade_2(torch.cat((out_grade, mal_pred.detach()), dim=1))
-        sub_pred = out_sub
-        grade_pred = out_grade
+            mal_pred = self.fc_layer_mal(features[:, 0, :])
+            sub_pred = self.fc_layer_sub_1(features[:, 1, :])
+            grade_pred = self.fc_layer_grade_1(features[:, 2, :])
+
         return mal_pred, sub_pred, grade_pred
 
     def uncertainty_loss(self, losses: torch.Tensor) -> torch.Tensor:
