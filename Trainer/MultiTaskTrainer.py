@@ -93,7 +93,8 @@ class MultiTaskTrainer(Trainer):
                          tol=tol,
                          mixed_precision=mixed_precision,
                          pin_memory=pin_memory,
-                         num_workers=num_workers, 
+                         num_workers=num_workers,
+                         shared_net=shared_net,
                          save_path=save_path,
                          track_mode=track_mode)
 
@@ -353,7 +354,7 @@ class MultiTaskTrainer(Trainer):
                                       'Recall 1': g_recall[1]},
                                      epoch)
             if dataset_name == "Validation":
-                phi = self.model.phi.detach().cpu().numpy()
+                phi = self.model.uncertainty_loss.phi.detach().cpu().numpy()
                 self._writer.add_scalars("Other/Uncertainty",
                                          {"phi_Malignant": phi[0],
                                           "phi_Subtype": phi[1],

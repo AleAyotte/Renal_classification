@@ -1,4 +1,4 @@
-from Model.Module import CrossStitchUnit, Mixup, SluiceUnit
+from Model.Module import CrossStitchUnit, Mixup, SluiceUnit, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
 from Model.NeuralNet import NeuralNet
 from Model.ResNet import PreResBlock, ResBlock, PreResBottleneck
@@ -89,7 +89,7 @@ class SharedNet(NeuralNet):
         # --------------------------------------------
         #              UNCERTAINTY LOSS
         # --------------------------------------------
-        self.phi = torch.nn.Parameter(data=torch.Tensor([0, 0, 0]), requires_grad=True)
+        self.uncertainty_loss = UncertaintyLoss(num_classes=3)
 
         # --------------------------------------------
         #               SHARING UNITS
@@ -236,12 +236,3 @@ class SharedNet(NeuralNet):
         out_grade = self.nets["grade"].fc_layer(feat_grade)
 
         return out_mal, out_sub, out_grade
-
-    def uncertainty_loss(self, losses: torch.Tensor) -> torch.Tensor:
-        """
-        Compute the uncertainty loss
-
-        :param losses: A torch.Tensor that represent the vector of lenght 3 that contain the losses.
-        :return: A torch.Tensor that represent the uncertainty loss (multi-task loss).
-        """
-        return torch.dot(torch.exp(-self.phi), losses) + torch.sum(self.phi / 2)

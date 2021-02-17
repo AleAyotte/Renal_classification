@@ -157,3 +157,18 @@ class Mixup(torch.nn.Module):
 
     def set_batch_size(self, b_size: int):
         self.__batch_size = b_size
+
+
+class UncertaintyLoss(torch.nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.phi = torch.nn.Parameter(data=torch.zeros(num_classes), requires_grad=True)
+
+    def forward(self, losses: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the uncertainty loss
+
+        :param losses: A torch.Tensor that represent the vector of lenght 3 that contain the losses.
+        :return: A torch.Tensor that represent the uncertainty loss (multi-task loss).
+        """
+        return torch.dot(torch.exp(-self.phi), losses) + torch.sum(self.phi / 2)

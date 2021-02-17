@@ -120,7 +120,8 @@ class Trainer(ABC):
             mom: float = 0.9,
             l2: float = 1e-4, 
             t_0: int = 200,
-            eta_min: float = 1e-4, 
+            eta_min: float = 1e-4,
+            shared_eta_min: float = 0,
             grad_clip: float = 0, 
             mode: str = "standard", 
             warm_up_epoch: int = 0,
@@ -146,6 +147,8 @@ class Trainer(ABC):
         :param l2: L2 regularization coefficient. (Default=1e-4)
         :param t_0: Number of epoch before the first restart. (Default=200)
         :param eta_min: Minimum value of the learning rate. (Default=1e-4)
+        :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
+                                will be equal to learning_rate*100. Only used when shared_net is True.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient. (Default=0)
         :param mode: The training type: Option: Standard training (No mixup) (Default)
                                                 Mixup (Manifold mixup)
@@ -195,12 +198,16 @@ class Trainer(ABC):
         # Initialization of the optimizer and the scheduler
         assert optim.lower() in ["adam", "sgd", "novograd"]
         lr_list = [learning_rate]
+        eta_list = [eta_min]
         parameters = [self.model.parameters()]
 
         if self.__shared_net:
             lr_list.append(learning_rate * 100 if shared_lr == 0 else shared_lr)
+            eta_list.append(eta_min * 100 if shared_eta_min == 0 else shared_eta_min)
+
             parameters = [self.model.nets.parameters(),
-                          list(self.model.sharing_units_dict.parameters()) + list(self.model.phi)
+                          list(self.model.sharing_units_dict.parameters()) +
+                          list(self.model.uncertainty_loss.parameters())
                           ]
         optimizers = []
 
@@ -213,7 +220,7 @@ class Trainer(ABC):
                                      weight_decay=l2,
                                      eps=eps)
                 )
-        elif optim.lower() == "SGD":
+        elif optim.lower() == "sgd":
             for lr, param in zip(lr_list, parameters):
                 optimizers.append(
                     torch.optim.SGD(param,
@@ -233,12 +240,12 @@ class Trainer(ABC):
 
         n_iters = len(train_loader)
         schedulers = []
-        for optimizer in optimizers:
+        for optimizer, eta in zip(optimizers, eta_list):
             schedulers.append(
                 CosineAnnealingWarmRestarts(optimizer,
                                             T_0=t_0*n_iters,
                                             T_mult=1,
-                                            eta_min=eta_min)
+                                            eta_min=eta)
             )
         for scheduler in schedulers:
             scheduler.step(start_epoch*n_iters)

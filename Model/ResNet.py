@@ -1,4 +1,4 @@
-from Model.Module import Mixup
+from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act
 from Model.NeuralNet import NeuralNet
@@ -505,7 +505,7 @@ class MultiLevelResNet(NeuralNet):
         # --------------------------------------------
         #              UNCERTAINTY LOSS
         # --------------------------------------------
-        self.phi = torch.nn.Parameter(data=torch.Tensor([0, 0, 0]), requires_grad=True)
+        self.uncertainty_loss = UncertaintyLoss(num_classes=3)
 
         # --------------------------------------------
         #                    BLOCK
@@ -648,12 +648,3 @@ class MultiLevelResNet(NeuralNet):
             grade_pred = self.fc_layer_grade_1(features[:, 2, :])
 
         return mal_pred, sub_pred, grade_pred
-
-    def uncertainty_loss(self, losses: torch.Tensor) -> torch.Tensor:
-        """
-        Compute the uncertainty loss
-
-        :param losses: A torch.Tensor that represent the vector of lenght 3 that contain the losses.
-        :return: A torch.Tensor that represent the uncertainty loss (multi-task loss).
-        """
-        return torch.dot(torch.exp(-self.phi), losses) + torch.sum(self.phi / 2)
