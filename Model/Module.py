@@ -1,3 +1,15 @@
+"""
+    @file:              Module.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       This file contain some generic module used to create several model like the ResNet,
+                        MultiLevelResNet and SharedNet. The module are SluiceUnit, CrossStitchUnit, Mixup and
+                        UncertaintyLoss.
+"""
+
 import numpy as np
 import torch
 from typing import Tuple, Sequence

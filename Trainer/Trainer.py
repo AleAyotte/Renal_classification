@@ -1,10 +1,20 @@
+"""
+    @file:              Trainer.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       Contain the mother class Trainer from which the SingleTaskTrainer and MultiTaskTrainer will
+                        inherit.
+"""
+
 from abc import ABC, abstractmethod
 from Data_manager.DataManager import RenalDataset
 from Model.NeuralNet import NeuralNet
 from Model.ResNet_2D import ResNet2D
 from monai.optimizers import Novograd
 import numpy as np
-from Trainer.Utils import init_weights
 import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch import nn

@@ -1,3 +1,14 @@
+"""
+    @file:              DataAugView2D.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     02/2021
+    @Last modification: 02/2021
+
+    @Description:       This file is used to visualize the transformation on the 2D data. Usefull to the determine the
+                        DataAugmentation hyperparameter that should be used during the training.
+"""
+
 from DataManager import RenalDataset
 from matplotlib import pyplot as plt
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld

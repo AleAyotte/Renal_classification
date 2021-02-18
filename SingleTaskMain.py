@@ -1,3 +1,13 @@
+"""
+    @file:              SingleTaskMain.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       Contain the main function to train a 3D ResNet on one of the three tasks
+                        (malignant, grade, subtype).
+"""
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import ResNet

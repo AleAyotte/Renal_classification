@@ -1,3 +1,14 @@
+"""
+    @file:              ResNet.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       This file contain the classes ResNet and MultiLevelResNet that inherit from the NeuralNet class.
+                        Also contain the ResNet block module.
+"""
+
 from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act

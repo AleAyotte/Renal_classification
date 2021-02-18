@@ -1,9 +1,17 @@
+"""
+    @file:              SharedNet.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     02/2021
+    @Last modification: 02/2021
+
+    @Description:       This file contain the SharedNet class. This class used three different neural network and
+                        connect them with SluiceUnit or CrossStitchUnit to create a unique MultiTaskNetwork.
+"""
+
 from Model.Module import CrossStitchUnit, Mixup, SluiceUnit, UncertaintyLoss
-from monai.networks.blocks.convolutions import Convolution
 from Model.NeuralNet import NeuralNet
-from Model.ResNet import PreResBlock, ResBlock, PreResBottleneck
 import numpy as np
-from Trainer.Utils import init_weights
 import torch
 import torch.nn as nn
 from typing import Sequence, Tuple, Union

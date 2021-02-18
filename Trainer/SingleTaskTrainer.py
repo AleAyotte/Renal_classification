@@ -1,4 +1,14 @@
-from Data_manager.DataManager import RenalDataset
+"""
+    @file:              MultiTaskTrainer.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       Contain the class SingleTaskTrainer which inherit from the class Trainer. This class is used
+                        to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
+"""
+
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np

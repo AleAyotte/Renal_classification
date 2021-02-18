@@ -1,3 +1,12 @@
+"""
+    @file:              MultiTaskMain.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       Contain the main function to train a MultiLevel 3D ResNet for multitask learning.
+"""
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import MultiLevelResNet

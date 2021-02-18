@@ -1,3 +1,12 @@
+"""
+    @file:              CrossStitchMain.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     02/2021
+    @Last modification: 02/2021
+
+    @Description:       Contain the main function to train a SharedMet for multitask learning.
+"""
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import ResNet

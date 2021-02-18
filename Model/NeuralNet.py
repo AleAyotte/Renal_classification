@@ -1,4 +1,15 @@
-import numpy as np
+"""
+    @file:              NeuralNet.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       This file contain the abstract class NeuralNet from which all 3D NeuralNetwork will inherit.
+                        The NeuralNet class has been designed to handle the mixup module usage and to load weight
+                        of a neural network.
+"""
+
 from random import randint
 import torch
 from torch import nn

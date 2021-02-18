@@ -1,3 +1,14 @@
+"""
+    @file:              Main_ResNet2D.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     02/2021
+    @Last modification: 02/2021
+
+    @Description:       Contain the main function to train a 2D ResNet on one of the three task
+                        (malignancy, subtype and grade prediction).
+"""
+
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet_2D import ResNet2D

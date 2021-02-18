@@ -1,3 +1,15 @@
+"""
+    @file:              ResNet_2D.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     02/2021
+    @Last modification: 02/2021
+
+    @Description:       This file contain the class ResNet2D based on the work of Zhao et al.
+    @Reference:         Yijun Zhao, Marcello Chang, Robin Wang et al. Deep Learning Based on MRI for
+                        Differentiation of Low- and High-Grade in Low-Stage Renal Cell Carcinoma, 2020
+"""
+
 import torch
 import torch.nn as nn
 from Trainer.Utils import init_weights
