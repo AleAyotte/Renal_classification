@@ -95,9 +95,9 @@ class SingleTaskTrainer(Trainer):
         weights = {"flat": [[1., 1.],
                             [1., 1.],
                             [1., 1.]],
-                   "balanced": [[1 / 0.8, 1 / 1.2],
+                   "balanced": [[1.3459, 0.7956],
                                 [2.0840, 0.6578],
-                                [0.7708, 1.4232]]}
+                                [0.7535, 1.4858]]}
         self.__weights = weights[classes_weights.lower()][all_task.index(task)]
 
     def _init_loss(self, gamma: float) -> None:

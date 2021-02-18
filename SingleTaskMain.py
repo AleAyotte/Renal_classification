@@ -16,8 +16,7 @@ def argument_parser():
                         choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
     parser.add_argument('--b_size', type=int, default=32)
     parser.add_argument('--dataset', type=str, default='Option1_without_N4',
-                        choices=['Option1_with_N4', 'Option1_without_N4',
-                                 'Option2_with_N4', 'Option2_without_N4'])
+                        choices=['Option1_with_N4', 'Option1_without_N4', 'New_Option1'])
     parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50])
     parser.add_argument('--device', type=str, default="cuda:0")
     parser.add_argument('--dropout', type=float, default=0)
@@ -138,7 +137,7 @@ if __name__ == "__main__":
                 mode=args.mode,
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
-                grad_clip=2,
+                grad_clip=1.25,
                 warm_up_epoch=args.warm_up,
                 eps=args.eps,
                 batch_size=args.b_size,

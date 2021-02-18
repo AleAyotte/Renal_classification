@@ -14,8 +14,7 @@ def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--b_size', type=int, default=32)
     parser.add_argument('--dataset', type=str, default='Option1_without_N4',
-                        choices=['Option1_with_N4', 'Option1_without_N4',
-                                 'Option2_with_N4', 'Option2_without_N4'])
+                        choices=['Option1_with_N4', 'Option1_without_N4', "New_Option1"])
     parser.add_argument('--device', type=str, default="cuda:0")
     parser.add_argument('--eps', type=float, default=1e-3)
     parser.add_argument('--eta_min', type=float, default=1e-6)
@@ -27,8 +26,8 @@ def argument_parser():
     parser.add_argument('--mode', type=str, default="Mixup",
                         choices=["standard", "Mixup"])
     parser.add_argument('--num_epoch', type=int, default=100)
-    parser.add_argument('--optim', type=str, default="adam",
-                        choices=["adam", "novograd"])
+    parser.add_argument('--optim', type=str, default="sgd",
+                        choices=["adam", "novograd", "sgd"])
     parser.add_argument('--pad_mode', type=str, default="constant",
                         choices=["constant", "edge", "reflect", "symmetric"])
     parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True)
@@ -49,7 +48,7 @@ if __name__ == "__main__":
     args = argument_parser()
     device = args.device
 
-    data_path = "final_dtset/{}/new_all.hdf5".format(args.dataset)
+    data_path = "final_dtset/{}/all.hdf5".format(args.dataset)
     model_path = "save/14_Fev_2020/"
     # --------------------------------------------
     #              DATA AUGMENTATION
@@ -163,6 +162,8 @@ if __name__ == "__main__":
                 mode=args.mode,
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
+                # shared_lr=args.lr,  # Temporaire
+                # shared_eta_min=args.eta_min,  # Temporaire
                 grad_clip=5,
                 warm_up_epoch=args.warm_up,
                 eps=args.eps,

@@ -103,7 +103,7 @@ class MultiTaskTrainer(Trainer):
         weights = {"flat": [[1., 1.],
                             [1., 1.],
                             [1., 1.]],
-                   "balanced": [[1 / 0.8, 1 / 1.2],
+                   "balanced": [[[1.3459, 0.7956]],
                                 [2.0840, 0.6578],
                                 [0.7708, 1.4232]]}
         self.__weights = weights[classes_weights.lower()]
