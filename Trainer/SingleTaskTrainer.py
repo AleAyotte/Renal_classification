@@ -1,4 +1,14 @@
-from Data_manager.DataManager import RenalDataset
+"""
+    @file:              MultiTaskTrainer.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       Contain the class SingleTaskTrainer which inherit from the class Trainer. This class is used
+                        to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
+"""
+
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -95,9 +105,9 @@ class SingleTaskTrainer(Trainer):
         weights = {"flat": [[1., 1.],
                             [1., 1.],
                             [1., 1.]],
-                   "balanced": [[1 / 0.8, 1 / 1.2],
+                   "balanced": [[1.3459, 0.7956],
                                 [2.0840, 0.6578],
-                                [0.7708, 1.4232]]}
+                                [0.7535, 1.4858]]}
         self.__weights = weights[classes_weights.lower()][all_task.index(task)]
 
     def _init_loss(self, gamma: float) -> None:
@@ -120,16 +130,16 @@ class SingleTaskTrainer(Trainer):
     
     def _standard_epoch(self,
                         train_loader: DataLoader,
-                        optimizer: Union[torch.optim.Adam, Novograd],
-                        scheduler: CosineAnnealingWarmRestarts, 
+                        optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                        schedulers: Sequence[CosineAnnealingWarmRestarts],
                         grad_clip: float,
                         epoch: int) -> float:
         """
         Make a standard training epoch
 
         :param train_loader: A torch data_loader that contain the features and the labels for training.
-        :param optimizer: The torch optimizer that will used to train the model.
-        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param optimizers: The torch optimizers that will used to train the model.
+        :param schedulers: The learning rate schedulers that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :return: The average training loss.
         """
@@ -146,14 +156,15 @@ class SingleTaskTrainer(Trainer):
             if "features" in list(data.keys()):
                 features = Variable(data["features"].to(self._device))
 
-            optimizer.zero_grad()
+            for optimizer in optimizers:
+                optimizer.zero_grad()
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
                 pred = self.model(images) if features is None else self.model(images, features)
                 loss = self.__loss(pred, labels)
 
-            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
+            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
             sum_loss += loss
 
             if self._track_mode == "all":
@@ -200,16 +211,16 @@ class SingleTaskTrainer(Trainer):
 
     def _mixup_epoch(self,
                      train_loader: DataLoader,
-                     optimizer: Union[torch.optim.Adam, Novograd],
-                     scheduler: CosineAnnealingWarmRestarts,
+                     optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                     schedulers: Sequence[CosineAnnealingWarmRestarts],
                      grad_clip: float,
                      epoch: int) -> float:
         """
         Make a manifold mixup epoch
 
         :param train_loader: A torch data_loader that contain the features and the labels for training.
-        :param optimizer: The torch optimizer that will used to train the model.
-        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param optimizers: The torch optimizers that will used to train the model.
+        :param schedulers: The learning rate schedulers that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :return: The average training loss.
         """
@@ -226,7 +237,8 @@ class SingleTaskTrainer(Trainer):
             if "features" in list(data.keys()):
                 features = Variable(data["features"].to(self._device))
 
-            optimizer.zero_grad()
+            for optimizer in optimizers:
+                optimizer.zero_grad()
 
             # Mixup activation
             mixup_key, lamb, permut = self.model.activate_mixup()
@@ -240,7 +252,7 @@ class SingleTaskTrainer(Trainer):
                                              permut,
                                              it + epoch*n_iters)
 
-            self._update_model(scaler, optimizer, scheduler, grad_clip, loss)
+            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
             sum_loss += loss
 
             self.model.disable_mixup(mixup_key)

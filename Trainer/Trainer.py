@@ -1,10 +1,20 @@
+"""
+    @file:              Trainer.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       Contain the mother class Trainer from which the SingleTaskTrainer and MultiTaskTrainer will
+                        inherit.
+"""
+
 from abc import ABC, abstractmethod
 from Data_manager.DataManager import RenalDataset
 from Model.NeuralNet import NeuralNet
 from Model.ResNet_2D import ResNet2D
 from monai.optimizers import Novograd
 import numpy as np
-from Trainer.Utils import init_weights
 import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch import nn
@@ -37,6 +47,9 @@ class Trainer(ABC):
         The pin_memory option of the DataLoader. If true, the data tensor will copied into the CUDA pinned memory.
     __save_path : string
         Indicate where the weights of the network and the result will be saved.
+    __shared_net: bool
+        If true, the model to train will be a SharedNet. In this we need to optimizer, one for the subnets and
+        one for the sharing units and the Uncertainty loss parameters.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
     __tol : float
@@ -62,6 +75,7 @@ class Trainer(ABC):
                  mixed_precision: bool = False,
                  pin_memory: bool = False,
                  num_workers: int = 0,
+                 shared_net: bool = False,
                  save_path: str = "",
                  track_mode: str = "all"):
         """
@@ -76,6 +90,8 @@ class Trainer(ABC):
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
                             the main process will be used for the data augmentation. (Default: 0)
+        :param shared_net: If true, the model to train will be a SharedNet. In this we need to optimizer, one for the
+                           subnets and one for the sharing units and the Uncertainty loss parameters.
         :param save_path: Indicate where the weights of the network and the result will be saved.
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
@@ -99,6 +115,7 @@ class Trainer(ABC):
         self._writer = None
         self._loss = loss.lower()
         self._soft = nn.Softmax(dim=-1)
+        self.__shared_net = shared_net
 
     def fit(self,
             model: Union[NeuralNet, ResNet2D],
@@ -107,11 +124,14 @@ class Trainer(ABC):
             num_epoch: int = 200, 
             batch_size: int = 32,
             gamma: float = 2.,
-            learning_rate: float = 1e-3, 
-            eps: float = 1e-4, 
+            learning_rate: float = 1e-3,
+            shared_lr: float = 0,
+            eps: float = 1e-4,
+            mom: float = 0.9,
             l2: float = 1e-4, 
             t_0: int = 200,
-            eta_min: float = 1e-4, 
+            eta_min: float = 1e-4,
+            shared_eta_min: float = 0,
             grad_clip: float = 0, 
             mode: str = "standard", 
             warm_up_epoch: int = 0,
@@ -127,13 +147,18 @@ class Trainer(ABC):
         :param trainset: The dataset that will be used to train the model.
         :param validset: The dataset that will be used to mesure the model performance.
         :param num_epoch: Maximum number of epoch during the training. (Default=200)
-        :param batch_size: The batch size that will be used during the training. (Default=150)
+        :param batch_size: The batch size that will be used during the training. (Default=32)
         :param gamma: Gamma parameter of the focal loss. (Default=2.0)
-        :param learning_rate: Start learning rate of the Adam optimizer. (Default=0.1)
-        :param eps: The epsilon parameter of the Adam Optimizer.
-        :param l2: L2 regularization coefficient.
+        :param learning_rate: Start learning rate of the optimizer. (Default=1e-3)
+        :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
+                          equal to learning_rate*100. Only used when shared_net is True.
+        :param eps: The epsilon parameter of the Adam Optimizer. (Default=1e-4)
+        :param mom: The momentum parameter of the SGD Optimizer. (Default=0.9)
+        :param l2: L2 regularization coefficient. (Default=1e-4)
         :param t_0: Number of epoch before the first restart. (Default=200)
         :param eta_min: Minimum value of the learning rate. (Default=1e-4)
+        :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
+                                will be equal to learning_rate*100. Only used when shared_net is True.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient. (Default=0)
         :param mode: The training type: Option: Standard training (No mixup) (Default)
                                                 Mixup (Manifold mixup)
@@ -160,12 +185,11 @@ class Trainer(ABC):
         self.model.set_mixup(batch_size) if mode.lower() == "mixup" else None
         self._init_loss(gamma=gamma)
 
+        start_epoch = 0
         if retrain:
             start_epoch, last_saved_loss, best_accuracy = self.model.restore(self.__save_path)
         elif transfer_path is not None:
             _, _, _ = self.model.restore(transfer_path)
-        else:
-            start_epoch = 0
 
         # Initialization of the dataloader
         train_loader = DataLoader(trainset,
@@ -175,37 +199,66 @@ class Trainer(ABC):
                                   shuffle=True,
                                   drop_last=True)
         valid_loader = DataLoader(validset,
-                                  batch_size=batch_size,
+                                  batch_size=2,
                                   pin_memory=self.__pin_memory,
                                   num_workers=self.__num_work,
                                   shuffle=False,
                                   drop_last=True)
 
         # Initialization of the optimizer and the scheduler
-        assert optim.lower() in ["adam", "novograd"]
-        if optim.lower() == "adam": 
-            optimizer = torch.optim.Adam(
-                self.model.parameters(),
-                lr=learning_rate,
-                weight_decay=l2,
-                eps=eps
-            )
+        assert optim.lower() in ["adam", "sgd", "novograd"]
+        lr_list = [learning_rate]
+        eta_list = [eta_min]
+        parameters = [self.model.parameters()]
+
+        if self.__shared_net:
+            lr_list.append(learning_rate * 100 if shared_lr == 0 else shared_lr)
+            eta_list.append(eta_min * 100 if shared_eta_min == 0 else shared_eta_min)
+
+            parameters = [self.model.nets.parameters(),
+                          list(self.model.sharing_units_dict.parameters()) +
+                          list(self.model.uncertainty_loss.parameters())
+                          ]
+        optimizers = []
+
+        if optim.lower() == "adam":
+            for lr, param in zip(lr_list, parameters):
+                # print(param)
+                optimizers.append(
+                    torch.optim.Adam(param,
+                                     lr=lr,
+                                     weight_decay=l2,
+                                     eps=eps)
+                )
+        elif optim.lower() == "sgd":
+            for lr, param in zip(lr_list, parameters):
+                optimizers.append(
+                    torch.optim.SGD(param,
+                                    lr=lr,
+                                    weight_decay=l2,
+                                    momentum=mom,
+                                    nesterov=True)
+                )
         else:
-            optimizer = Novograd(
-                self.model.parameters(),
-                lr=learning_rate,
-                weight_decay=l2,
-                eps=eps
-            )
+            for lr, param in zip(lr_list, parameters):
+                optimizers.append(
+                    Novograd(param,
+                             lr=lr,
+                             weight_decay=l2,
+                             eps=eps)
+                )
 
         n_iters = len(train_loader)
-        scheduler = CosineAnnealingWarmRestarts(
-            optimizer,
-            T_0=t_0*n_iters,
-            T_mult=1,
-            eta_min=eta_min
-        )
-        scheduler.step(start_epoch*n_iters)
+        schedulers = []
+        for optimizer, eta in zip(optimizers, eta_list):
+            schedulers.append(
+                CosineAnnealingWarmRestarts(optimizer,
+                                            T_0=t_0*n_iters,
+                                            T_mult=1,
+                                            eta_min=eta)
+            )
+        for scheduler in schedulers:
+            scheduler.step(start_epoch*n_iters)
 
         # Go in training mode to activate mixup module
         self.model.train()
@@ -218,9 +271,9 @@ class Trainer(ABC):
 
                 # We make a training epoch
                 if current_mode == "Mixup":
-                    _ = self._mixup_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
+                    _ = self._mixup_epoch(train_loader, optimizers, schedulers, _grad_clip, epoch)
                 else:
-                    _ = self._standard_epoch(train_loader, optimizer, scheduler, _grad_clip, epoch)
+                    _ = self._standard_epoch(train_loader, optimizers, schedulers, _grad_clip, epoch)
 
                 self.model.eval()
 
@@ -229,11 +282,14 @@ class Trainer(ABC):
 
                 train_acc, train_loss = self._validation_step(dt_loader=train_loader, 
                                                               epoch=epoch,
-                                                              dataset_name="training")
+                                                              dataset_name="Training")
 
                 self._writer.add_scalars('Accuracy', 
                                          {'Training': train_acc,
                                           'Validation': val_acc}, 
+                                         epoch)
+                self._writer.add_scalars('Validation/Loss',
+                                         {'loss': val_loss},
                                          epoch)
                 self.model.train()
 
@@ -261,28 +317,31 @@ class Trainer(ABC):
 
     def _update_model(self,
                       scaler: Union[GradScaler, None],
-                      optimizer: Union[torch.optim.Adam, Novograd],
-                      scheduler: CosineAnnealingWarmRestarts,
+                      optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                      schedulers: Sequence[CosineAnnealingWarmRestarts],
                       grad_clip: float,
                       loss: torch.FloatTensor) -> None:
         """
         Scale the loss if self._mixed_precision is True and update the weights of the model.
 
         :param scaler: The gradient scaler that will be used to scale the loss if self._mixed_precision is True.
-        :param optimizer: The torch optimizer that will used to train the model.
-        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param optimizers: The torch optimizer that will used to train the model.
+        :param schedulers: The learning rate scheduler that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param loss: The loss of the current epoch.
         """
         # Mixed precision enabled
         if self._mixed_precision:
             scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
+
+            for optimizer in optimizers:
+                scaler.unscale_(optimizer)
 
             if grad_clip > 0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
-            scaler.step(optimizer)
+            for optimizer in optimizers:
+                scaler.step(optimizer)
             scaler.update()
 
         # Mixed precision disabled
@@ -292,8 +351,11 @@ class Trainer(ABC):
             if grad_clip > 0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
-            optimizer.step()
-        scheduler.step()
+            for optimizer in optimizers:
+                optimizer.step()
+
+        for scheduler in schedulers:
+            scheduler.step()
 
     @abstractmethod
     def _init_loss(self, gamma: float) -> None:
@@ -307,16 +369,16 @@ class Trainer(ABC):
     @abstractmethod
     def _standard_epoch(self,
                         train_loader: DataLoader,
-                        optimizer: Union[torch.optim.Adam, Novograd],
-                        scheduler: CosineAnnealingWarmRestarts, 
+                        optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                        schedulers: Sequence[CosineAnnealingWarmRestarts],
                         grad_clip: float,
                         epoch: int) -> float:
         """
         Make a standard training epoch
 
         :param train_loader: A torch data_loader that contain the features and the labels for training.
-        :param optimizer: The torch optimizer that will used to train the model.
-        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param optimizers: The torch optimizers that will used to train the model.
+        :param schedulers: The learning rate schedulers that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :return: The average training loss.
         """
@@ -343,16 +405,16 @@ class Trainer(ABC):
     @abstractmethod
     def _mixup_epoch(self,
                      train_loader: DataLoader,
-                     optimizer: Union[torch.optim.Adam, Novograd],
-                     scheduler: CosineAnnealingWarmRestarts,
+                     optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                     schedulers: Sequence[CosineAnnealingWarmRestarts],
                      grad_clip: float,
                      epoch: int) -> float:
         """
         Make a manifold mixup epoch
 
         :param train_loader: A torch data_loader that contain the features and the labels for training.
-        :param optimizer: The torch optimizer that will used to train the model.
-        :param scheduler: The learning rate scheduler that will be used at each iteration.
+        :param optimizers: The torch optimizers that will used to train the model.
+        :param schedulers: The learning rate schedulers that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :return: The average training loss.
         """

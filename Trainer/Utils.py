@@ -1,7 +1,21 @@
+"""
+    @file:              Utils.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       Contain some usefull function used by the Trainer. Those function are compute_recall,
+                        get_mean_accuracy, to_one_hot. There is also the init_weight function used to initialize
+                        the weight of the models.
+"""
+
 import numpy as np
 import torch
+from torch import nn
 from torch.autograd import Variable
-from typing import Tuple, Sequence, Union
+from typing import Sequence, Union
+
 
 def compute_recall(conf_matrix: np.array) -> Sequence[float]:
     """
@@ -40,20 +54,20 @@ def init_weights(m) -> None:
 
     :param m: A torch.nn module of the current model. If this module is a layer, then we initialize its weights.
     """
-    if type(m) == torch.nn.Linear:
-        torch.nn.init.kaiming_normal_(m.weight)
+    if type(m) == nn.Linear:
+        nn.init.kaiming_normal_(m.weight)
         if not (m.bias is None):
-            torch.nn.init.zeros_(m.bias)
+            nn.init.zeros_(m.bias)
 
-    elif type(m) == torch.nn.Conv2d:
-        torch.nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity="relu")
+    elif type(m) == nn.Conv2d or type(m) == nn.Conv3d:
+        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity="relu")
         if not (m.bias is None):
-            torch.nn.init.zeros_(m.bias)
+            nn.init.zeros_(m.bias)
 
-    elif type(m) == torch.nn.BatchNorm2d:
-        torch.nn.init.ones_(m.weight)
+    elif type(m) == nn.BatchNorm2d or type(m) == nn.BatchNorm3d:
+        nn.init.ones_(m.weight)
         if not (m.bias is None):
-            torch.nn.init.zeros_(m.bias)
+            nn.init.zeros_(m.bias)
 
 
 def to_one_hot(inp: Union[torch.Tensor, Variable] , 
