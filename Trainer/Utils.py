@@ -1,8 +1,20 @@
+"""
+    @file:              Utils.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     12/2020
+    @Last modification: 02/2021
+
+    @Description:       Contain some usefull function used by the Trainer. Those function are compute_recall,
+                        get_mean_accuracy, to_one_hot. There is also the init_weight function used to initialize
+                        the weight of the models.
+"""
+
 import numpy as np
 import torch
 from torch import nn
 from torch.autograd import Variable
-from typing import Tuple, Sequence, Union
+from typing import Sequence, Union
 
 
 def compute_recall(conf_matrix: np.array) -> Sequence[float]:

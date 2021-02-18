@@ -6,7 +6,7 @@
     @Last modification: 02/2021
 
     @Description:       Contain the main function to train a 3D ResNet on one of the three tasks
-                        (malignant, grade, subtype).
+                        (malignancy, subtype and grade prediction).
 """
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
