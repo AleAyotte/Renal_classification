@@ -13,7 +13,7 @@
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import auc, confusion_matrix, roc_curve
 from Trainer.Trainer import Trainer
 from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 import torch
@@ -376,15 +376,15 @@ class MultiTaskTrainer(Trainer):
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Tuple[np.array, float],
-                                                          Sequence[np.array],
-                                                          np.array]:
+                                                          Tuple[Sequence[np.array], Sequence[float]],
+                                                          Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return also the loss if True.
-        :return: The confusion matrix for each task and the average loss if get_loss == True.
+        :return: The confusion matrix for each task. If get_loss is True then also return the average loss.
+                 Otherwise, the AUC will be return for each task.
         """
         m_outs = torch.empty(0, 2).to(self._device)
         s_outs = torch.empty(0, 2).to(self._device)
@@ -449,4 +449,11 @@ class MultiTaskTrainer(Trainer):
         if get_loss:
             return [m_conf, s_conf, g_conf], total_loss.item()
         else:
-            return [m_conf, s_conf, g_conf]
+            fpr, tpr, _ = roc_curve(y_true=m_labels.numpy(), y_score=m_outs[:, 1].cpu().numpy())
+            m_auc_score = auc(fpr, tpr)
+            fpr, tpr, _ = roc_curve(y_true=s_labels.numpy(), y_score=s_outs[:, 1].cpu().numpy())
+            s_auc_score = auc(fpr, tpr)
+            fpr, tpr, _ = roc_curve(y_true=g_labels.numpy(), y_score=g_outs[:, 1].cpu().numpy())
+            g_auc_score = auc(fpr, tpr)
+
+            return [m_conf, s_conf, g_conf], [m_auc_score, s_auc_score, g_auc_score]

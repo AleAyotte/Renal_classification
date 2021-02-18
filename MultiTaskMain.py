@@ -158,41 +158,65 @@ if __name__ == "__main__":
     print("**************************************")
     print("**{:^34s}**".format("VALIDATION SCORE"))
     print("**************************************")
-    m_conf, s_conf, g_conf = trainer.score(validset, 32)
+    conf, auc = trainer.score(validset, 32)
+
+    m_conf, s_conf, g_conf = conf
+    m_auc, s_auc, g_auc = auc
 
     m_acc = compute_recall(m_conf)
     s_acc = compute_recall(s_conf)
     g_acc = compute_recall(g_conf)
 
-    print("m_acc: ", m_acc)
-    print("s_acc: ", s_acc)
-    print("g_acc: ", g_acc)
+    print("Malignancy AUC: ", m_auc)
+    print("Malignancy Recall: ", m_acc)
+
+    print("Subtype AUC: ", s_auc)
+    print("Subtype Recall: ", s_acc)
+
+    print("Grade AUC: ", g_auc)
+    print("Grade Recall: ", g_acc)
 
     test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDANT TEST SCORE"
     print("**************************************")
     print("**{:^34s}**".format(test1_label))
     print("**************************************")
-    m_conf, s_conf, g_conf = trainer.score(testset, 32)
+    conf, auc = trainer.score(testset, 32)
+
+    m_conf, s_conf, g_conf = conf
+    m_auc, s_auc, g_auc = auc
 
     m_acc = compute_recall(m_conf)
     s_acc = compute_recall(s_conf)
     g_acc = compute_recall(g_conf)
 
-    print("m_acc: ", m_acc)
-    print("s_acc: ", s_acc)
-    print("g_acc: ", g_acc)
+    print("Malignancy AUC: ", m_auc)
+    print("Malignancy Recall: ", m_acc)
+
+    print("Subtype AUC: ", s_auc)
+    print("Subtype Recall: ", s_acc)
+
+    print("Grade AUC: ", g_auc)
+    print("Grade Recall: ", g_acc)
 
     if not args.extra_data:
         test2_label = "INDEPENDANT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
         print("**************************************")
         print("**{:^34s}**".format(test2_label))
         print("**************************************")
-        m_conf, s_conf, g_conf = trainer.score(testset2, 32)
+        conf, auc = trainer.score(testset2, 32)
+
+        m_conf, s_conf, g_conf = conf
+        m_auc, s_auc, g_auc = auc
 
         m_acc = compute_recall(m_conf)
         s_acc = compute_recall(s_conf)
         g_acc = compute_recall(g_conf)
 
-        print("m_acc: ", m_acc)
-        print("s_acc: ", s_acc)
-        print("g_acc: ", g_acc)
+        print("Malignancy AUC: ", m_auc)
+        print("Malignancy Recall: ", m_acc)
+
+        print("Subtype AUC: ", s_auc)
+        print("Subtype Recall: ", s_acc)
+
+        print("Grade AUC: ", g_auc)
+        print("Grade Recall: ", g_acc)

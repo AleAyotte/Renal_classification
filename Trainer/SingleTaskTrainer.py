@@ -296,9 +296,8 @@ class SingleTaskTrainer(Trainer):
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Tuple[np.array, float],
-                                                          Sequence[np.array],
-                                                          np.array]:
+                                                          Tuple[Sequence[np.array], Sequence[float]],
+                                                          Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
@@ -331,6 +330,6 @@ class SingleTaskTrainer(Trainer):
         if get_loss:
             return conf_mat, loss.item()
         else:
-            fpr, tpr, thresh = roc_curve(y_true=labels.numpy(), y_score=outs[:, 1].cpu().numpy())
+            fpr, tpr, _ = roc_curve(y_true=labels.numpy(), y_score=outs[:, 1].cpu().numpy())
             auc_score = auc(fpr, tpr)
             return conf_mat, auc_score

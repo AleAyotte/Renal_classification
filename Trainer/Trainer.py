@@ -439,9 +439,8 @@ class Trainer(ABC):
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Tuple[np.array, float],
-                                                          Sequence[np.array],
-                                                          np.array]:
+                                                          Tuple[Sequence[np.array], Sequence[float]],
+                                                          Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
@@ -454,9 +453,8 @@ class Trainer(ABC):
     def score(self,
               testset: RenalDataset,
               batch_size: int = 150) -> Union[Tuple[Sequence[np.array], float],
-                                              Tuple[np.array, float],
-                                              Sequence[np.array],
-                                              np.array]:
+                                              Tuple[Sequence[np.array], Sequence[float]],
+                                              Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given test dataset
 
