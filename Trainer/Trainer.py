@@ -278,6 +278,9 @@ class Trainer(ABC):
                                          {'Training': train_acc,
                                           'Validation': val_acc}, 
                                          epoch)
+                self._writer.add_scalars('Validation/Loss',
+                                         {'loss': val_loss},
+                                         epoch)
                 self.model.train()
 
                 # ------------------------------------------------------------------------------------------
