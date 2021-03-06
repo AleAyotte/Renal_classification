@@ -42,8 +42,7 @@ class ResNet2D(nn.Module):
                                        nn.Linear(4096, 1024),
                                        nn.Dropout(p=drop_rate),
                                        nn.Linear(1024, 24))
-        self.fc_out = nn.Sequential(  # nn.Dropout(p=drop_rate),
-                                    nn.Linear(24+self._nb_clin_features, 2))
+        self.fc_out = nn.Sequential(nn.Linear(24+self._nb_clin_features, 2))
         self.__initialize_weight()
 
     def __initialize_weight(self):
