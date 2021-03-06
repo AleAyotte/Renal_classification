@@ -83,6 +83,15 @@ class Mixup(torch.nn.Module):
         The permutation indices that will be used to shuffle the features before the next foward pass.
     enable: bool
         If true, the current module will mix the next batch of images.
+    Methods
+    -------
+    get_mix_params() -> Tuple[float, Sequence[int]]:
+        Return the last sampled lambda parameter that will used in the forward pass to perform a linear combination
+        on the data of same batch and the permutation index list that indicate how the data will be combine.
+    sample() -> Tuple[float, Sequence[int]]:
+        Sample a point in a beta distribution and define the permutation index list to prepare the mixup module.
+    set_batch_size(b_size: int) -> None:
+        Change the value of the __batch_size attribut.
     """
     def __init__(self, beta_params):
         """
@@ -114,6 +123,9 @@ class Mixup(torch.nn.Module):
 
     def get_mix_params(self) -> Tuple[float, Sequence[int]]:
         """
+        Return the last sampled lambda parameter that will used in the forward pass to perform a linear combination
+        on the data of same batch and the permutation index list that indicate how the data will be combine.
+
         :return: The constant that will be use to mixup the data for the next iteration and a list of index that
                  represents the permutation used for the mixing process.
         """
@@ -122,7 +134,8 @@ class Mixup(torch.nn.Module):
 
     def sample(self) -> Tuple[float, Sequence[int]]:
         """
-        Sample a point in a beta distribution to prepare the mixup
+        Sample a point in a beta distribution and define the permutation index list to prepare the mixup module.
+
         :return: The coefficient used to mixup the training features during the next foward pass.
                  The permutation indices that will be used to shuffle the features before the next foward pass.
         """
@@ -138,7 +151,12 @@ class Mixup(torch.nn.Module):
 
         return self.lamb, self.permut
 
-    def set_batch_size(self, b_size: int):
+    def set_batch_size(self, b_size: int) -> None:
+        """
+        Change the value of the __batch_size attribut.
+
+        :param b_size: A integer that indicate the size of the next mini_batch of data.
+        """
         self.__batch_size = b_size
 
 
