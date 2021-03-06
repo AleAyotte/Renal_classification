@@ -263,17 +263,16 @@ class Trainer(ABC):
         # Go in training mode to activate mixup module
         self.model.train()
 
-        with tqdm(total=num_epoch, initial=start_epoch) as t:
+        with tqdm(total=num_epoch, initial=start_epoch, leave=False) as t:
             for epoch in range(start_epoch, num_epoch):
 
-                _grad_clip = 0 if epoch > num_epoch / 2 else grad_clip
                 current_mode = mode if warm_up_epoch <= epoch else current_mode
 
                 # We make a training epoch
                 if current_mode == "Mixup":
-                    _ = self._mixup_epoch(train_loader, optimizers, schedulers, _grad_clip, epoch)
+                    _ = self._mixup_epoch(train_loader, optimizers, schedulers, grad_clip, epoch)
                 else:
-                    _ = self._standard_epoch(train_loader, optimizers, schedulers, _grad_clip, epoch)
+                    _ = self._standard_epoch(train_loader, optimizers, schedulers, grad_clip, epoch)
 
                 self.model.eval()
 
@@ -311,6 +310,9 @@ class Trainer(ABC):
                                     best_epoch + 1, current_mode
                                 )
                 t.update()
+
+                if epoch == 49 and best_accuracy < 0.50:
+                    break
 
         self._writer.close()
         self.model.restore(self.__save_path)

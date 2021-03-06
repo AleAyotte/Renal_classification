@@ -25,6 +25,9 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
 
+ALL_TASK = ["malignant", "subtype", "grade"]
+
+
 class SingleTaskTrainer(Trainer):
     """
     The trainer class define an object that will be used to train and evaluate a given model. It handle the 
@@ -96,8 +99,7 @@ class SingleTaskTrainer(Trainer):
                          track_mode=track_mode)
         self.__loss = None
 
-        all_task = ["malignant", "subtype", "grade"]
-        assert task.lower() in all_task, "Task should be one of those options: 'malignant', 'subtype', 'grade'"
+        assert task.lower() in ALL_TASK, "Task should be one of those options: 'malignant', 'subtype', 'grade'"
         self.__task = task
 
         assert classes_weights.lower() in ["flat", "balanced"], \
@@ -108,7 +110,7 @@ class SingleTaskTrainer(Trainer):
                    "balanced": [[1.3459, 0.7956],
                                 [2.0840, 0.6578],
                                 [0.7535, 1.4858]]}
-        self.__weights = weights[classes_weights.lower()][all_task.index(task)]
+        self.__weights = weights[classes_weights.lower()][ALL_TASK.index(task)]
 
     def _init_loss(self, gamma: float) -> None:
         """
