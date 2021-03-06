@@ -35,7 +35,7 @@ def argument_parser():
     parser.add_argument('--eta_min', type=float, default=1e-6,
                         help="The minimal value of the learning rate.")
     parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
-                        help="If true, the second testest will be add to the training dataset."
+                        help="If true, the second testest will be add to the training dataset. "
                              "The second dataset is determined with '--testset'.")
     parser.add_argument('--grad_clip', type=float, default=2.25,
                         help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
@@ -71,8 +71,8 @@ def argument_parser():
                              "information transfer between multiple subnets",
                         choices=["sluice", "cross_stitch"])
     parser.add_argument('--testset', type=str, default="stratified",
-                        help="The name of the first testset. If 'testset'== stratified then the first testset will be"
-                             "the stratified dataset and the independant will be the second and hence could be used as"
+                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
+                             "the stratified dataset and the independant will be the second and hence could be used as "
                              "extra data.",
                         choices=["stratified", "independant"])
     parser.add_argument('--track_mode', type=str, default="all",
@@ -82,8 +82,8 @@ def argument_parser():
     parser.add_argument('--warm_up', type=int, default=0,
                         help="Number of epoch before activating the mixup if 'mode' == mixup")
     parser.add_argument('--weights', type=str, default="balanced",
-                        help="The weight that will be applied on each class in the training loss. If balanced,"
-                             "The classes weights will be ajusted in the training.",
+                        help="The weight that will be applied on each class in the training loss. If balanced, "
+                             "the classes weights will be ajusted in the training.",
                         choices=["flat", "balanced", "focused"])
     parser.add_argument('--worker', type=int, default=0,
                         help="Number of worker that will be used to preprocess data.")

@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       Contain the main function to train a 3D ResNet on one of the three tasks
                         (malignancy, subtype and grade prediction).
@@ -37,8 +37,8 @@ def argument_parser():
     parser.add_argument('--drop_rate', type=float, default=0,
                         help="The drop rate hyperparameter used to configure the dropout layer. See drop_type")
     parser.add_argument('--drop_type', type=str, default="flat",
-                        help="If drop_type == 'flat' every dropout layer will have the same drop rate."
-                             "Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer"
+                        help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                             "Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer "
                              "from 0 to 'drop_rate'.",
                         choices=["flat", "linear"])
     parser.add_argument('--eps', type=float, default=1e-3,
@@ -49,7 +49,7 @@ def argument_parser():
                         help="If true, the second testest will be add to the training dataset."
                              "The second dataset is determined with '--testset'.")
     parser.add_argument('--grad_clip', type=float, default=1.25,
-                        help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during"
+                        help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
                              "the training.")
     parser.add_argument('--in_channels', type=int, default=16,
                         help="Number of channels after the first convolution.")
@@ -63,7 +63,7 @@ def argument_parser():
                         help="If true, the model will be trained with mixed precision. "
                              "Mixed precision reduce memory consumption on GPU but reduce training speed.")
     parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 0],
-                        help="The alpha parameter of each mixup module. Those alpha parameter are used to sample"
+                        help="The alpha parameter of each mixup module. Those alpha parameter are used to sample "
                              "the dristribution Beta(alpha, alpha).")
     parser.add_argument('--mode', type=str, default="Mixup",
                         help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
@@ -82,18 +82,18 @@ def argument_parser():
                         help="The task on which the model will be train.",
                         choices=["malignant", "subtype", "grade"])
     parser.add_argument('--testset', type=str, default="stratified",
-                        help="The name of the first testset. If 'testset'== stratified then the first testset will be"
-                             "the stratified dataset and the independant will be the second and hence could be used as"
+                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
+                             "the stratified dataset and the independant will be the second and hence could be used as "
                              "extra data.",
                         choices=["stratified", "independent"])
     parser.add_argument('--track_mode', type=str, default="all",
-                        help="Determine the quantity of training statistics that will be saved with tensorboard."
+                        help="Determine the quantity of training statistics that will be saved with tensorboard. "
                              "If low, the training loss will be saved only at each epoch and not at each iteration.",
                         choices=["all", "low", "none"])
     parser.add_argument('--warm_up', type=int, default=0,
                         help="Number of epoch before activating the mixup if 'mode' == mixup")
     parser.add_argument('--weights', type=str, default="balanced",
-                        help="The weight that will be applied on each class in the training loss. If balanced,"
+                        help="The weight that will be applied on each class in the training loss. If balanced, "
                              "The classes weights will be ajusted in the training.",
                         choices=["flat", "balanced"])
     parser.add_argument('--worker', type=int, default=0,

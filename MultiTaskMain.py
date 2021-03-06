@@ -34,8 +34,8 @@ def argument_parser():
     parser.add_argument('--drop_rate', type=float, default=0,
                         help="The drop rate hyperparameter used to configure the dropout layer. See drop_type")
     parser.add_argument('--drop_type', type=str, default="flat",
-                        help="If drop_type == 'flat' every dropout layer will have the same drop rate."
-                             "Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer"
+                        help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                             "Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer "
                              "from 0 to 'drop_rate'.",
                         choices=["flat", "linear"])
     parser.add_argument('--eps', type=float, default=1e-3,
@@ -45,7 +45,7 @@ def argument_parser():
     parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
                         help="If true, the second testest will be add to the training dataset.")
     parser.add_argument('--grad_clip', type=float, default=1.25,
-                        help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during"
+                        help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
                              "the training.")
     parser.add_argument('--in_channels', type=int, default=16,
                         help="Number of channels after the first convolution.")
@@ -56,7 +56,7 @@ def argument_parser():
     parser.add_argument('--lr', type=float, default=1e-4,
                         help="The initial learning rate")
     parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 2],
-                        help="The alpha parameter of each mixup module. Those alpha parameter are used to sample"
+                        help="The alpha parameter of each mixup module. Those alpha parameter are used to sample "
                              "the dristribution Beta(alpha, alpha).")
     parser.add_argument('--mode', type=str, default="Mixup",
                         help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
@@ -72,23 +72,23 @@ def argument_parser():
     parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
                         help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
     parser.add_argument('--split_level', type=int, default=4,
-                        help="At which level the multi level resnet should split into sub net. "
-                             "1: After the first convolution, 2: After the first residual level,"
-                             "3: After the second residual level, 4: After the third residual level,"
+                        help="At which level the multi level resnet should split into sub net.\n"
+                             "1: After the first convolution, \n2: After the first residual level, \n"
+                             "3: After the second residual level, \n4: After the third residual level, \n"
                              "5: After the last residual level so just before the fully connected layers.")
     parser.add_argument('--testset', type=str, default="stratified",
-                        help="The name of the first testset. If 'testset'== stratified then the first testset will be"
-                             "the stratified dataset and the independant will be the second and hence could be used as"
+                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
+                             "the stratified dataset and the independant will be the second and hence could be used as "
                              "extra data.",
                         choices=["stratified", "independant"])
     parser.add_argument('--track_mode', type=str, default="all",
-                        help="Determine the quantity of training statistics that will be saved with tensorboard."
+                        help="Determine the quantity of training statistics that will be saved with tensorboard. "
                              "If low, the training loss will be saved only at each epoch and not at each iteration.",
                         choices=["all", "low", "none"])
     parser.add_argument('--warm_up', type=int, default=0,
                         help="Number of epoch before activating the mixup if 'mode' == mixup")
     parser.add_argument('--weights', type=str, default="balanced",
-                        help="The weight that will be applied on each class in the training loss. If balanced,"
+                        help="The weight that will be applied on each class in the training loss. If balanced, "
                              "The classes weights will be ajusted in the training.",
                         choices=["flat", "balanced", "focused"])                        
     parser.add_argument('--worker', type=int, default=0,

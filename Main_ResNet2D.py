@@ -33,7 +33,7 @@ def argument_parser():
     parser.add_argument('--eta_min', type=float, default=1e-6,
                         help="The minimal value of the learning rate.")
     parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
-                        help="If true, the second testest will be add to the training dataset."
+                        help="If true, the second testest will be add to the training dataset. "
                              "The second dataset is determined with '--testset'.")
     parser.add_argument('--loss', type=str, default="ce",
                         help="The loss that will be use to train the model. 'ce' == cross entropy loss, "
@@ -58,18 +58,18 @@ def argument_parser():
                         help="The task on which the model will be train.",
                         choices=["malignant", "subtype", "grade"]),
     parser.add_argument('--testset', type=str, default="stratified",
-                        help="The name of the first testset. If 'testset'== stratified then the first testset will be"
-                             "the stratified dataset and the independant will be the second and hence could be used as"
+                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
+                             "the stratified dataset and the independant will be the second and hence could be used as "
                              "extra data.",
                         choices=["stratified", "independant"])
     parser.add_argument('--track_mode', type=str, default="all",
-                        help="Determine the quantity of training statistics that will be saved with tensorboard."
+                        help="Determine the quantity of training statistics that will be saved with tensorboard. "
                              "If low, the training loss will be saved only at each epoch and not at each iteration.",
                         choices=["all", "low", "none"])
     parser.add_argument('--warm_up', type=int, default=0,
                         help="Number of epoch before activating the mixup if 'mode' == mixup")
     parser.add_argument('--weights', type=str, default="balanced",
-                        help="The weight that will be applied on each class in the training loss. If balanced,"
+                        help="The weight that will be applied on each class in the training loss. If balanced, "
                              "The classes weights will be ajusted in the training.",
                         choices=["flat", "balanced"])
     parser.add_argument('--worker', type=int, default=0,
