@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       Contain the mother class Trainer from which the SingleTaskTrainer and MultiTaskTrainer will
                         inherit.
@@ -57,8 +57,6 @@ class Trainer(ABC):
         then this is consider as an improvement.
     _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none.
-    __valid_split : float
-        Percentage of the trainset that will be used to create the validation set.
     _writer : SummaryWriter
         Use to keep track of the training with tensorboard.
     Methods
@@ -70,7 +68,6 @@ class Trainer(ABC):
     """
     def __init__(self,
                  loss: str = "ce",
-                 valid_split: float = 0.2,
                  tol: float = 0.01,
                  mixed_precision: bool = False,
                  pin_memory: bool = False,
@@ -85,17 +82,17 @@ class Trainer(ABC):
         :param valid_split: Percentage of the trainset that will be used to create the validation set.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
-        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default: False)
+        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
                            copied into the CUDA pinned memory. (Default=False)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
-                            the main process will be used for the data augmentation. (Default: 0)
+                            the main process will be used for the data augmentation. (Default=0)
         :param shared_net: If true, the model to train will be a SharedNet. In this we need to optimizer, one for the
-                           subnets and one for the sharing units and the Uncertainty loss parameters.
+                           subnets and one for the sharing units and the Uncertainty loss parameters. (Default=False)
         :param save_path: Indicate where the weights of the network and the result will be saved.
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
-                           at each iteration. (Default: all)
+                           at each iteration. (Default=all)
         """
         super().__init__()
 
@@ -104,7 +101,6 @@ class Trainer(ABC):
         assert track_mode.lower() in ["all", "low", "none"], \
             "Track mode should be one of those options: 'all', 'low' or 'none'"
         self.__tol = tol
-        self.__valid_split = valid_split
         self._mixed_precision = mixed_precision
         self.__pin_memory = pin_memory
         self.__num_work = num_workers

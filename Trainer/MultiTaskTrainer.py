@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       Contain the class MultiTaskTrainer which inherit from the class Trainer. This class is used
                         to train the MultiLevelResNet and the SharedNet on the three task (malignancy, subtype and
@@ -40,8 +40,6 @@ class MultiTaskTrainer(Trainer):
         The loss function of the malignant task.
     __s_loss : torch.nn
         The loss function of the subtype task.
-    __g_loss : torch.nn
-        The loss function of the grade task.
     _mixed_precision : bool
         If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
@@ -65,7 +63,6 @@ class MultiTaskTrainer(Trainer):
         Compute the accuracy of the model on a given data loader.
     """
     def __init__(self, loss: str = "ce",
-                 valid_split: float = 0.2,
                  tol: float = 0.01,
                  mixed_precision: bool = False,
                  pin_memory: bool = False,
@@ -78,7 +75,6 @@ class MultiTaskTrainer(Trainer):
         The constructor of the trainer class. 
 
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
-        :param valid_split: Percentage of the trainset that will be used to create the validation set.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
         :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default: False)
@@ -100,7 +96,6 @@ class MultiTaskTrainer(Trainer):
                            at each iteration. (Default: all)
         """
         super().__init__(loss=loss,
-                         valid_split=valid_split,
                          tol=tol,
                          mixed_precision=mixed_precision,
                          pin_memory=pin_memory,
