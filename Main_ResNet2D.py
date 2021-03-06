@@ -12,8 +12,8 @@
 import argparse
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet_2D import ResNet2D
-from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld, Rand2DElasticd
-from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
+from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
+from monai.transforms import RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
 import torch
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
@@ -22,35 +22,58 @@ from Trainer.Utils import compute_recall
 
 def argument_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--b_size', type=int, default=32)
-    parser.add_argument('--device', type=str, default="cuda:0")
-    parser.add_argument('--dropout', type=float, default=0.5)
-    parser.add_argument('--eps', type=float, default=1e-3)
-    parser.add_argument('--eta_min', type=float, default=1e-6)
-    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True)
+    parser.add_argument('--b_size', type=int, default=32,
+                        help="The batch size.")
+    parser.add_argument('--device', type=str, default="cuda:0",
+                        help="The device on which the model will be trained.")
+    parser.add_argument('--drop_rate', type=float, default=0.5,
+                        help="The drop rate hyperparameter used to configure the dropout layer. See drop_type")
+    parser.add_argument('--eps', type=float, default=1e-3,
+                        help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
+    parser.add_argument('--eta_min', type=float, default=1e-6,
+                        help="The minimal value of the learning rate.")
+    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
+                        help="If true, the second testest will be add to the training dataset."
+                             "The second dataset is determined with '--testset'.")
     parser.add_argument('--loss', type=str, default="ce",
+                        help="The loss that will be use to train the model. 'ce' == cross entropy loss, "
+                             "'bce' == binary cross entropoy, 'focal' = focal loss",
                         choices=["ce", "bce", "focal"])
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True)
-    parser.add_argument('--mixup', type=int, action='store', nargs="*", default=[0, 2, 2, 2])
-    parser.add_argument('--mode', type=str, default="standard",
-                        choices=["standard", "Mixup"])
-    parser.add_argument('--num_epoch', type=int, default=1000)
+    parser.add_argument('--lr', type=float, default=1e-4,
+                        help="The initial learning rate")
+    parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True,
+                        help="If true, the model will be trained with mixed precision. "
+                             "Mixed precision reduce memory consumption on GPU but reduce training speed.")
+    parser.add_argument('--num_epoch', type=int, default=1000,
+                        help="The number of training epoch.")
     parser.add_argument('--optim', type=str, default="adam",
+                        help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd"])
     parser.add_argument('--pad_mode', type=str, default="constant",
+                        help="How the image will be pad in the data augmentation.",
                         choices=["constant", "edge", "reflect", "symmetric"])
-    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True)
+    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
+                        help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
     parser.add_argument('--task', type=str, default="grade",
+                        help="The task on which the model will be train.",
                         choices=["malignant", "subtype", "grade"]),
     parser.add_argument('--testset', type=str, default="stratified",
-                        choices=["stratified", "independant"], help="The testset used to access the model")
+                        help="The name of the first testset. If 'testset'== stratified then the first testset will be"
+                             "the stratified dataset and the independant will be the second and hence could be used as"
+                             "extra data.",
+                        choices=["stratified", "independant"])
     parser.add_argument('--track_mode', type=str, default="all",
+                        help="Determine the quantity of training statistics that will be saved with tensorboard."
+                             "If low, the training loss will be saved only at each epoch and not at each iteration.",
                         choices=["all", "low", "none"])
-    parser.add_argument('--warm_up', type=int, default=0)
+    parser.add_argument('--warm_up', type=int, default=0,
+                        help="Number of epoch before activating the mixup if 'mode' == mixup")
     parser.add_argument('--weights', type=str, default="balanced",
-                        choices=["flat", "balanced", "focused"])
-    parser.add_argument('--worker', type=int, default=0)
+                        help="The weight that will be applied on each class in the training loss. If balanced,"
+                             "The classes weights will be ajusted in the training.",
+                        choices=["flat", "balanced"])
+    parser.add_argument('--worker', type=int, default=0,
+                        help="Number of worker that will be used to preprocess data.")
     return parser.parse_args()
 
 
@@ -66,8 +89,6 @@ if __name__ == "__main__":
         RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
         RandAffined(keys=["t1", "t2"], prob=0.8, shear_range=0.5,
                     rotate_range=6.28, translate_range=0.1),
-        # Rand2DElasticd(keys=["t1", "t2"], spacing=10, magnitude_range=(0, 1), prob=1),
-        # RandSpatialCropd(keys=["t1", "t2"], roi_size=[148, 148], random_center=False),
         RandZoomd(keys=["t1", "t2"], prob=0.5, min_zoom=0.95, max_zoom=1.05,
                   keep_size=False),
         ResizeWithPadOrCropd(keys=["t1", "t2"], spatial_size=[224, 224], mode=args.pad_mode),
@@ -125,7 +146,7 @@ if __name__ == "__main__":
     #                NEURAL NETWORK
     # --------------------------------------------
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    net = ResNet2D(drop_rate=args.dropout,
+    net = ResNet2D(drop_rate=args.drop_rate,
                    nb_clinical_data=len(clin_features)).to(args.device)
 
     # --------------------------------------------
@@ -146,7 +167,7 @@ if __name__ == "__main__":
     trainer.fit(model=net,
                 trainset=trainset,
                 validset=validset,
-                mode=args.mode,
+                mode="standard",
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
                 grad_clip=5,
