@@ -3,10 +3,12 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       This file contain the classes ResNet and MultiLevelResNet that inherit from the NeuralNet class.
                         Also contain the ResNet block module.
+
+    @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
 
 from Model.Module import Mixup, UncertaintyLoss
@@ -24,6 +26,25 @@ NB_TASK = 2
 
 
 class PreResBlock(nn.Module):
+    """
+    A 3D version of the preactivation residual bottleneck block as described in Ref 1).
+    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    first_activation: nn.module
+        The non linear activation function that is applied before the forward pass in the residual mapping.
+    first_normalization: nn.module
+        The normalization layer that is applied before the forward pass in the residual mapping.
+    residual_layer: nn.Sequential
+        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+    sub_conv: nn.Sequential
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        with the dimension of the residual mapping.
+    __subsample: boolean
+        A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    """
     expansion = 1
 
     def __init__(self,
@@ -53,16 +74,16 @@ class PreResBlock(nn.Module):
         super().__init__()
 
         if type(strides) == int and strides == 1:
-            self.subsample = False
+            self.__subsample = False
         elif type(strides) == Sequence and np.sum(strides) == 3:
-            self.subsample = False
+            self.__subsample = False
         else:
-            self.subsample = True
+            self.__subsample = True
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
 
-        self.bn1 = Norm[norm, 3](fmap_in)
-        self.activation1 = Act[activation]()
+        self.first_normalization = Norm[norm, 3](fmap_in)
+        self.first_activation = Act[activation]()
 
         if type(kernel) == int:
             padding = int((kernel - 1)/2)
@@ -93,10 +114,10 @@ class PreResBlock(nn.Module):
         :return: Output tensor of the residual block
         """
 
-        out = self.bn1(x)
-        out = self.activation1(out)
+        out = self.first_normalization(x)
+        out = self.first_activation(out)
 
-        if self.subsample:
+        if self.__subsample:
             shortcut = self.sub_conv(out)
         else:
             shortcut = x
@@ -107,6 +128,25 @@ class PreResBlock(nn.Module):
 
 
 class PreResBottleneck(nn.Module):
+    """
+    A 3D version of the preactivation residual block as described in Ref 1).
+    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    first_activation: nn.module
+        The non linear activation function that is applied before the forward pass in the residual mapping.
+    first_normalization: nn.module
+        The normalization layer that is applied before the forward pass in the residual mapping.
+    residual_layer: nn.Sequential
+        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+    sub_conv: nn.Sequential
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        with the dimension of the residual mapping.
+    __subsample: boolean
+        A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    """
     expansion = 4
 
     def __init__(self,
@@ -136,17 +176,17 @@ class PreResBottleneck(nn.Module):
         super().__init__()
 
         if type(strides) == int and strides == 1:
-            self.subsample = False
+            self.__subsample = False
         elif type(strides) == Sequence and np.sum(strides) == 3:
-            self.subsample = False
+            self.__subsample = False
         else:
-            self.subsample = True
+            self.__subsample = True
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out*self.expansion, kernel_size=1,
                                       stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
 
-        self.bn1 = Norm[norm, 3](fmap_in)
-        self.activation1 = Act[activation]()
+        self.first_normalization = Norm[norm, 3](fmap_in)
+        self.first_activation = Act[activation]()
 
         if type(kernel) == int:
             padding = int((kernel - 1)/2)
@@ -182,10 +222,10 @@ class PreResBottleneck(nn.Module):
         :return: Output tensor of the residual block
         """
 
-        out = self.bn1(x)
-        out = self.activation1(out)
+        out = self.first_normalization(x)
+        out = self.first_activation(out)
 
-        if self.subsample:
+        if self.__subsample:
             shortcut = self.sub_conv(out)
         else:
             shortcut = x
@@ -196,6 +236,16 @@ class PreResBottleneck(nn.Module):
 
 
 class ResBlock(nn.Module):
+    """
+    A 3D version of the residual block as described in Ref 1).
+    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    res: ResidualUnit
+        A MONAI implementation of the Residual block. Act like an nn.Sequential.
+    """
     expansion = 1
 
     def __init__(self,
@@ -231,6 +281,23 @@ class ResBlock(nn.Module):
 
 
 class ResBottleneck(nn.Module):
+    """
+    A 3D version of the residual bottleneck block as described in Ref 1).
+    (Conv(1x1x1), Norm, Act, Conv(kernel), Norm, Act, Conv(1x1x1), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    last_activation: nn.module
+        The non linear activation function that is applied after adding the shorcut to the residual mapping.
+    residual_layer: nn.Sequential
+        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+    sub_conv: nn.Sequential
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        with the dimension of the residual mapping.
+    __subsample: boolean
+        A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    """
     expansion = 4
 
     def __init__(self,
@@ -260,11 +327,11 @@ class ResBottleneck(nn.Module):
         super().__init__()
 
         if type(strides) == int and strides == 1:
-            self.subsample = False
+            self.__subsample = False
         elif type(strides) == Sequence and np.sum(strides) == 3:
-            self.subsample = False
+            self.__subsample = False
         else:
-            self.subsample = True
+            self.__subsample = True
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out*self.expansion, kernel_size=1,
                                       stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
@@ -295,7 +362,7 @@ class ResBottleneck(nn.Module):
             res_layer.extend([nn.Dropout3d(drop_rate)])
 
         self.residual_layer = nn.Sequential(*res_layer)
-        self.activation3 = Act[activation]()
+        self.last_activation = Act[activation]()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -305,20 +372,21 @@ class ResBottleneck(nn.Module):
         :return: Output tensor of the residual block
         """
 
-        if self.subsample:
+        if self.__subsample:
             shortcut = self.sub_conv(x)
         else:
             shortcut = x
 
         out = self.residual_layer(x) + shortcut
 
-        return self.activation3(out)
+        return self.last_activation(out)
 
 
 class ResNet(NeuralNet):
     """
-    Create a pre activation or post activation 3D Residual Network.
-     ...
+    A ResNet 3D implementation for single task training.
+
+    ...
     Attributes
     ----------
     conv: Convolution
@@ -366,7 +434,27 @@ class ResNet(NeuralNet):
                  act: str = "ReLU",
                  norm: str = "batch",
                  pre_act: bool = True):
+        """
+        Create a pre activation or post activation 3D Residual Network.
 
+        :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
+        :param first_channels: The number of channels at the output of the first convolution layer. (Default=16)
+        :param num_classes: The number of features at the output of the neural network. (Default=2)
+        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
+        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
+        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
+                      dristribution Beta(alpha, alpha).
+        :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
+        :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
+                          Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
+                          from 0 to 'drop_rate'. (Default='Flat')
+        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
+                     (Default=batch)
+        :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
+                        ResBottleneck. (Defaut=True)
+        """
         super().__init__()
 
         # --------------------------------------------
@@ -422,14 +510,17 @@ class ResNet(NeuralNet):
                                          first_channels, kernel=kernel,
                                          strides=[2, 2, 1], norm=norm,
                                          drop_rate=dropout[0], act=act)
+
         self.layers2 = self.__make_layer(block[depth], layers[depth][1],
                                          first_channels * 2, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[1], act=act)
+
         self.layers3 = self.__make_layer(block[depth], layers[depth][2],
                                          first_channels * 4, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[2], act=act)
+
         self.layers4 = self.__make_layer(block[depth], layers[depth][3],
                                          first_channels * 8, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
@@ -496,7 +587,7 @@ class ResNet(NeuralNet):
 
 class MultiLevelResNet(NeuralNet):
     """
-    Create a pre activation or post activation 3D Residual Network.
+    A  hard shared 3D Residual Network implementation for multi task learning.
 
     ...
     Attributes
@@ -552,7 +643,32 @@ class MultiLevelResNet(NeuralNet):
                  act: str = "ReLU",
                  norm: str = "batch",
                  pre_act: bool = True):
+        """
+        Create a pre activation or post activation 3D Residual Network for multi-task learning.
 
+        :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
+        :param first_channels: The number of channels at the output of the first convolution layer. (Default=16)
+        :param split_level: At which level the multi level resnet should split into sub net. (Default=4)
+                                1: After the first convolution,
+                                2: After the first residual level,
+                                3: After the second residual level,
+                                4: After the third residual level,
+                                5: After the last residual level so just before the fully connected layers.
+        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
+        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
+        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
+                      dristribution Beta(alpha, alpha).
+        :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
+        :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
+                          Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
+                          from 0 to 'drop_rate'. (Default='Flat')
+        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
+                     (Default=batch)
+        :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
+                        ResBottleneck. (Defaut=True)
+        """
         super().__init__()
         self.__split = split_level
         self.__in_channels = first_channels
@@ -616,18 +732,21 @@ class MultiLevelResNet(NeuralNet):
                                          drop_rate=dropout[0], act=act,
                                          split_layer=(1 == split_level),
                                          groups=NB_TASK if 1 >= split_level else 1)
+
         self.layers2 = self.__make_layer(block[depth], layers[depth][1],
                                          first_channels * 2, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[1], act=act,
                                          split_layer=(2 == split_level),
                                          groups=NB_TASK if 2 >= split_level else 1)
+
         self.layers3 = self.__make_layer(block[depth], layers[depth][2],
                                          first_channels * 4, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[2], act=act,
                                          split_layer=(3 == split_level),
                                          groups=NB_TASK if 3 >= split_level else 1)
+
         self.layers4 = self.__make_layer(block[depth], layers[depth][3],
                                          first_channels * 8, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
