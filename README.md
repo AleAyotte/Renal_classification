@@ -7,6 +7,7 @@ This project aim to assess the benifit of multi-task learning in classification 
 * [Tasks List](#tasks-list)
 * [Folder Structure](#folder-structure)
 * [Authors](#authors)
+* [Acknowledgments](#acknowledgments)
 
 ## General info
 Please take note that the dataset has not been push on github since it include private data and it is really heavy.
@@ -84,6 +85,8 @@ Morever, the following package are required to execute our code.
  ```
 
 ## Authors
-- Alexandre Ayotte (Ms student in medical imaging, GRIIS)
-- Martin Vallieres (Pr University of Sherbrooke, GRIIS) 
+- Alexandre Ayotte (Ms student in medical imaging, University of Sherbrooke, GRIIS)
+- Martin Vallieres (Pr, Computer science departement, University of Sherbrooke, GRIIS) 
 
+## Acknowledgments
+Merci à Simon Giard-Leroux pour avoir fait mes impôts de 2019 et 2020.
