@@ -20,6 +20,9 @@ from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution
 
 
+SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
+
+
 def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--activation', type=str, default='ReLU',
@@ -41,6 +44,9 @@ def argument_parser():
                              "Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer "
                              "from 0 to 'drop_rate'.",
                         choices=["flat", "linear"])
+    parser.add_argument('--early_stopping', type=bool, default=False, nargs='?', const=True,
+                        help="If true, the training will be stop after the third of the training if the model did not "
+                             "achieve at least 50% validation accuracy for at least one epoch.")
     parser.add_argument('--eps', type=float, default=1e-3,
                         help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
     parser.add_argument('--eta_min', type=float, default=1e-6,
@@ -188,7 +194,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(save_path="Check_moi_ca2.pth",
+    trainer = Trainer(early_stopping=args.early_stopping,
+                      save_path=SAVE_PATH,
                       loss=args.loss,
                       tol=0.2,
                       num_workers=args.worker,

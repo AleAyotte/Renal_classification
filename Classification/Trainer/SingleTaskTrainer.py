@@ -64,6 +64,7 @@ class SingleTaskTrainer(Trainer):
     def __init__(self,
                  loss: str = "ce",
                  tol: float = 0.01,
+                 early_stopping: bool = False,
                  mixed_precision: bool = False,
                  pin_memory: bool = False,
                  num_workers: int = 0,
@@ -77,6 +78,8 @@ class SingleTaskTrainer(Trainer):
         :param loss: The loss that will be use during mixup epoch. (Default="bce")
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
+        :param early_stopping: If true, the training will be stop after the third of the training if the model did
+                               not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
         :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
                            copied into the CUDA pinned memory. (Default=False)
@@ -89,6 +92,7 @@ class SingleTaskTrainer(Trainer):
         """
         super().__init__(loss=loss,
                          tol=tol,
+                         early_stopping=early_stopping,
                          mixed_precision=mixed_precision,
                          pin_memory=pin_memory,
                          num_workers=num_workers, 

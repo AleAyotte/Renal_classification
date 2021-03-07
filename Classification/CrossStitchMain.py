@@ -19,7 +19,8 @@ from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution
 
 
-SAVE_PATH = "save/14_Fev_2020/"
+LOAD_PATH = "save/14_Fev_2020/"
+SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
 TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]
 
 
@@ -32,6 +33,9 @@ def argument_parser():
                         choices=['Option1_with_N4', 'Option1_without_N4', "New_Option1"])
     parser.add_argument('--device', type=str, default="cuda:0",
                         help="The device on which the model will be trained.")
+    parser.add_argument('--early_stopping', type=bool, default=False, nargs='?', const=True,
+                        help="If true, the training will be stop after the third of the training if the model did not "
+                             "achieve at least 50% validation accuracy for at least one epoch.")
     parser.add_argument('--eps', type=float, default=1e-3,
                         help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
     parser.add_argument('--eta_min', type=float, default=1e-6,
@@ -169,8 +173,8 @@ if __name__ == "__main__":
                      pre_act=True).to(args.device)
 
     if args.pretrained:
-        mal_net.restore(SAVE_PATH + "malignant.pth")
-        sub_net.restore(SAVE_PATH + "subtype.pth")
+        mal_net.restore(LOAD_PATH + "malignant.pth")
+        sub_net.restore(LOAD_PATH + "subtype.pth")
 
     net = SharedNet(malignant_net=mal_net,
                     subtype_net=sub_net,
@@ -204,7 +208,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(save_path="Check_moi_ca2.pth",
+    trainer = Trainer(early_stopping=args.early_stopping,
+                      save_path=SAVE_PATH,
                       loss=args.loss,
                       tol=1.00,
                       num_workers=args.worker,
