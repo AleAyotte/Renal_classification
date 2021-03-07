@@ -26,6 +26,11 @@ from tqdm import tqdm
 from typing import Sequence, Tuple, Union
 
 
+DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
+MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
+VALIDATION_BATCH_SIZE = 2  # Batch size used to create the validation dataloader and the test dataloader
+
+
 class Trainer(ABC):
     """
     The trainer class define an object that will be used to train and evaluate a given model. It handle the 
@@ -79,7 +84,6 @@ class Trainer(ABC):
         The constructor of the trainer class. 
 
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
-        :param valid_split: Percentage of the trainset that will be used to create the validation set.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
         :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
@@ -171,6 +175,7 @@ class Trainer(ABC):
         best_epoch = -1
         current_mode = "Standard"
         last_saved_loss = float("inf")
+        early_stopping_epoch = int(num_epoch / 3) - 1
 
         # Tensorboard writer
         self._writer = SummaryWriter()
@@ -195,7 +200,7 @@ class Trainer(ABC):
                                   shuffle=True,
                                   drop_last=True)
         valid_loader = DataLoader(validset,
-                                  batch_size=2,
+                                  batch_size=VALIDATION_BATCH_SIZE,
                                   pin_memory=self.__pin_memory,
                                   num_workers=self.__num_work,
                                   shuffle=False,
@@ -208,8 +213,8 @@ class Trainer(ABC):
         parameters = [self.model.parameters()]
 
         if self.__shared_net:
-            lr_list.append(learning_rate * 100 if shared_lr == 0 else shared_lr)
-            eta_list.append(eta_min * 100 if shared_eta_min == 0 else shared_eta_min)
+            lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
+            eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
 
             parameters = [self.model.nets.parameters(),
                           list(self.model.sharing_units_dict.parameters()) +
@@ -219,7 +224,6 @@ class Trainer(ABC):
 
         if optim.lower() == "adam":
             for lr, param in zip(lr_list, parameters):
-                # print(param)
                 optimizers.append(
                     torch.optim.Adam(param,
                                      lr=lr,
@@ -307,7 +311,7 @@ class Trainer(ABC):
                                 )
                 t.update()
 
-                if epoch == 49 and best_accuracy < 0.50:
+                if epoch == early_stopping_epoch and best_accuracy < MINIMUM_ACCURACY:
                     break
 
         self._writer.close()
@@ -449,18 +453,18 @@ class Trainer(ABC):
         raise NotImplementedError("Must override _get_conf_matrix.")
     
     def score(self,
-              testset: RenalDataset,
-              batch_size: int = 150) -> Union[Tuple[Sequence[np.array], float],
+              testset: RenalDataset) -> Union[Tuple[Sequence[np.array], float],
                                               Tuple[Sequence[np.array], Sequence[float]],
                                               Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given test dataset
 
         :param testset: A torch dataset which contain our test data points and labels
-        :param batch_size: The batch_size that will be use to create the data loader. (Default=150)
         :return: The accuracy of the model.
         """
-        test_loader = torch.utils.data.DataLoader(testset, batch_size, shuffle=False)
+        test_loader = torch.utils.data.DataLoader(testset,
+                                                  VALIDATION_BATCH_SIZE,
+                                                  shuffle=False)
 
         self.model.eval()
 

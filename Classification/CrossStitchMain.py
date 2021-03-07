@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       Contain the main function to train a SharedMet for multitask learning.
 """
@@ -16,9 +16,11 @@ from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWit
 import numpy as np
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
-from Trainer.Utils import compute_recall
+from Utils import print_score, print_data_distribution
+
 
 SAVE_PATH = "save/14_Fev_2020/"
+TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]
 
 
 def argument_parser():
@@ -120,8 +122,11 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    # "test" is the stratified test and test2 is the independant test.
+    # TODO: CHANGE THE testset name in the hdf5 file
+    # "test" is the stratified test and test2 is the independent test.
     test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
+    testset_name = args.testset
+    testset2_name = "independant" if args.testset == "stratified" else "stratified"
 
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
     validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=None)
@@ -140,8 +145,7 @@ if __name__ == "__main__":
         testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
 
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
-    print(len(trainset))
-    print(len(validset))
+
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
@@ -177,10 +181,29 @@ if __name__ == "__main__":
                     subspace_4=[4, 3],
                     c=0.85,
                     spread=0.1).to(args.device)
+    summary(net, (3, 96, 96, 32))
+
+    # --------------------------------------------
+    #                SANITY CHECK
+    # --------------------------------------------
+    print_data_distribution("Training Set",
+                            TASK_LIST,
+                            trainset.labels_bincount())
+    print_data_distribution("Validation Set",
+                            TASK_LIST,
+                            validset.labels_bincount())
+    print_data_distribution("{} Set".format(testset_name.capitalize()),
+                            TASK_LIST,
+                            testset.labels_bincount())
+    if not args.extra_data:
+        print_data_distribution("{} Set".format(testset2_name.capitalize()),
+                                TASK_LIST,
+                                testset2.labels_bincount())
+    print("\n")
+
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    summary(net, (3, 96, 96, 32))
     trainer = Trainer(save_path="Check_moi_ca2.pth",
                       loss=args.loss,
                       tol=1.00,
@@ -212,56 +235,21 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                    SCORE
     # --------------------------------------------
-    print("**************************************")
-    print("**{:^34s}**".format("VALIDATION SCORE"))
-    print("**************************************")
-    conf, auc = trainer.score(validset, 32)
+    conf, auc = trainer.score(validset)
+    print_score(dataset_name="VALIDATION SCORE",
+                task_list=TASK_LIST,
+                conf_mat_list=conf,
+                auc_list=auc)
 
-    m_conf, s_conf = conf
-    m_auc, s_auc = auc
-
-    m_acc = compute_recall(m_conf)
-    s_acc = compute_recall(s_conf)
-
-    print("Malignancy AUC: ", m_auc)
-    print("Malignancy Recall: ", m_acc)
-
-    print("Subtype AUC: ", s_auc)
-    print("Subtype Recall: ", s_acc)
-
-    test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDANT TEST SCORE"
-    print("**************************************")
-    print("**{:^34s}**".format(test1_label))
-    print("**************************************")
-    conf, auc = trainer.score(testset, 32)
-
-    m_conf, s_conf = conf
-    m_auc, s_auc = auc
-
-    m_acc = compute_recall(m_conf)
-    s_acc = compute_recall(s_conf)
-
-    print("Malignancy AUC: ", m_auc)
-    print("Malignancy Recall: ", m_acc)
-
-    print("Subtype AUC: ", s_auc)
-    print("Subtype Recall: ", s_acc)
+    conf, auc = trainer.score(testset)
+    print_score(dataset_name="{} TEST SCORE".format(testset_name.upper()),
+                task_list=TASK_LIST,
+                conf_mat_list=conf,
+                auc_list=auc)
 
     if not args.extra_data:
-        test2_label = "INDEPENDANT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
-        print("**************************************")
-        print("**{:^34s}**".format(test2_label))
-        print("**************************************")
-        conf, auc = trainer.score(testset2, 32)
-
-        m_conf, s_conf = conf
-        m_auc, s_auc = auc
-
-        m_acc = compute_recall(m_conf)
-        s_acc = compute_recall(s_conf)
-
-        print("Malignancy AUC: ", m_auc)
-        print("Malignancy Recall: ", m_acc)
-
-        print("Subtype AUC: ", s_auc)
-        print("Subtype Recall: ", s_acc)
+        conf, auc = trainer.score(testset2)
+        print_score(dataset_name="{} TEST SCORE".format(testset2_name.upper()),
+                    task_list=TASK_LIST,
+                    conf_mat_list=conf,
+                    auc_list=auc)

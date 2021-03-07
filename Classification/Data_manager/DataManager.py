@@ -10,7 +10,7 @@
                         train/validation split.
 """
 import h5py
-from monai.transforms import compose
+from monai.transforms import Compose
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -52,7 +52,7 @@ class RenalDataset(Dataset):
                  hdf5_filepath: str,
                  imgs_keys: Union[Sequence[str], str],
                  split: Union[str, None] = "train",
-                 transform: Union[compose, None] = None,
+                 transform: Union[Compose, None] = None,
                  clinical_features: Union[Sequence[str], str] = None):
         """
         Create a dataset by loading the renal image at the given path.
@@ -122,6 +122,23 @@ class RenalDataset(Dataset):
             self.__clinical_data = self.__clinical_data[mask] if self.__with_clinical else None
 
         return data, labels, clin
+
+    def labels_bincount(self) -> Sequence[np.array]:
+        """
+        Count the number of data per class for each task
+
+        :return: A list of np.array where each np.array represent the number of data per class.
+                 The length of the list is equal to the number of task.
+        """
+
+        all_labels = []
+        if type(self.__labels[0]) == dict:
+            for key in list(self.__labels[0].keys()):
+                all_labels.append([int(label[key]) for label in self.__labels])
+        else:
+            all_labels.append(self.__labels.astype(int))
+
+        return [np.bincount(label_list) for label_list in all_labels]
 
     def normalize_clin_data(self,
                             mean: Union[Sequence[float], np.array, None] = None,

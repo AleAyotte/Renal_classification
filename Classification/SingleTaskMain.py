@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from torchsummary import summary
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
-from Trainer.Utils import compute_recall
+from Utils import print_score, print_data_distribution
 
 
 def argument_parser():
@@ -129,8 +129,11 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
+    # TODO: CHANGE THE testset name in the hdf5 file
     # "test" is the stratified test and test2 is the independent test.
     test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
+    testset_name = args.testset
+    testset2_name = "independant" if args.testset == "stratified" else "stratified"
 
     trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
     validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=None)
@@ -163,6 +166,24 @@ if __name__ == "__main__":
                  pre_act=True).to(args.device)
 
     summary(net, (3, 96, 96, 32))
+
+    # --------------------------------------------
+    #                SANITY CHECK
+    # --------------------------------------------
+    print_data_distribution("Training Set",
+                            [args.task],
+                            trainset.labels_bincount())
+    print_data_distribution("Validation Set",
+                            [args.task],
+                            validset.labels_bincount())
+    print_data_distribution("{} Set".format(testset_name.capitalize()),
+                            [args.task],
+                            testset.labels_bincount())
+    if not args.extra_data:
+        print_data_distribution("{} Set".format(testset2_name.capitalize()),
+                                [args.task],
+                                testset2.labels_bincount())
+    print("\n")
 
     # --------------------------------------------
     #                   TRAINER
@@ -198,29 +219,21 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                    SCORE
     # --------------------------------------------
-    print("**************************************")
-    print("**{:^34s}**".format("VALIDATION SCORE"))
-    print("**************************************")
-    conf, auc = trainer.score(validset, 2)
-    recall = compute_recall(conf)
-    print("AUC: ", auc)
-    print("Recall: ", recall)
+    conf, auc = trainer.score(validset)
+    print_score(dataset_name="VALIDATION SCORE",
+                task_list=[args.task],
+                conf_mat_list=[conf],
+                auc_list=[auc])
 
-    test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDENT TEST SCORE"
-    print("**************************************")
-    print("**{:^34s}**".format(test1_label))
-    print("**************************************")
-    conf, auc = trainer.score(testset, 2)
-    recall = compute_recall(conf)
-    print("AUC: ", auc)
-    print("Recall: ", recall)
+    conf, auc = trainer.score(testset)
+    print_score(dataset_name="{} TEST SCORE".format(testset_name.upper()),
+                task_list=[args.task],
+                conf_mat_list=[conf],
+                auc_list=[auc])
 
     if not args.extra_data:
-        test2_label = "INDEPENDENT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
-        print("**************************************")
-        print("**{:^34s}**".format(test2_label))
-        print("**************************************")
-        conf, auc = trainer.score(testset2, 2)
-        recall = compute_recall(conf)
-        print("AUC: ", auc)
-        print("Recall: ", recall)
+        conf, auc = trainer.score(testset2)
+        print_score(dataset_name="{} TEST SCORE".format(testset2_name.upper()),
+                    task_list=[args.task],
+                    conf_mat_list=[conf],
+                    auc_list=[auc])

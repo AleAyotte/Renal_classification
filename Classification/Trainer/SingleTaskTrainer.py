@@ -30,8 +30,8 @@ ALL_TASK = ["malignant", "subtype", "grade"]
 
 class SingleTaskTrainer(Trainer):
     """
-    The trainer class define an object that will be used to train and evaluate a given model. It handle the 
-    mixed precision training, the mixup process and more.
+    The SingleTaskTrainer class inherit of the Trainer class. It handle the training and the assess of a given
+    model on a single task.
 
     ...
     Attributes
