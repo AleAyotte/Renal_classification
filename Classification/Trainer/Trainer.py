@@ -26,9 +26,9 @@ from tqdm import tqdm
 from typing import Sequence, Tuple, Union
 
 
-VALIDATION_BATCH_SIZE = 2  # Batch size used to create the validation dataloader and the test dataloader
-MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
 DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
+MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
+VALIDATION_BATCH_SIZE = 2  # Batch size used to create the validation dataloader and the test dataloader
 
 
 class Trainer(ABC):

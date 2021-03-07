@@ -441,7 +441,8 @@ class MultiTaskTrainer(Trainer):
         if s_cond_pred is not None:
             s_cond_conf = confusion_matrix(s_cond_labels.numpy(), s_cond_pred.numpy())
         else:
-            s_cond_conf = None
+            s_cond_conf = np.array([[float("nan"), float("nan")],
+                                    [float("nan"), float("nan")]])
 
         if get_loss:
             return [m_conf, s_conf, s_cond_conf], total_loss.item()
