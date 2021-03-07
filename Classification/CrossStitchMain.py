@@ -60,6 +60,8 @@ def argument_parser():
                         choices=["standard", "Mixup"])
     parser.add_argument('--num_epoch', type=int, default=100,
                         help="The number of training epoch.")
+    parser.add_argument('--num_cumu_batch', type=int, default=1,
+                        help="The number of batch that will be cumulated before updating the weight of the model.")
     parser.add_argument('--optim', type=str, default="sgd",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
@@ -231,6 +233,7 @@ if __name__ == "__main__":
                 warm_up_epoch=args.warm_up,
                 eps=args.eps,
                 batch_size=args.b_size,
+                num_cumulated_batch=args.num_cumu_batch,
                 device=args.device,
                 optim=args.optim,
                 num_epoch=args.num_epoch,

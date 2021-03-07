@@ -123,6 +123,8 @@ class Trainer(ABC):
         self._loss = loss.lower()
         self._soft = nn.Softmax(dim=-1)
         self.__shared_net = shared_net
+        self.__num_cumulated_batch = 1
+        self.__cumulate_counter = 0
 
     def fit(self,
             model: Union[NeuralNet, ResNet2D],
@@ -130,6 +132,7 @@ class Trainer(ABC):
             validset: RenalDataset,
             num_epoch: int = 200, 
             batch_size: int = 32,
+            num_cumulated_batch: int = 1,
             gamma: float = 2.,
             learning_rate: float = 1e-3,
             shared_lr: float = 0,
@@ -155,6 +158,7 @@ class Trainer(ABC):
         :param validset: The dataset that will be used to mesure the model performance.
         :param num_epoch: Maximum number of epoch during the training. (Default=200)
         :param batch_size: The batch size that will be used during the training. (Default=32)
+        :param num_cumulated_batch: The number of batch that will be cumulated before updating the weight of the model.
         :param gamma: Gamma parameter of the focal loss. (Default=2.0)
         :param learning_rate: Start learning rate of the optimizer. (Default=1e-3)
         :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
@@ -183,6 +187,8 @@ class Trainer(ABC):
         current_mode = "Standard"
         last_saved_loss = float("inf")
         early_stopping_epoch = int(num_epoch / 3) - 1
+        self.__num_cumulated_batch = num_cumulated_batch
+        self.__cumulate_counter = 0
 
         # Tensorboard writer
         self._writer = SummaryWriter()
@@ -339,29 +345,33 @@ class Trainer(ABC):
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param loss: The loss of the current epoch.
         """
+        self.__cumulate_counter += 1
+
         # Mixed precision enabled
         if self._mixed_precision:
             scaler.scale(loss).backward()
 
-            for optimizer in optimizers:
-                scaler.unscale_(optimizer)
+            if self.__cumulate_counter % self.__num_cumulated_batch == 0:
+                for optimizer in optimizers:
+                    scaler.unscale_(optimizer)
 
-            if grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
+                if grad_clip > 0:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
-            for optimizer in optimizers:
-                scaler.step(optimizer)
-            scaler.update()
+                for optimizer in optimizers:
+                    scaler.step(optimizer)
+                scaler.update()
 
         # Mixed precision disabled
         else:
             loss.backward()
 
-            if grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
+            if self.__cumulate_counter % self.__num_cumulated_batch == 0:
+                if grad_clip > 0:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
-            for optimizer in optimizers:
-                optimizer.step()
+                for optimizer in optimizers:
+                    optimizer.step()
 
         for scheduler in schedulers:
             scheduler.step()
