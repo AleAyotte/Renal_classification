@@ -4,7 +4,7 @@ This project aim to assess the benifit of multi-task learning in classification 
  ## Table of contents
 * [General info](#general-info)
 * [Requirements](#requirements)
-* [Tasks List](#tasks-list)
+* [Task List](#task-list)
 * [Folder Structure](#folder-structure)
 * [Authors](#authors)
 * [Acknowledgments](#acknowledgments)
@@ -29,7 +29,7 @@ Morever, the following package are required to execute our code.
 - tqdm
 
 
-## Tasks List
+## Task List
 - [x] Normalization
 - [x] ResNet2D
 - [x] ResNet3D
