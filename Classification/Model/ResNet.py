@@ -3,15 +3,17 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       This file contain the classes ResNet and MultiLevelResNet that inherit from the NeuralNet class.
                         Also contain the ResNet block module.
+
+    @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
 
 from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
-from monai.networks.layers.factories import Act
+from monai.networks.layers.factories import Act, Norm
 from Model.NeuralNet import NeuralNet
 import numpy as np
 from Trainer.Utils import init_weights
@@ -20,7 +22,29 @@ import torch.nn as nn
 from typing import Sequence, Tuple, Union
 
 
+NB_TASK = 2
+
+
 class PreResBlock(nn.Module):
+    """
+    A 3D version of the preactivation residual bottleneck block as described in Ref 1).
+    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    first_activation: nn.module
+        The non linear activation function that is applied before the forward pass in the residual mapping.
+    first_normalization: nn.module
+        The normalization layer that is applied before the forward pass in the residual mapping.
+    residual_layer: nn.Sequential
+        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+    sub_conv: nn.Sequential
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        with the dimension of the residual mapping.
+    __subsample: boolean
+        A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    """
     expansion = 1
 
     def __init__(self,
@@ -31,7 +55,8 @@ class PreResBlock(nn.Module):
                  groups: int = 1,
                  split_layer: bool = False,
                  drop_rate: float = 0,
-                 activation: str = "relu"):
+                 activation: str = "relu",
+                 norm: str = "batch"):
         """
         Create a PreActivation Residual Block
 
@@ -44,20 +69,21 @@ class PreResBlock(nn.Module):
                             will ignore the groups parameter.
         :param drop_rate: The hyperparameter of the Dropout3D module.
         :param activation: The activation function that will be used in the model.
+        :param norm: The normalization layer name that will be used in the model.
         """
         super().__init__()
 
         if type(strides) == int and strides == 1:
-            self.subsample = False
+            self.__subsample = False
         elif type(strides) == Sequence and np.sum(strides) == 3:
-            self.subsample = False
+            self.__subsample = False
         else:
-            self.subsample = True
+            self.__subsample = True
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
 
-        self.bn1 = nn.BatchNorm3d(fmap_in)
-        self.activation1 = Act[activation]()
+        self.first_normalization = Norm[norm, 3](fmap_in)
+        self.first_activation = Act[activation]()
 
         if type(kernel) == int:
             padding = int((kernel - 1)/2)
@@ -68,7 +94,7 @@ class PreResBlock(nn.Module):
             nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides,
                       padding=padding, bias=False,
                       groups=groups if split_layer is False else 1,),
-            nn.BatchNorm3d(fmap_out),
+            Norm[norm, 3](fmap_out),
             Act[activation](),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1,
                       padding=padding, bias=False,
@@ -88,10 +114,10 @@ class PreResBlock(nn.Module):
         :return: Output tensor of the residual block
         """
 
-        out = self.bn1(x)
-        out = self.activation1(out)
+        out = self.first_normalization(x)
+        out = self.first_activation(out)
 
-        if self.subsample:
+        if self.__subsample:
             shortcut = self.sub_conv(out)
         else:
             shortcut = x
@@ -102,6 +128,25 @@ class PreResBlock(nn.Module):
 
 
 class PreResBottleneck(nn.Module):
+    """
+    A 3D version of the preactivation residual block as described in Ref 1).
+    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    first_activation: nn.module
+        The non linear activation function that is applied before the forward pass in the residual mapping.
+    first_normalization: nn.module
+        The normalization layer that is applied before the forward pass in the residual mapping.
+    residual_layer: nn.Sequential
+        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+    sub_conv: nn.Sequential
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        with the dimension of the residual mapping.
+    __subsample: boolean
+        A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    """
     expansion = 4
 
     def __init__(self,
@@ -112,7 +157,8 @@ class PreResBottleneck(nn.Module):
                  groups: int = 1,
                  split_layer: bool = False,
                  drop_rate: float = 0,
-                 activation: str = "relu"):
+                 activation: str = "relu",
+                 norm: str = "batch"):
         """
         Create a PreActivation Residual Block
 
@@ -125,21 +171,22 @@ class PreResBottleneck(nn.Module):
                             will ignore the groups parameter.
         :param drop_rate: The hyperparameter of the Dropout3D module.
         :param activation: The activation function that will be used in the model.
+        :param norm: The normalization layer name that will be used in the model.
         """
         super().__init__()
 
         if type(strides) == int and strides == 1:
-            self.subsample = False
+            self.__subsample = False
         elif type(strides) == Sequence and np.sum(strides) == 3:
-            self.subsample = False
+            self.__subsample = False
         else:
-            self.subsample = True
+            self.__subsample = True
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out*self.expansion, kernel_size=1,
                                       stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
 
-        self.bn1 = nn.BatchNorm3d(fmap_in)
-        self.activation1 = Act[activation]()
+        self.first_normalization = Norm[norm, 3](fmap_in)
+        self.first_activation = Act[activation]()
 
         if type(kernel) == int:
             padding = int((kernel - 1)/2)
@@ -150,12 +197,12 @@ class PreResBottleneck(nn.Module):
             nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
                       stride=1, bias=False,
                       groups=groups if split_layer is False else 1,),
-            nn.BatchNorm3d(fmap_out),
+            Norm[norm, 3](fmap_out),
             Act[activation](),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
                       stride=strides, padding=padding, bias=False,
                       groups=groups),
-            nn.BatchNorm3d(fmap_out),
+            Norm[norm, 3](fmap_out),
             Act[activation](),
             nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
                       stride=1, bias=False,
@@ -175,10 +222,10 @@ class PreResBottleneck(nn.Module):
         :return: Output tensor of the residual block
         """
 
-        out = self.bn1(x)
-        out = self.activation1(out)
+        out = self.first_normalization(x)
+        out = self.first_activation(out)
 
-        if self.subsample:
+        if self.__subsample:
             shortcut = self.sub_conv(out)
         else:
             shortcut = x
@@ -189,6 +236,16 @@ class PreResBottleneck(nn.Module):
 
 
 class ResBlock(nn.Module):
+    """
+    A 3D version of the residual block as described in Ref 1).
+    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    res: ResidualUnit
+        A MONAI implementation of the Residual block. Act like an nn.Sequential.
+    """
     expansion = 1
 
     def __init__(self,
@@ -197,7 +254,8 @@ class ResBlock(nn.Module):
                  kernel: Union[Sequence[int], int] = 3,
                  strides: Union[Sequence[int], int] = 1,
                  drop_rate: float = 0,
-                 activation: str = "ReLU"):
+                 activation: str = "ReLU",
+                 norm: str = "batch"):
         """
         Create a PreActivation Residual Block using MONAI
 
@@ -207,12 +265,13 @@ class ResBlock(nn.Module):
         :param strides: Convolution strides.
         :param drop_rate: The hyperparameter of the Dropout3D module.
         :param activation: The activation function that will be used
+        :param norm: The normalization layer name that will be used in the model.
         """
         super().__init__()
 
         self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
                                 kernel_size=kernel, strides=strides, dropout=drop_rate,
-                                dropout_dim=3, act=activation, norm="BATCH",
+                                dropout_dim=3, act=activation, norm=norm,
                                 last_conv_only=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -221,46 +280,113 @@ class ResBlock(nn.Module):
         return out
 
 
-class PreResBlock2(nn.Module):
-    expansion = 1
+class ResBottleneck(nn.Module):
+    """
+    A 3D version of the residual bottleneck block as described in Ref 1).
+    (Conv(1x1x1), Norm, Act, Conv(kernel), Norm, Act, Conv(1x1x1), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    last_activation: nn.module
+        The non linear activation function that is applied after adding the shorcut to the residual mapping.
+    residual_layer: nn.Sequential
+        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+    sub_conv: nn.Sequential
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        with the dimension of the residual mapping.
+    __subsample: boolean
+        A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    """
+    expansion = 4
 
     def __init__(self,
                  fmap_in: int,
                  fmap_out: int,
                  kernel: Union[Sequence[int], int] = 3,
                  strides: Union[Sequence[int], int] = 1,
+                 groups: int = 1,
+                 split_layer: bool = False,
                  drop_rate: float = 0,
-                 activation: str = "ReLU"):
+                 activation: str = "relu",
+                 norm: str = "batch"):
         """
-        Create a PreActivation Residual Block using MONAI
+        Create a PreActivation Residual Block
+
         :param fmap_in: Number of input feature maps
         :param fmap_out: Number of output feature maps
         :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
         :param strides: Convolution strides.
+        :param groups: Number of group in the convolutions.
+        :param split_layer: If true, then the first convolution and the shortcut
+                            will ignore the groups parameter.
         :param drop_rate: The hyperparameter of the Dropout3D module.
-        :param activation: The activation function that will be used
+        :param activation: The activation function that will be used in the model.
+        :param norm: The normalization layer name that will be used in the model.
         """
         super().__init__()
 
-        self.bn = nn.BatchNorm3d(fmap_in)
-        self.act = Act[activation]()
-        self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
-                                kernel_size=kernel, strides=strides, dropout=drop_rate,
-                                dropout_dim=3, act=activation, norm="BATCH",
-                                last_conv_only=True)
+        if type(strides) == int and strides == 1:
+            self.__subsample = False
+        elif type(strides) == Sequence and np.sum(strides) == 3:
+            self.__subsample = False
+        else:
+            self.__subsample = True
+            self.sub_conv = nn.Conv3d(fmap_in, fmap_out*self.expansion, kernel_size=1,
+                                      stride=strides, bias=False,
+                                      groups=groups if split_layer is False else 1)
+
+        if type(kernel) == int:
+            padding = int((kernel - 1)/2)
+        else:
+            padding = [int((ker - 1)/2) for ker in kernel]
+
+        res_layer = [
+            nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
+                      stride=1, bias=False,
+                      groups=groups if split_layer is False else 1,),
+            Norm[norm, 3](fmap_out),
+            Act[activation](),
+            nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
+                      stride=strides, padding=padding, bias=False,
+                      groups=groups),
+            Norm[norm, 3](fmap_out),
+            Act[activation](),
+            nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
+                      stride=1, bias=False,
+                      groups=groups),
+            Norm[norm, 3](fmap_out*self.expansion)
+        ]
+
+        if drop_rate > 0:
+            res_layer.extend([nn.Dropout3d(drop_rate)])
+
+        self.residual_layer = nn.Sequential(*res_layer)
+        self.last_activation = Act[activation]()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.bn(x)
-        out = self.act(out)
-        out = self.res(out)
+        """
+        Define the forward pass of the Residual layer
 
-        return out
+        :param x: Input tensor of the convolutional layer
+        :return: Output tensor of the residual block
+        """
+
+        if self.__subsample:
+            shortcut = self.sub_conv(x)
+        else:
+            shortcut = x
+
+        out = self.residual_layer(x) + shortcut
+
+        return self.last_activation(out)
 
 
 class ResNet(NeuralNet):
     """
-    Create a pre activation or post activation 3D Residual Network.
-     ...
+    A ResNet 3D implementation for single task training.
+
+    ...
     Attributes
     ----------
     conv: Convolution
@@ -306,8 +432,29 @@ class ResNet(NeuralNet):
                  drop_rate: float = 0,
                  drop_type: str = "flat",
                  act: str = "ReLU",
+                 norm: str = "batch",
                  pre_act: bool = True):
+        """
+        Create a pre activation or post activation 3D Residual Network.
 
+        :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
+        :param first_channels: The number of channels at the output of the first convolution layer. (Default=16)
+        :param num_classes: The number of features at the output of the neural network. (Default=2)
+        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
+        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
+        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
+                      dristribution Beta(alpha, alpha).
+        :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
+        :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
+                          Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
+                          from 0 to 'drop_rate'. (Default='Flat')
+        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
+                     (Default=batch)
+        :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
+                        ResBottleneck. (Defaut=True)
+        """
         super().__init__()
 
         # --------------------------------------------
@@ -326,7 +473,7 @@ class ResNet(NeuralNet):
         if pre_act:
             block = {18: PreResBlock, 34: PreResBlock, 50: PreResBottleneck, 101: PreResBottleneck}
         else:
-            block = {18: ResBlock, 34: ResBlock}
+            block = {18: ResBlock, 34: ResBlock, 50: ResBottleneck, 101: ResBottleneck}
 
         layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
 
@@ -360,20 +507,23 @@ class ResNet(NeuralNet):
                                 conv_only=pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
-                                         first_channels,
-                                         kernel=kernel, strides=[2, 2, 1],
+                                         first_channels, kernel=kernel,
+                                         strides=[2, 2, 1], norm=norm,
                                          drop_rate=dropout[0], act=act)
+
         self.layers2 = self.__make_layer(block[depth], layers[depth][1],
-                                         first_channels * 2,
-                                         kernel=kernel, strides=[2, 2, 2],
+                                         first_channels * 2, kernel=kernel,
+                                         strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[1], act=act)
+
         self.layers3 = self.__make_layer(block[depth], layers[depth][2],
-                                         first_channels * 4,
-                                         kernel=kernel, strides=[2, 2, 2],
+                                         first_channels * 4, kernel=kernel,
+                                         strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[2], act=act)
+
         self.layers4 = self.__make_layer(block[depth], layers[depth][3],
-                                         first_channels * 8,
-                                         kernel=kernel, strides=[2, 2, 2],
+                                         first_channels * 8, kernel=kernel,
+                                         strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[3], act=act)
 
         # --------------------------------------------
@@ -391,13 +541,14 @@ class ResNet(NeuralNet):
         self.apply(init_weights)
 
     def __make_layer(self,
-                     block,
+                     block: Union[PreResBlock, PreResBottleneck, ResBlock, ResBottleneck],
                      num_block: int,
                      fmap_out: int,
                      kernel: Union[Sequence[int], int],
                      strides: Union[Sequence[int], int] = 1,
                      drop_rate: Sequence[float] = None,
-                     act: str = "ReLU") -> nn.Sequential:
+                     act: str = "ReLU",
+                     norm: str = "batch") -> nn.Sequential:
         layers = []
 
         for i in range(num_block):
@@ -405,7 +556,8 @@ class ResNet(NeuralNet):
                                 kernel=kernel,
                                 strides=strides if i == 0 else 1,
                                 drop_rate=drop_rate[i],
-                                activation=act))
+                                activation=act,
+                                norm=norm))
             self.__in_channels = fmap_out * block.expansion if i == 0 else self.__in_channels
 
         return nn.Sequential(*layers)
@@ -435,7 +587,7 @@ class ResNet(NeuralNet):
 
 class MultiLevelResNet(NeuralNet):
     """
-    Create a pre activation or post activation 3D Residual Network.
+    A  hard shared 3D Residual Network implementation for multi task learning.
 
     ...
     Attributes
@@ -447,12 +599,6 @@ class MultiLevelResNet(NeuralNet):
         The last fully connected layer that will be used to classify the malignity of the tumor.
     fc_layer_sub_1: nn.Linear
         The first fully connected layer that will be used to classify the subtype of the tumor.
-    fc_layer_sub_2: nn.Linear
-        The last fully connected layer that will be used to classify the subtype of the tumor.
-    fc_layer_grade_1: nn.Linear
-        The first fully connected layer that will be used to classify the grade of the tumor.
-    fc_layer_grade_2: nn.Linear
-        The last fully connected layer that will be used to classify the grade of the tumor.
     __in_channels: int
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
@@ -495,8 +641,34 @@ class MultiLevelResNet(NeuralNet):
                  drop_rate: float = 0,
                  drop_type: str = "flat",
                  act: str = "ReLU",
+                 norm: str = "batch",
                  pre_act: bool = True):
+        """
+        Create a pre activation or post activation 3D Residual Network for multi-task learning.
 
+        :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
+        :param first_channels: The number of channels at the output of the first convolution layer. (Default=16)
+        :param split_level: At which level the multi level resnet should split into sub net. (Default=4)
+                                1: After the first convolution,
+                                2: After the first residual level,
+                                3: After the second residual level,
+                                4: After the third residual level,
+                                5: After the last residual level so just before the fully connected layers.
+        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
+        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
+        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
+                      dristribution Beta(alpha, alpha).
+        :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
+        :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
+                          Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
+                          from 0 to 'drop_rate'. (Default='Flat')
+        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
+                     (Default=batch)
+        :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
+                        ResBottleneck. (Defaut=True)
+        """
         super().__init__()
         self.__split = split_level
         self.__in_channels = first_channels
@@ -510,13 +682,10 @@ class MultiLevelResNet(NeuralNet):
             if mixup[i] > 0:
                 self.mixup[str(i)] = Mixup(mixup[i])
 
-        # if depth in [50, 101]:
-        #     raise NotImplementedError
-
         # --------------------------------------------
         #              UNCERTAINTY LOSS
         # --------------------------------------------
-        self.uncertainty_loss = UncertaintyLoss(num_classes=3)
+        self.uncertainty_loss = UncertaintyLoss(num_classes=NB_TASK)
 
         # --------------------------------------------
         #                    BLOCK
@@ -558,29 +727,32 @@ class MultiLevelResNet(NeuralNet):
                                 conv_only=pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
-                                         first_channels,
-                                         kernel=kernel, strides=[2, 2, 1],
+                                         first_channels, kernel=kernel,
+                                         strides=[2, 2, 1], norm=norm,
                                          drop_rate=dropout[0], act=act,
                                          split_layer=(1 == split_level),
-                                         groups=3 if 1 >= split_level else 1)
+                                         groups=NB_TASK if 1 >= split_level else 1)
+
         self.layers2 = self.__make_layer(block[depth], layers[depth][1],
-                                         first_channels * 2,
-                                         kernel=kernel, strides=[2, 2, 2],
+                                         first_channels * 2, kernel=kernel,
+                                         strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[1], act=act,
                                          split_layer=(2 == split_level),
-                                         groups=3 if 2 >= split_level else 1)
+                                         groups=NB_TASK if 2 >= split_level else 1)
+
         self.layers3 = self.__make_layer(block[depth], layers[depth][2],
-                                         first_channels * 4,
-                                         kernel=kernel, strides=[2, 2, 2],
+                                         first_channels * 4, kernel=kernel,
+                                         strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[2], act=act,
                                          split_layer=(3 == split_level),
-                                         groups=3 if 3 >= split_level else 1)
+                                         groups=NB_TASK if 3 >= split_level else 1)
+
         self.layers4 = self.__make_layer(block[depth], layers[depth][3],
-                                         first_channels * 8,
-                                         kernel=kernel, strides=[2, 2, 2],
+                                         first_channels * 8, kernel=kernel,
+                                         strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[3], act=act,
                                          split_layer=(4 == split_level),
-                                         groups=3 if 4 >= split_level else 1)
+                                         groups=NB_TASK if 4 >= split_level else 1)
 
         # --------------------------------------------
         #                   FC LAYERS
@@ -593,22 +765,22 @@ class MultiLevelResNet(NeuralNet):
         if self.__split == 5:
             self.__num_flat_features = self.__in_channels
         else:
-            self.__num_flat_features = int(self.__in_channels / 3)
+            self.__num_flat_features = int(self.__in_channels / NB_TASK)
 
         self.fc_layer_mal = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 2))
         self.fc_layer_sub_1 = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 2))
-        self.fc_layer_grade_1 = torch.nn.Sequential(torch.nn.Linear(self.__num_flat_features, 2))
 
         self.apply(init_weights)
 
     def __make_layer(self,
-                     block,
+                     block: Union[PreResBlock, PreResBottleneck, ResBlock, ResBottleneck],
                      num_block: int,
                      fmap_out: int,
                      kernel: Union[Sequence[int], int],
                      strides: Union[Sequence[int], int] = 1,
                      drop_rate: Sequence[float] = None,
                      act: str = "ReLU",
+                     norm: str = "batch",
                      groups: int = 1,
                      split_layer: bool = False) -> nn.Sequential:
 
@@ -620,6 +792,7 @@ class MultiLevelResNet(NeuralNet):
                                 strides=strides if i == 0 else 1,
                                 drop_rate=drop_rate[i],
                                 activation=act,
+                                norm=norm,
                                 groups=groups,
                                 split_layer=split_layer))
             split_layer = False
@@ -627,7 +800,7 @@ class MultiLevelResNet(NeuralNet):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         mixup_key_list = list(self.mixup.keys())
 
         out = self.mixup["0"](x) if "0" in mixup_key_list else x
@@ -649,13 +822,11 @@ class MultiLevelResNet(NeuralNet):
 
             mal_pred = self.fc_layer_mal(features)
             sub_pred = self.fc_layer_sub_1(features)
-            grade_pred = self.fc_layer_grade_1(features)
 
         else:
-            features = out.view(-1, 3, self.__num_flat_features)
+            features = out.view(-1, NB_TASK, self.__num_flat_features)
 
             mal_pred = self.fc_layer_mal(features[:, 0, :])
             sub_pred = self.fc_layer_sub_1(features[:, 1, :])
-            grade_pred = self.fc_layer_grade_1(features[:, 2, :])
 
-        return mal_pred, sub_pred, grade_pred
+        return mal_pred, sub_pred

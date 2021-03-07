@@ -12,65 +12,101 @@ from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
-from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand3DElasticd
+from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Trainer.Utils import compute_recall
 
+SAVE_PATH = "save/14_Fev_2020/"
+
 
 def argument_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--b_size', type=int, default=32)
-    parser.add_argument('--dataset', type=str, default='Option1_without_N4',
+    parser.add_argument('--b_size', type=int, default=32,
+                        help="The batch size.")
+    parser.add_argument('--dataset', type=str, default='New_Option1',
+                        help="The name of the folder that contain the dataset.",
                         choices=['Option1_with_N4', 'Option1_without_N4', "New_Option1"])
-    parser.add_argument('--device', type=str, default="cuda:0")
-    parser.add_argument('--eps', type=float, default=1e-3)
-    parser.add_argument('--eta_min', type=float, default=1e-6)
-    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True)
+    parser.add_argument('--device', type=str, default="cuda:0",
+                        help="The device on which the model will be trained.")
+    parser.add_argument('--eps', type=float, default=1e-3,
+                        help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
+    parser.add_argument('--eta_min', type=float, default=1e-6,
+                        help="The minimal value of the learning rate.")
+    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
+                        help="If true, the second testest will be add to the training dataset. "
+                             "The second dataset is determined with '--testset'.")
+    parser.add_argument('--grad_clip', type=float, default=2.25,
+                        help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
+                             "the training.")
     parser.add_argument('--loss', type=str, default="ce",
+                        help="The loss that will be use to train the model. 'ce' == cross entropy loss, "
+                             "'bce' == binary cross entropoy, 'focal' = focal loss",
                         choices=["ce", "bce", "focal"])
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 2])
-    parser.add_argument('--mode', type=str, default="Mixup",
+    parser.add_argument('--lr', type=float, default=1e-4,
+                        help="The initial learning rate")
+    parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 2],
+                        help="The alpha parameter of each mixup module. Those alpha parameter are used to sample "
+                             "the dristribution Beta(alpha, alpha).")
+    parser.add_argument('--mode', type=str, default="standard",
+                        help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
                         choices=["standard", "Mixup"])
-    parser.add_argument('--num_epoch', type=int, default=100)
+    parser.add_argument('--num_epoch', type=int, default=100,
+                        help="The number of training epoch.")
     parser.add_argument('--optim', type=str, default="sgd",
+                        help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
     parser.add_argument('--pad_mode', type=str, default="constant",
+                        help="How the image will be pad in the data augmentation.",
                         choices=["constant", "edge", "reflect", "symmetric"])
-    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True)
+    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
+                        help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
+    parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
+                        help="If True, then the SharedNet will be create with two subnet that has been pretrained on "
+                             "their corresponding task. Also, the shared_lr will be equal to lr * 100 and "
+                             "shared_eta_min will be equal to eta_min * 100.")
     parser.add_argument('--share_unit', type=str, default="sluice",
+                        help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
+                             "information transfer between multiple subnets",
                         choices=["sluice", "cross_stitch"])
     parser.add_argument('--testset', type=str, default="stratified",
-                        choices=["stratified", "independant"], help="The testset used to access the model")
+                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
+                             "the stratified dataset and the independant will be the second and hence could be used as "
+                             "extra data.",
+                        choices=["stratified", "independant"])
     parser.add_argument('--track_mode', type=str, default="all",
+                        help="Determine the quantity of training statistics that will be saved with tensorboard."
+                             "If low, the training loss will be saved only at each epoch and not at each iteration.",
                         choices=["all", "low", "none"])
-    parser.add_argument('--warm_up', type=int, default=0)
+    parser.add_argument('--warm_up', type=int, default=0,
+                        help="Number of epoch before activating the mixup if 'mode' == mixup")
     parser.add_argument('--weights', type=str, default="balanced",
+                        help="The weight that will be applied on each class in the training loss. If balanced, "
+                             "the classes weights will be ajusted in the training.",
                         choices=["flat", "balanced", "focused"])
-    parser.add_argument('--worker', type=int, default=0)
+    parser.add_argument('--worker', type=int, default=0,
+                        help="Number of worker that will be used to preprocess data.")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = argument_parser()
-    device = args.device
+    if args.mode == "Mixup":
+        raise NotImplementedError
 
     data_path = "final_dtset/{}/all.hdf5".format(args.dataset)
-    model_path = "save/14_Fev_2020/"
     # --------------------------------------------
     #              DATA AUGMENTATION
     # --------------------------------------------
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
         RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-        RandScaleIntensityd(keys=["t1", "t2"], factors=0.1, prob=0.5),
-        Rand3DElasticd(keys=["t1", "t2", "roi"], sigma_range=(3, 3), magnitude_range=(15, 35), prob=0.3),
+        RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
         RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
-                    rotate_range=[0, 0, 6.28], translate_range=0, padding_mode="zeros"),
+                    rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=1.00, max_zoom=1.05,
+        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
                   keep_size=False, mode="trilinear", align_corners=True),
         ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
@@ -103,8 +139,9 @@ if __name__ == "__main__":
     else:
         testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
 
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.8)
-
+    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
+    print(len(trainset))
+    print(len(validset))
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
@@ -113,44 +150,33 @@ if __name__ == "__main__":
                      depth=34,
                      first_channels=32,
                      in_shape=in_shape,
-                     drop_rate=0.5,
+                     drop_rate=0.1,
                      drop_type="linear",
-                     act="ReLU",
+                     act="LeakyReLU",
                      pre_act=True).to(args.device)
 
     sub_net = ResNet(mixup=args.mixup,
                      depth=18,
-                     first_channels=16,
+                     first_channels=24,
                      in_shape=in_shape,
-                     drop_rate=0.5,
+                     drop_rate=0.1,
                      drop_type="linear",
-                     act="ReLU",
+                     act="LeakyReLU",
                      pre_act=True).to(args.device)
 
-    grade_net = ResNet(mixup=args.mixup,
-                       depth=18,
-                       first_channels=16,
-                       in_shape=in_shape,
-                       drop_rate=0.5,
-                       drop_type="linear",
-                       act="ReLU",
-                       pre_act=True).to(args.device)
-
-    mal_net.restore(model_path + "malignant.pth")
-    sub_net.restore(model_path + "subtype.pth")
-    grade_net.restore(model_path + "grade.pth")
+    if args.pretrained:
+        mal_net.restore(SAVE_PATH + "malignant.pth")
+        sub_net.restore(SAVE_PATH + "subtype.pth")
 
     net = SharedNet(malignant_net=mal_net,
                     subtype_net=sub_net,
-                    grade_net=grade_net,
                     mixup=args.mixup,
-                    subspace_1=[4, 2, 2],
-                    subspace_2=[4, 2, 2],
-                    subspace_3=[4, 2, 2],
-                    subspace_4=[4, 2, 2],
-                    c=0.9,
+                    subspace_1=[4, 3],
+                    subspace_2=[8, 6],
+                    subspace_3=[8, 6],
+                    subspace_4=[4, 3],
+                    c=0.85,
                     spread=0.1).to(args.device)
-
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
@@ -161,7 +187,7 @@ if __name__ == "__main__":
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
-                      shared_net=True,
+                      shared_net=False,
                       track_mode=args.track_mode,
                       mixed_precision=True)
 
@@ -171,9 +197,9 @@ if __name__ == "__main__":
                 mode=args.mode,
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
-                # shared_lr=args.lr,  # Temporaire
-                # shared_eta_min=args.eta_min,  # Temporaire
-                grad_clip=5,
+                shared_lr=args.lr * 100 if args.pretrained else args.lr,
+                shared_eta_min=args.eta_min * 100 if args.pretrained else args.eta_min,
+                grad_clip=args.grad_clip,
                 warm_up_epoch=args.warm_up,
                 eps=args.eps,
                 batch_size=args.b_size,
@@ -181,7 +207,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                l2=1e-6)
+                l2=0.009)
 
     # --------------------------------------------
     #                    SCORE
@@ -189,41 +215,53 @@ if __name__ == "__main__":
     print("**************************************")
     print("**{:^34s}**".format("VALIDATION SCORE"))
     print("**************************************")
-    m_conf, s_conf, g_conf = trainer.score(validset, 32)
+    conf, auc = trainer.score(validset, 32)
+
+    m_conf, s_conf = conf
+    m_auc, s_auc = auc
 
     m_acc = compute_recall(m_conf)
     s_acc = compute_recall(s_conf)
-    g_acc = compute_recall(g_conf)
 
-    print("m_acc: ", m_acc)
-    print("s_acc: ", s_acc)
-    print("g_acc: ", g_acc)
+    print("Malignancy AUC: ", m_auc)
+    print("Malignancy Recall: ", m_acc)
+
+    print("Subtype AUC: ", s_auc)
+    print("Subtype Recall: ", s_acc)
 
     test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDANT TEST SCORE"
     print("**************************************")
     print("**{:^34s}**".format(test1_label))
     print("**************************************")
-    m_conf, s_conf, g_conf = trainer.score(testset, 32)
+    conf, auc = trainer.score(testset, 32)
+
+    m_conf, s_conf = conf
+    m_auc, s_auc = auc
 
     m_acc = compute_recall(m_conf)
     s_acc = compute_recall(s_conf)
-    g_acc = compute_recall(g_conf)
 
-    print("m_acc: ", m_acc)
-    print("s_acc: ", s_acc)
-    print("g_acc: ", g_acc)
+    print("Malignancy AUC: ", m_auc)
+    print("Malignancy Recall: ", m_acc)
+
+    print("Subtype AUC: ", s_auc)
+    print("Subtype Recall: ", s_acc)
 
     if not args.extra_data:
         test2_label = "INDEPENDANT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
         print("**************************************")
         print("**{:^34s}**".format(test2_label))
         print("**************************************")
-        m_conf, s_conf, g_conf = trainer.score(testset2, 32)
+        conf, auc = trainer.score(testset2, 32)
+
+        m_conf, s_conf = conf
+        m_auc, s_auc = auc
 
         m_acc = compute_recall(m_conf)
         s_acc = compute_recall(s_conf)
-        g_acc = compute_recall(g_conf)
 
-        print("m_acc: ", m_acc)
-        print("s_acc: ", s_acc)
-        print("g_acc: ", g_acc)
+        print("Malignancy AUC: ", m_auc)
+        print("Malignancy Recall: ", m_acc)
+
+        print("Subtype AUC: ", s_auc)
+        print("Subtype Recall: ", s_acc)

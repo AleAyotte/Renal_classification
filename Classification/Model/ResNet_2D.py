@@ -3,11 +3,12 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       This file contain the class ResNet2D based on the work of Zhao et al.
-    @Reference:         Yijun Zhao, Marcello Chang, Robin Wang et al. Deep Learning Based on MRI for
-                        Differentiation of Low- and High-Grade in Low-Stage Renal Cell Carcinoma, 2020
+
+    @Reference:         1) Yijun Zhao, Marcello Chang, Robin Wang et al. Deep Learning Based on MRI for
+                           Differentiation of Low- and High-Grade in Low-Stage Renal Cell Carcinoma, 2020
 """
 
 import torch
@@ -18,6 +19,10 @@ from typing import Tuple
 
 
 class ResNet2D(nn.Module):
+    """
+    An implementation of the ResNet 2D used in Ref) 1 to classify the grade of a malignant renal tumour
+    based on MRI images.
+    """
     def __init__(self,
                  nb_clinical_data: int = 10,
                  drop_rate: float = 0.5):
@@ -33,15 +38,11 @@ class ResNet2D(nn.Module):
         self.t1_net.fc = nn.Identity()
         self.t2_net.fc = nn.Identity()
 
-        # self.fc_images = nn.Sequential(nn.Linear(4096, 1024),
-        #                                nn.Linear(1024, 24))
-
         self.fc_images = nn.Sequential(nn.Dropout(p=drop_rate),
                                        nn.Linear(4096, 1024),
                                        nn.Dropout(p=drop_rate),
                                        nn.Linear(1024, 24))
-        self.fc_out = nn.Sequential(  # nn.Dropout(p=drop_rate),
-                                    nn.Linear(24+self._nb_clin_features, 2))
+        self.fc_out = nn.Sequential(nn.Linear(24+self._nb_clin_features, 2))
         self.__initialize_weight()
 
     def __initialize_weight(self):

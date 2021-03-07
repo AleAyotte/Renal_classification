@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       This file contain the abstract class NeuralNet from which all 3D NeuralNetwork will inherit.
                         The NeuralNet class has been designed to handle the mixup module usage and to load weight
@@ -18,7 +18,7 @@ from typing import Sequence, Tuple, Union
 
 class NeuralNet(nn.Module):
     """
-    Define the Neural Network abstract class
+    Define the Neural Network abstract class which will be used as a frame for the ResNet3D and the SharedNet classes.
 
     ...
     Attributes
@@ -65,7 +65,7 @@ class NeuralNet(nn.Module):
             for module in self.mixup.values():
                 module.enable = False
         else:
-            self.mixup[key].enable = False
+            self.mixup[str(key)].enable = False
     
     def set_mixup(self, b_size: int) -> None:
         """
