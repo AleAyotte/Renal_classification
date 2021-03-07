@@ -51,7 +51,7 @@ Morever, the following package are required to execute our code.
   - [x] SharedNet
   - [x] Uncertainty loss
   - [x] Conditional probability
-  - [ ] Cumulate gradient
+  - [x] Cumulate gradient
   - [ ] Add hparam tracking with comet.ml
   - [ ] Look for Adaptive Gradient Clipping
 - [ ] Radiomics
