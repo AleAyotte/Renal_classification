@@ -26,10 +26,13 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
 
+NUM_TASK = 2  # Number of task
+
+
 class MultiTaskTrainer(Trainer):
     """
-    The trainer class define an object that will be used to train and evaluate a given model. It handle the 
-    mixed precision training, the mixup process and more.
+    The MultiTaskTrainer class inherit of the Trainer class. It handle the training and the assess of a given
+    model on the malignancy and subtype tasks at the same time.
 
     ...
     Attributes
@@ -219,8 +222,8 @@ class MultiTaskTrainer(Trainer):
         s_labels = s_labels[s_mask] - 1
 
         if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
-            m_hot_target = to_one_hot(m_labels, 2, self._device)
-            s_hot_target = to_one_hot(s_labels, 2, self._device)
+            m_hot_target = to_one_hot(m_labels, NUM_TASK, self._device)
+            s_hot_target = to_one_hot(s_labels, NUM_TASK, self._device)
 
             m_mixed_target = lamb*m_hot_target + (1-lamb)*m_hot_target[permut]
             s_mixed_target = lamb*s_hot_target + (1-lamb)*s_hot_target[permut]
@@ -421,8 +424,8 @@ class MultiTaskTrainer(Trainer):
             s_cond_pred = torch.argmax(s_cond_outs, dim=1).cpu() if len(s_cond_outs) > 0 else None
 
             if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
-                m_target = to_one_hot(m_labels, 2, self._device)
-                s_target = to_one_hot(s_labels, 2, self._device)
+                m_target = to_one_hot(m_labels, NUM_TASK, self._device)
+                s_target = to_one_hot(s_labels, NUM_TASK, self._device)
             else:
                 m_target, s_target = m_labels, s_labels
 
