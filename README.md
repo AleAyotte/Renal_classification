@@ -31,14 +31,48 @@ Morever, the following package are required to execute our code.
 
 ## Task List
 - [x] Normalization
-- [x] ResNet2D
-- [x] ResNet3D
-- [x] MultiLevelResNet3D
-- [x] SharedNet
-- [ ] Conditional probability
+  - [x] MRIimage Class
+  - [x] Patient Class
+  - [x] Transfer header from images to ROI
+  - [x] Normalize and crop 3D images and ROI
+  - [x] Normalize and crop 2D images and ROI
+- [x] Classification 
+  - [x] RenalDataset
+  - [x] Abstract Trainer
+  - [x] NeuralNet
+- [x] Single-Task Learning
+  - [x] ResNet2D
+  - [x] ResNet3D
+  - [x] SingleTaskTrainer
+  - [x] Add tensorboard
+- [ ] Multi-Task Learning
+  - [x] MultiTaskTrainer
+  - [x] MultiLevelResNet3D
+  - [x] SharedNet
+  - [x] Uncertainty loss
+  - [ ] Conditional probability
+  - [ ] Cumulate gradient
+  - [ ] Add hparam tracking with comet.ml
+  - [ ] Look for Adaptive Gradient Clipping
 - [ ] Radiomics
+  - [ ] Compute Radiomics
+  - [ ] Baseline
+    - [ ] Radiomics random forest baseline
+    - [ ] Radiomics SVM baseline
+  - [ ] Radiomics as output
+    - [ ] With one principal task
+    - [ ] With all task
 - [ ] CapsNet
-- [ ] SharedCapsNet
+  - [ ] CapsNet Trainer
+  - [ ] Single-Task Learning
+    - [ ] CapsNet2D Baseline (Sabour et al. 2017)
+    - [ ] CapsNet3D Baseline (Sabour et al. 2017)
+    - [ ] Group CapsNet2D (Xinpeng D. et al. 2020)
+    - [ ] Group CapsNet3D (Xinpeng D. et al. 2020)
+  - [ ] Multi-Task-Learning
+    - [ ] SharedCapsNet
+    - [ ] SharedCapsNet with Radiomics
+- [ ] Write paper
 
 
 ## Folder Structure
