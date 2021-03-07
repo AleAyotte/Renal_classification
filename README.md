@@ -50,7 +50,7 @@ Morever, the following package are required to execute our code.
   - [x] MultiLevelResNet3D
   - [x] SharedNet
   - [x] Uncertainty loss
-  - [ ] Conditional probability
+  - [x] Conditional probability
   - [ ] Cumulate gradient
   - [ ] Add hparam tracking with comet.ml
   - [ ] Look for Adaptive Gradient Clipping
