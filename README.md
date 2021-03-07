@@ -50,7 +50,7 @@ Morever, the following package are required to execute our code.
 │   ├── Data_manager                # Dataset and data visualisation related files
 │   │   ├── DataAugView2D.py        # Visualisation of the data augmentation on 2D images
 │   │   ├── DataAugView3D.py        # Visualisation of the data augmentation on 3D images
-│   │   ├── DataManager.py          # RenalDataset class and split trainset function
+│   │   └── DataManager.py          # RenalDataset class and split trainset function
 │   │
 │   ├── Main_ResNet2D.py            # The main script for the experimentation on the ResNet2D
 │   │
