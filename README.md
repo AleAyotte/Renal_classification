@@ -14,13 +14,14 @@
 The present package is written in **Python 3.8**. In order to run it in full capacity, the user should have a **Nvidia GPU** with **CUDA 11.1** installed.
 Morever, the following package are required to execute our code.
 ```
--AntsPy
+-antspy
 -h5py
--MatPlotLib
--MONAI
+-matplotlib
+-monai
 -nibabel
--Pytorch
--Scikit-Learn
+-pandas
+-pytorch
+-scikit-learn
 -torchsummary
 -tqdm
 ```
