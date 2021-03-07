@@ -134,9 +134,9 @@ class RenalDataset(Dataset):
         all_labels = []
         if type(self.__labels[0]) == dict:
             for key in list(self.__labels[0].keys()):
-                all_labels.append([label[key] for label in self.__labels])
+                all_labels.append([int(label[key]) for label in self.__labels])
         else:
-            all_labels.append(self.__labels)
+            all_labels.append(self.__labels.astype(int))
 
         return [np.bincount(label_list) for label_list in all_labels]
 
