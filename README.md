@@ -1,33 +1,47 @@
  # Renal Classification
-
+This project aim to assess the benifit of multi-task learning in classification of renal lesion based on MRI images and clinical data. There is three task on which our models will be trained: the classification of the malignancy, the subtype and the grade of renal tumour. The classification of the subtype and the grade can only be done on malignant tumour.
  
  ## Table of contents
 * [General info](#general-info)
 * [Requirements](#requirements)
+* [Tasks List](#tasks-list)
 * [Folder Structure](#folder-structure)
+* [Authors](#authors)
 
 ## General info
-
+Please take note that the dataset has not been push on github since it include private data and it is really heavy.
+For any information about the data that has been used, please contact Alexandre Ayotte (Alexandre.Ayotte2@USherbrooke.ca) or Martin Vallières (Martin.Vallieres@USherbrooke.ca)
 
 ## Requirements
-
 The present package is written in **Python 3.8**. In order to run it in full capacity, the user should have a **Nvidia GPU** with **CUDA 11.1** installed.
 Morever, the following package are required to execute our code.
-```
--antspy
--h5py
--matplotlib
--monai
--nibabel
--pandas
--pytorch
--scikit-learn
--torchsummary
--tqdm
-```
+
+- antspy
+- h5py
+- matplotlib
+- monai
+- nibabel
+- pandas
+- pytorch
+- scikit-learn
+- torchsummary
+- tqdm
+
+
+## Tasks List
+- [x] Normalization
+- [x] ResNet2D
+- [x] ResNet3D
+- [x] MultiLevelResNet3D
+- [x] SharedNet
+- [ ] Conditional probability
+- [ ] Radiomics
+- [ ] CapsNet
+- [ ] SharedCapsNet
+
 
 ## Folder Structure
- ``` bash
+ ```
 .
 ├── Classification                         
 │   ├── CrossStitchMain.py          # The main script for the experimentation on the SharedNet
@@ -67,3 +81,9 @@ Morever, the following package are required to execute our code.
 │   └── VisualizeNormalization.py   # Script used to visualize the normalization process
 │
 └── README.md
+ ```
+
+## Authors
+- Alexandre Ayotte (Ms student in medical imaging, GRIIS)
+- Martin Vallieres (Pr University of Sherbrooke, GRIIS) 
+
