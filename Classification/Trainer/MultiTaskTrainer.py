@@ -160,8 +160,8 @@ class MultiTaskTrainer(Trainer):
             images, labels = data["sample"].to(self._device), data["labels"]
             images = Variable(images)
 
-            m_labels = Variable(labels["malignant"].to(self._device))
-            s_labels = Variable(labels["subtype"].to(self._device))
+            m_labels = Variable(labels["malignant"]).to(self._device)
+            s_labels = Variable(labels["subtype"]).to(self._device)
 
             features = None
             if "features" in list(data.keys()):
@@ -174,6 +174,8 @@ class MultiTaskTrainer(Trainer):
             with amp.autocast(enabled=self._mixed_precision):
                 m_pred, s_pred = self.model(images) if features is None else self.model(images, features)
 
+                # Create a mask of non malignant data
+                # We do not cast s_labels > 0 in torch.BoolTensor since its faster without it.
                 s_mask = torch.where(s_labels > 0, 1, 0).bool()
 
                 m_loss = self.__m_loss(m_pred, m_labels)
@@ -308,20 +310,29 @@ class MultiTaskTrainer(Trainer):
 
         with amp.autocast(enabled=self._mixed_precision):
             conf_mat, loss = self._get_conf_matrix(dt_loader=dt_loader, get_loss=True)
-            m_conf, s_conf = conf_mat
+            m_conf, s_conf, s_cond_conf = conf_mat
 
             m_recall = compute_recall(m_conf)
             s_recall = compute_recall(s_conf)
-            
+
             m_acc = get_mean_accuracy(m_recall, geometric_mean=True)
             s_acc = get_mean_accuracy(s_recall, geometric_mean=True)
-
             mean_acc = get_mean_accuracy([m_acc, s_acc], geometric_mean=True)
+
+            # If some malignant data has been well classified by the model.
+            if s_cond_conf is not None:
+                s_cond_recall = compute_recall(s_cond_conf)
+                s_cond_recall.append(float("nan")) if len(s_cond_recall) == 1 else None
+                s_cond_acc = get_mean_accuracy(s_cond_recall, geometric_mean=True)
+            else:
+                s_cond_recall = [float("nan"), float("nan")]
+                s_cond_acc = float("nan")
 
         if self._track_mode != "none":
             self._writer.add_scalars('{}/Accuracy'.format(dataset_name), 
                                      {'Malignant': m_acc,
-                                      'Subtype': s_acc},
+                                      'Subtype': s_acc,
+                                      'Cond Subtype': s_cond_acc},
                                      epoch)
 
             self._writer.add_scalars('{}/Recall/Malignant'.format(dataset_name), 
@@ -332,6 +343,11 @@ class MultiTaskTrainer(Trainer):
             self._writer.add_scalars('{}/Recall/Subtype'.format(dataset_name), 
                                      {'Recall 0': s_recall[0],
                                       'Recall 1': s_recall[1]},
+                                     epoch)
+
+            self._writer.add_scalars('{}/Recall/Cond Subtype'.format(dataset_name),
+                                     {'Recall 0': s_cond_recall[0],
+                                      'Recall 1': s_cond_recall[1]},
                                      epoch)
 
             if dataset_name == "Validation":
@@ -361,6 +377,7 @@ class MultiTaskTrainer(Trainer):
         m_labels = torch.empty(0).long()
         s_labels = torch.empty(0).long()
 
+        # Perform the forward pass on each element of the dataset
         for data in dt_loader:
             images, labels = data["sample"].to(self._device), data["labels"]
 
@@ -375,15 +392,33 @@ class MultiTaskTrainer(Trainer):
 
                 m_labels = torch.cat([m_labels, labels["malignant"]])
                 s_labels = torch.cat([s_labels, labels["subtype"]])
-        
-        with torch.no_grad():
-            s_mask = torch.where(s_labels > 0, 1, 0).bool()
 
+        # Compute the pred and the conditional prediction
+        # (prediction of subtype knowing model was accurate on malignancy)
+        with torch.no_grad():
+            m_pred = torch.argmax(m_outs, dim=1).cpu()
+
+            # Get index of data where m_pred == m_labels == 1 and create a mask
+            s_cond_mask = torch.where(
+                torch.logical_and(
+                    torch.BoolTensor(m_pred == m_labels),
+                    torch.BoolTensor(s_labels > 0)),
+                1, 0
+            ).bool()
+
+            # Create a mask of non malignant data
+            s_mask = torch.where(torch.BoolTensor(s_labels > 0), 1, 0).bool()
+
+            # Apply the mask and adjust the labels
+            s_cond_labels = s_labels[s_cond_mask] - 1
+            s_cond_outs = s_outs[s_cond_mask]
+
+            # Apply the mask and adjust the labels
             s_labels = s_labels[s_mask] - 1
             s_outs = s_outs[s_mask]
 
-            m_pred = torch.argmax(m_outs, dim=1)
-            s_pred = torch.argmax(s_outs, dim=1)
+            s_pred = torch.argmax(s_outs, dim=1).cpu()
+            s_cond_pred = torch.argmax(s_cond_outs, dim=1).cpu() if len(s_cond_outs) > 0 else None
 
             if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
                 m_target = to_one_hot(m_labels, 2, self._device)
@@ -397,15 +432,29 @@ class MultiTaskTrainer(Trainer):
             losses = torch.stack((m_loss, s_loss))
             total_loss = self.model.uncertainty_loss(losses)
 
-        m_conf = confusion_matrix(m_labels.numpy(), m_pred.cpu().numpy())
-        s_conf = confusion_matrix(s_labels.numpy(), s_pred.cpu().numpy())
+        m_conf = confusion_matrix(m_labels.numpy(), m_pred.numpy())
+        s_conf = confusion_matrix(s_labels.numpy(), s_pred.numpy())
+
+        if s_cond_pred is not None:
+            s_cond_conf = confusion_matrix(s_cond_labels.numpy(), s_cond_pred.numpy())
+        else:
+            s_cond_conf = None
 
         if get_loss:
-            return [m_conf, s_conf], total_loss.item()
+            return [m_conf, s_conf, s_cond_conf], total_loss.item()
 
         else:
+            # Compute the roc curve and the AUC on the malignancy and the subtype task
             fpr, tpr, _ = roc_curve(y_true=m_labels.numpy(), y_score=m_outs[:, 1].cpu().numpy())
             m_auc_score = auc(fpr, tpr)
             fpr, tpr, _ = roc_curve(y_true=s_labels.numpy(), y_score=s_outs[:, 1].cpu().numpy())
             s_auc_score = auc(fpr, tpr)
-            return [m_conf, s_conf], [m_auc_score, s_auc_score]
+
+            # Compute the roc curve and the AUC on subtype input that has been well classified for the malignancy
+            if s_cond_pred is not None:
+                fpr, tpr, _ = roc_curve(y_true=s_cond_labels.numpy(), y_score=s_cond_outs[:, 1].cpu().numpy())
+                s_cond_auc_score = auc(fpr, tpr)
+            else:
+                s_cond_auc_score = float("nan")
+
+            return [m_conf, s_conf, s_cond_conf], [m_auc_score, s_auc_score, s_cond_auc_score]
