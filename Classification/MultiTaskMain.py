@@ -58,7 +58,7 @@ def argument_parser():
     parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 2],
                         help="The alpha parameter of each mixup module. Those alpha parameter are used to sample "
                              "the dristribution Beta(alpha, alpha).")
-    parser.add_argument('--mode', type=str, default="Mixup",
+    parser.add_argument('--mode', type=str, default="standard",
                         help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
                         choices=["standard", "Mixup"])
     parser.add_argument('--num_epoch', type=int, default=100,
@@ -198,17 +198,21 @@ if __name__ == "__main__":
     print("**************************************")
     conf, auc = trainer.score(validset, 32)
 
-    m_conf, s_conf = conf
-    m_auc, s_auc = auc
+    m_conf, s_conf, s_cond_conf = conf
+    m_auc, s_auc, s_cond_auc = auc
 
     m_acc = compute_recall(m_conf)
     s_acc = compute_recall(s_conf)
+    s_cond_acc = compute_recall(s_cond_conf)
 
     print("Malignancy AUC: ", m_auc)
     print("Malignancy Recall: ", m_acc)
 
     print("Subtype AUC: ", s_auc)
     print("Subtype Recall: ", s_acc)
+
+    print("Subtype|Malignant AUC: ", s_cond_auc)
+    print("Subtype|Malignant Recall: ", s_cond_acc)
 
     test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDANT TEST SCORE"
     print("**************************************")
@@ -216,17 +220,21 @@ if __name__ == "__main__":
     print("**************************************")
     conf, auc = trainer.score(testset, 32)
 
-    m_conf, s_conf = conf
-    m_auc, s_auc = auc
+    m_conf, s_conf, s_cond_conf = conf
+    m_auc, s_auc, s_cond_auc = auc
 
     m_acc = compute_recall(m_conf)
     s_acc = compute_recall(s_conf)
+    s_cond_acc = compute_recall(s_cond_conf)
 
     print("Malignancy AUC: ", m_auc)
     print("Malignancy Recall: ", m_acc)
 
     print("Subtype AUC: ", s_auc)
     print("Subtype Recall: ", s_acc)
+
+    print("Subtype|Malignant AUC: ", s_cond_auc)
+    print("Subtype|Malignant Recall: ", s_cond_acc)
 
     if not args.extra_data:
         test2_label = "INDEPENDANT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
@@ -235,14 +243,18 @@ if __name__ == "__main__":
         print("**************************************")
         conf, auc = trainer.score(testset2, 32)
 
-        m_conf, s_conf = conf
-        m_auc, s_auc = auc
+        m_conf, s_conf, s_cond_conf = conf
+        m_auc, s_auc, s_cond_auc = auc
 
         m_acc = compute_recall(m_conf)
         s_acc = compute_recall(s_conf)
+        s_cond_acc = compute_recall(s_cond_conf)
 
         print("Malignancy AUC: ", m_auc)
         print("Malignancy Recall: ", m_acc)
 
         print("Subtype AUC: ", s_auc)
         print("Subtype Recall: ", s_acc)
+
+        print("Subtype|Malignant AUC: ", s_cond_auc)
+        print("Subtype|Malignant Recall: ", s_cond_acc)
