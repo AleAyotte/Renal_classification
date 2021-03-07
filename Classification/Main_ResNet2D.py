@@ -17,7 +17,7 @@ from monai.transforms import RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
 import torch
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
-from Trainer.Utils import compute_recall
+from Utils import print_score, print_data_distribution
 
 
 def argument_parser():
@@ -103,8 +103,11 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    # "test" is the stratified test and test2 is the independant test.
+    # TODO: CHANGE THE testset name in the hdf5 file
+    # "test" is the stratified test and test2 is the independent test.
     test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
+    testset_name = args.testset
+    testset2_name = "independant" if args.testset == "stratified" else "stratified"
 
     if args.task in ["subtype", "grade"]:
         clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
@@ -150,6 +153,24 @@ if __name__ == "__main__":
                    nb_clinical_data=len(clin_features)).to(args.device)
 
     # --------------------------------------------
+    #                SANITY CHECK
+    # --------------------------------------------
+    print_data_distribution("Training Set",
+                            [args.task],
+                            trainset.labels_bincount())
+    print_data_distribution("Validation Set",
+                            [args.task],
+                            validset.labels_bincount())
+    print_data_distribution("{} Set".format(testset_name.capitalize()),
+                            [args.task],
+                            testset.labels_bincount())
+    if not args.extra_data:
+        print_data_distribution("{} Set".format(testset2_name.capitalize()),
+                                [args.task],
+                                testset2.labels_bincount())
+    print("\n")
+
+    # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
     trainer = Trainer(save_path="Check_moi_ca2.pth",
@@ -182,29 +203,21 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                    SCORE
     # --------------------------------------------
-    print("**************************************")
-    print("**{:^34s}**".format("VALIDATION SCORE"))
-    print("**************************************")
-    conf, auc = trainer.score(validset, 2)
-    recall = compute_recall(conf)
-    print("AUC: ", auc)
-    print("Recall: ", recall)
+    conf, auc = trainer.score(validset)
+    print_score(dataset_name="VALIDATION SCORE",
+                task_list=[args.task],
+                conf_mat_list=[conf],
+                auc_list=[auc])
 
-    test1_label = "STRATIFIED TEST SCORE" if test1 == "test" else "INDEPENDANT TEST SCORE"
-    print("**************************************")
-    print("**{:^34s}**".format(test1_label))
-    print("**************************************")
-    conf, auc = trainer.score(testset, 2)
-    recall = compute_recall(conf)
-    print("AUC: ", auc)
-    print("Recall: ", recall)
+    conf, auc = trainer.score(testset)
+    print_score(dataset_name="{} TEST SCORE".format(testset_name.upper()),
+                task_list=[args.task],
+                conf_mat_list=[conf],
+                auc_list=[auc])
 
     if not args.extra_data:
-        test2_label = "INDEPENDANT TEST SCORE" if test1 == "test" else "STRATIFIED TEST SCORE"
-        print("**************************************")
-        print("**{:^34s}**".format(test2_label))
-        print("**************************************")
-        conf, auc = trainer.score(testset2, 2)
-        recall = compute_recall(conf)
-        print("AUC: ", auc)
-        print("Recall: ", recall)
+        conf, auc = trainer.score(testset2)
+        print_score(dataset_name="{} TEST SCORE".format(testset2_name.upper()),
+                    task_list=[args.task],
+                    conf_mat_list=[conf],
+                    auc_list=[auc])
