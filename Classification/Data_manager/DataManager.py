@@ -10,7 +10,7 @@
                         train/validation split.
 """
 import h5py
-from monai.transforms import compose
+from monai.transforms import Compose
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -52,7 +52,7 @@ class RenalDataset(Dataset):
                  hdf5_filepath: str,
                  imgs_keys: Union[Sequence[str], str],
                  split: Union[str, None] = "train",
-                 transform: Union[compose, None] = None,
+                 transform: Union[Compose, None] = None,
                  clinical_features: Union[Sequence[str], str] = None):
         """
         Create a dataset by loading the renal image at the given path.

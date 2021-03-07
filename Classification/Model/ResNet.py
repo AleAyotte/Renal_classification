@@ -685,7 +685,7 @@ class MultiLevelResNet(NeuralNet):
         # --------------------------------------------
         #              UNCERTAINTY LOSS
         # --------------------------------------------
-        self.uncertainty_loss = UncertaintyLoss(num_classes=NB_TASK)
+        self.uncertainty_loss = UncertaintyLoss(num_task=NB_TASK)
 
         # --------------------------------------------
         #                    BLOCK
