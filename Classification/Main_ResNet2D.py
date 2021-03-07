@@ -41,6 +41,9 @@ def argument_parser():
     parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
                         help="If true, the second testest will be add to the training dataset. "
                              "The second dataset is determined with '--testset'.")
+    parser.add_argument('--grad_clip', type=float, default=5,
+                        help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
+                             "the training.")
     parser.add_argument('--loss', type=str, default="ce",
                         help="The loss that will be use to train the model. 'ce' == cross entropy loss, "
                              "'bce' == binary cross entropoy, 'focal' = focal loss",
@@ -52,6 +55,8 @@ def argument_parser():
                              "Mixed precision reduce memory consumption on GPU but reduce training speed.")
     parser.add_argument('--num_epoch', type=int, default=1000,
                         help="The number of training epoch.")
+    parser.add_argument('--num_cumu_batch', type=int, default=1,
+                        help="The number of batch that will be cumulated before updating the weight of the model.")
     parser.add_argument('--optim', type=str, default="adam",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd"])
@@ -198,10 +203,11 @@ if __name__ == "__main__":
                 mode="standard",
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
-                grad_clip=5,
+                grad_clip=args.grad_clip,
                 warm_up_epoch=args.warm_up,
                 eps=args.eps,
                 batch_size=args.b_size,
+                num_cumulated_batch=args.num_cumu_batch,
                 device=args.device,
                 optim=args.optim,
                 num_epoch=args.num_epoch,
