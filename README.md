@@ -27,6 +27,8 @@ Morever, the following package are required to execute our code.
 - scikit-learn
 - torchsummary
 - tqdm
+- comet_ml
+- tensorboard
 
 
 ## Task List
