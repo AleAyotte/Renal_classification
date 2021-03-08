@@ -1,5 +1,5 @@
 """
-    @file:              CrossStitchMain.py
+    @file:              SharedNetMain.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
@@ -256,7 +256,7 @@ if __name__ == "__main__":
                                 auto_output_logging=False)
 
         experiment.set_name("SharedNet" + "_" + "MultiTask")
-        experiment.log_code("MultiTaskMain.py")
+        experiment.log_code("SharedNetMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/SharedNet.py")
