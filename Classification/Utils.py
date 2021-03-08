@@ -14,7 +14,7 @@ from Trainer.Utils import compute_recall
 from typing import Sequence, Union
 
 
-API_KEY_FILEPATH = "Trainer/comet_api_key.txt"  # path to the file that contain the API KEY for comet.ml
+API_KEY_FILEPATH = "comet_api_key.txt"  # path to the file that contain the API KEY for comet.ml
 
 
 def print_data_distribution(dataset_name: str,
