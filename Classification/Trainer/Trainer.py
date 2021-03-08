@@ -10,7 +10,6 @@
 """
 
 from abc import ABC, abstractmethod
-from comet_ml import Experiment
 from Data_manager.DataManager import RenalDataset
 from Model.NeuralNet import NeuralNet
 from Model.ResNet_2D import ResNet2D
