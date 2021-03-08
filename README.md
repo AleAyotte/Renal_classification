@@ -78,7 +78,9 @@ Morever, the following package are required to execute our code.
 ## Folder Structure
  ```
 .
-├── Classification                         
+├── Classification
+│   │── comet_api_key.txt           # Contain the needed api key to use comet.ml
+│   │
 │   ├── Data_manager                # Dataset and data visualisation related files
 │   │   ├── DataAugView2D.py        # Visualisation of the data augmentation on 2D images
 │   │   ├── DataAugView3D.py        # Visualisation of the data augmentation on 3D images
