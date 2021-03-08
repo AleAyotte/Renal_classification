@@ -70,7 +70,7 @@ def init_weights(m) -> None:
             nn.init.zeros_(m.bias)
 
 
-def to_one_hot(inp: Union[torch.Tensor, Variable] , 
+def to_one_hot(inp: Union[torch.Tensor, Variable],
                num_classes: int, 
                device: str = "cuda:0") -> Variable:
     """

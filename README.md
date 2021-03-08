@@ -52,7 +52,7 @@ Morever, the following package are required to execute our code.
   - [x] Uncertainty loss
   - [x] Conditional probability
   - [x] Cumulate gradient
-  - [ ] Add hparam tracking with comet.ml
+  - [x] Add hparam tracking with comet.ml
   - [ ] Look for Adaptive Gradient Clipping
 - [ ] Radiomics
   - [ ] Compute Radiomics
@@ -79,8 +79,6 @@ Morever, the following package are required to execute our code.
  ```
 .
 ├── Classification                         
-│   ├── CrossStitchMain.py          # The main script for the experimentation on the SharedNet
-│   │
 │   ├── Data_manager                # Dataset and data visualisation related files
 │   │   ├── DataAugView2D.py        # Visualisation of the data augmentation on 2D images
 │   │   ├── DataAugView3D.py        # Visualisation of the data augmentation on 3D images
@@ -96,13 +94,16 @@ Morever, the following package are required to execute our code.
 │   │   └── SharedNet.py            # SharedNet model class
 │   │
 │   ├── MultiTaskMain.py            # Main experimentation on the multi level ResNet3D
+│   ├── SharedNetMain.py            # The main script for the experimentation on the SharedNet
 │   ├── SingleTaskMain.py           # Main experimentation on the ResNet3D
 │   │
-│   └── Trainer                     # Neural Network training related files
-│       ├── MultiTaskTrainer.py     # Training class for Multi-Task Learning
-│       ├── SingleTaskTrainer.py    # Training class for Single-Task Learning
-│       ├── Trainer.py              # Abstract class of all trainer classes
-│       └── Utils.py                # Utils function for the trainers
+│   ├── Trainer                     # Neural Network training related files
+│   │   ├── MultiTaskTrainer.py     # Training class for Multi-Task Learning
+│   │   ├── SingleTaskTrainer.py    # Training class for Single-Task Learning
+│   │   ├── Trainer.py              # Abstract class of all trainer classes
+│   │   └── Utils.py                # Utils function for the trainers
+│   │
+│   └── Utils.py                    # Utils function for the main files
 │
 ├── Normalization                   # Normalization and preprocessing of MRI images
 │   ├── MRI_image.py                # The MRIimage class

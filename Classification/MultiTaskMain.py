@@ -8,6 +8,7 @@
     @Description:       Contain the main function to train a MultiLevel 3D ResNet for multitask learning.
 """
 import argparse
+from comet_ml import Experiment
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import MultiLevelResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
@@ -15,7 +16,7 @@ from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWit
 import numpy as np
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
-from Utils import print_score, print_data_distribution
+from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
 TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]
@@ -225,21 +226,48 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                    SCORE
     # --------------------------------------------
+    if args.num_epoch > 75:
+        experiment = Experiment(api_key=read_api_key(),
+                                project_name="renal-classification",
+                                workspace="aleayotte",
+                                log_env_details=False,
+                                auto_metric_logging=False,
+                                log_git_metadata=False,
+                                auto_param_logging=False,
+                                log_code=False,
+                                auto_output_logging=False)
+
+        experiment.set_name("ResNet3D" + "_" + "MultiTask")
+        experiment.log_code("MultiTaskMain.py")
+        experiment.log_code("Trainer/Trainer.py")
+        experiment.log_code("Trainer/MultiTaskTrainer.py")
+        experiment.log_code("Model/ResNet.py")
+    else:
+        experiment = None
+
     conf, auc = trainer.score(validset)
-    print_score(dataset_name="VALIDATION SCORE",
+    print_score(dataset_name="VALIDATION",
                 task_list=TASK_LIST,
                 conf_mat_list=conf,
-                auc_list=auc)
+                auc_list=auc,
+                experiment=experiment)
 
     conf, auc = trainer.score(testset)
-    print_score(dataset_name="{} TEST SCORE".format(testset_name.upper()),
+    print_score(dataset_name="{} TEST".format(testset_name.upper()),
                 task_list=TASK_LIST,
                 conf_mat_list=conf,
-                auc_list=auc)
+                auc_list=auc,
+                experiment=experiment)
 
     if not args.extra_data:
         conf, auc = trainer.score(testset2)
-        print_score(dataset_name="{} TEST SCORE".format(testset2_name.upper()),
+        print_score(dataset_name="{} TEST".format(testset2_name.upper()),
                     task_list=TASK_LIST,
                     conf_mat_list=conf,
-                    auc_list=auc)
+                    auc_list=auc,
+                    experiment=experiment)
+
+    if experiment is not None:
+        hparam = vars(args)
+        del hparam["task"]
+        save_hparam_on_comet(experiment=experiment, args_dict=hparam)

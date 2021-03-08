@@ -125,6 +125,7 @@ class Trainer(ABC):
         self.__shared_net = shared_net
         self.__num_cumulated_batch = 1
         self.__cumulate_counter = 0
+        self.__experiment = None
 
     def fit(self,
             model: Union[NeuralNet, ResNet2D],
@@ -377,6 +378,21 @@ class Trainer(ABC):
             scheduler.step()
 
     @abstractmethod
+    def _get_conf_matrix(self,
+                         dt_loader: DataLoader,
+                         get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
+                                                          Tuple[Sequence[np.array], Sequence[float]],
+                                                          Tuple[np.array, float]]:
+        """
+        Compute the accuracy of the model on a given data loader
+
+        :param dt_loader: A torch data loader that contain test or validation data.
+        :param get_loss: Return also the loss if True.
+        :return: The confusion matrix for each classes and the average loss if get_loss == True.
+        """
+        raise NotImplementedError("Must override _get_conf_matrix.")
+
+    @abstractmethod
     def _init_loss(self, gamma: float) -> None:
         """
         Initialize the loss function by sending the classes weights on the appropriate device.
@@ -384,24 +400,6 @@ class Trainer(ABC):
         :param gamma: Gamma parameter of the focal loss.
         """
         raise NotImplementedError("Must override _init_loss")
-    
-    @abstractmethod
-    def _standard_epoch(self,
-                        train_loader: DataLoader,
-                        optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
-                        schedulers: Sequence[CosineAnnealingWarmRestarts],
-                        grad_clip: float,
-                        epoch: int) -> float:
-        """
-        Make a standard training epoch
-
-        :param train_loader: A torch data_loader that contain the features and the labels for training.
-        :param optimizers: The torch optimizers that will used to train the model.
-        :param schedulers: The learning rate schedulers that will be used at each iteration.
-        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
-        :return: The average training loss.
-        """
-        raise NotImplementedError("Must override _standard_epoch.")
 
     @abstractmethod
     def _mixup_criterion(self,
@@ -413,7 +411,7 @@ class Trainer(ABC):
         """
         Transform target into one hot vector and apply mixup on it
 
-        :param pred: A matrix of the prediction of the model. 
+        :param pred: A matrix of the prediction of the model.
         :param target: Vector of the ground truth.
         :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass.
         :param permut: A numpy array that indicate which images has been shuffle during the foward pass.
@@ -439,36 +437,25 @@ class Trainer(ABC):
         """
         raise NotImplementedError("Must override _mixup_epoch.")
 
-    @abstractmethod
-    def _validation_step(self,
-                         dt_loader: DataLoader,
-                         epoch: int,
-                         dataset_name: str = "Validation") -> Tuple[float, float]:
+    def __save_checkpoint(self,
+                          epoch: int,
+                          loss: float,
+                          accuracy: float) -> None:
         """
-        Execute the validation step and save the metrics with tensorboard.
+        Save the model and his at a the current state if the self.path is not None.
 
-        :param dt_loader: A torch data loader that contain test or validation data.
-        :param epoch: The current epoch number.
-        :param dataset_name: The name of the dataset will be used to save the metrics with tensorboard.
-        :return: The mean accuracy as float and the loss as float.
+        :param epoch: Current epoch of the training
+        :param loss: Current loss of the training
+        :param accuracy: Current validation accuracy
         """
-        raise NotImplementedError("Must override _validation_step.")
 
-    @abstractmethod
-    def _get_conf_matrix(self,
-                         dt_loader: DataLoader,
-                         get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Tuple[Sequence[np.array], Sequence[float]],
-                                                          Tuple[np.array, float]]:
-        """
-        Compute the accuracy of the model on a given data loader
+        if self.__save_path is not None:
+            torch.save({"epoch": epoch,
+                        "model_state_dict": self.model.state_dict(),
+                        "loss": loss,
+                        "accuracy": accuracy},
+                       self.__save_path)
 
-        :param dt_loader: A torch data loader that contain test or validation data.
-        :param get_loss: Return also the loss if True.
-        :return: The confusion matrix for each classes and the average loss if get_loss == True.
-        """
-        raise NotImplementedError("Must override _get_conf_matrix.")
-    
     def score(self,
               testset: RenalDataset) -> Union[Tuple[Sequence[np.array], float],
                                               Tuple[Sequence[np.array], Sequence[float]],
@@ -487,21 +474,35 @@ class Trainer(ABC):
 
         return self._get_conf_matrix(dt_loader=test_loader)
 
-    def __save_checkpoint(self,
-                          epoch: int,
-                          loss: float, 
-                          accuracy: float) -> None:
+    @abstractmethod
+    def _standard_epoch(self,
+                        train_loader: DataLoader,
+                        optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                        schedulers: Sequence[CosineAnnealingWarmRestarts],
+                        grad_clip: float,
+                        epoch: int) -> float:
         """
-        Save the model and his at a the current state if the self.path is not None.
+        Make a standard training epoch
 
-        :param epoch: Current epoch of the training
-        :param loss: Current loss of the training
-        :param accuracy: Current validation accuracy
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param optimizers: The torch optimizers that will used to train the model.
+        :param schedulers: The learning rate schedulers that will be used at each iteration.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :return: The average training loss.
         """
+        raise NotImplementedError("Must override _standard_epoch.")
 
-        if self.__save_path is not None:
-            torch.save({"epoch": epoch,
-                        "model_state_dict": self.model.state_dict(),
-                        "loss": loss,
-                        "accuracy": accuracy},
-                       self.__save_path)
+    @abstractmethod
+    def _validation_step(self,
+                         dt_loader: DataLoader,
+                         epoch: int,
+                         dataset_name: str = "Validation") -> Tuple[float, float]:
+        """
+        Execute the validation step and save the metrics with tensorboard.
+
+        :param dt_loader: A torch data loader that contain test or validation data.
+        :param epoch: The current epoch number.
+        :param dataset_name: The name of the dataset will be used to save the metrics with tensorboard.
+        :return: The mean accuracy as float and the loss as float.
+        """
+        raise NotImplementedError("Must override _validation_step.")
