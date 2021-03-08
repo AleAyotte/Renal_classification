@@ -8,6 +8,7 @@
     @Description:       Contain the main function to train a SharedMet for multitask learning.
 """
 import argparse
+from comet_ml import Experiment
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
@@ -16,7 +17,7 @@ from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWit
 import numpy as np
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
-from Utils import print_score, print_data_distribution
+from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
 LOAD_PATH = "save/14_Fev_2020/"
@@ -243,6 +244,25 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                    SCORE
     # --------------------------------------------
+    if args.num_epoch > 75:
+        experiment = Experiment(api_key=read_api_key(),
+                                project_name="renal-classification",
+                                workspace="aleayotte",
+                                log_env_details=False,
+                                auto_metric_logging=False,
+                                log_git_metadata=False,
+                                auto_param_logging=False,
+                                log_code=False,
+                                auto_output_logging=False)
+
+        experiment.set_name("SharedNet" + "_" + "MultiTask")
+        experiment.log_code("MultiTaskMain.py")
+        experiment.log_code("Trainer/Trainer.py")
+        experiment.log_code("Trainer/MultiTaskTrainer.py")
+        experiment.log_code("Model/SharedNet.py")
+    else:
+        experiment = None
+
     conf, auc = trainer.score(validset)
     print_score(dataset_name="VALIDATION SCORE",
                 task_list=TASK_LIST,
@@ -261,3 +281,8 @@ if __name__ == "__main__":
                     task_list=TASK_LIST,
                     conf_mat_list=conf,
                     auc_list=auc)
+
+    if experiment is not None:
+        hparam = vars(args)
+        del hparam["task"]
+        save_hparam_on_comet(experiment=experiment, args_dict=hparam)
