@@ -15,6 +15,7 @@ from Model.SharedNet import SharedNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
+import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
@@ -159,7 +160,8 @@ if __name__ == "__main__":
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     mal_net = ResNet(mixup=args.mixup,
                      depth=34,
-                     first_channels=32,
+                     # first_channels=32,
+                     first_channels=48,
                      in_shape=in_shape,
                      drop_rate=0.1,
                      drop_type="linear",
@@ -167,8 +169,9 @@ if __name__ == "__main__":
                      pre_act=True).to(args.device)
 
     sub_net = ResNet(mixup=args.mixup,
-                     depth=18,
-                     first_channels=24,
+                     depth=34,
+                     # first_channels=24,
+                     first_channels=36,
                      in_shape=in_shape,
                      drop_rate=0.1,
                      drop_type="linear",
@@ -194,17 +197,17 @@ if __name__ == "__main__":
     #                SANITY CHECK
     # --------------------------------------------
     print_data_distribution("Training Set",
-                            TASK_LIST,
+                            TASK_LIST[0:2],
                             trainset.labels_bincount())
     print_data_distribution("Validation Set",
-                            TASK_LIST,
+                            TASK_LIST[0:2],
                             validset.labels_bincount())
     print_data_distribution("{} Set".format(testset_name.capitalize()),
-                            TASK_LIST,
+                            TASK_LIST[0:2],
                             testset.labels_bincount())
     if not args.extra_data:
         print_data_distribution("{} Set".format(testset2_name.capitalize()),
-                                TASK_LIST,
+                                TASK_LIST[0:2],
                                 testset2.labels_bincount())
     print("\n")
 
@@ -222,6 +225,8 @@ if __name__ == "__main__":
                       track_mode=args.track_mode,
                       mixed_precision=True)
 
+    torch.backends.cudnn.benchmark = True
+
     trainer.fit(model=net,
                 trainset=trainset,
                 validset=validset,
@@ -238,8 +243,9 @@ if __name__ == "__main__":
                 device=args.device,
                 optim=args.optim,
                 num_epoch=args.num_epoch,
-                t_0=args.num_epoch,
-                l2=0.009)
+                t_0=max(args.num_epoch, 1),
+                l2=0.009,
+                retrain=False)
 
     # --------------------------------------------
     #                    SCORE
@@ -267,22 +273,24 @@ if __name__ == "__main__":
     print_score(dataset_name="VALIDATION SCORE",
                 task_list=TASK_LIST,
                 conf_mat_list=conf,
-                auc_list=auc)
+                auc_list=auc,
+                experiment=experiment)
 
     conf, auc = trainer.score(testset)
     print_score(dataset_name="{} TEST SCORE".format(testset_name.upper()),
                 task_list=TASK_LIST,
                 conf_mat_list=conf,
-                auc_list=auc)
+                auc_list=auc,
+                experiment=experiment)
 
     if not args.extra_data:
         conf, auc = trainer.score(testset2)
         print_score(dataset_name="{} TEST SCORE".format(testset2_name.upper()),
                     task_list=TASK_LIST,
                     conf_mat_list=conf,
-                    auc_list=auc)
+                    auc_list=auc,
+                    experiment=experiment)
 
     if experiment is not None:
         hparam = vars(args)
-        del hparam["task"]
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)

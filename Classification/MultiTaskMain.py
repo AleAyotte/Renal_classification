@@ -179,17 +179,17 @@ if __name__ == "__main__":
     #                SANITY CHECK
     # --------------------------------------------
     print_data_distribution("Training Set",
-                            TASK_LIST,
+                            TASK_LIST[0:2],
                             trainset.labels_bincount())
     print_data_distribution("Validation Set",
-                            TASK_LIST,
+                            TASK_LIST[0:2],
                             validset.labels_bincount())
     print_data_distribution("{} Set".format(testset_name.capitalize()),
-                            TASK_LIST,
+                            TASK_LIST[0:2],
                             testset.labels_bincount())
     if not args.extra_data:
         print_data_distribution("{} Set".format(testset2_name.capitalize()),
-                                TASK_LIST,
+                                TASK_LIST[0:2],
                                 testset2.labels_bincount())
     print("\n")
 
@@ -269,5 +269,4 @@ if __name__ == "__main__":
 
     if experiment is not None:
         hparam = vars(args)
-        del hparam["task"]
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
