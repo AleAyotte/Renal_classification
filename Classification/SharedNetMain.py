@@ -245,7 +245,7 @@ if __name__ == "__main__":
                 num_epoch=args.num_epoch,
                 t_0=max(args.num_epoch, 1),
                 l2=0.009,
-                retrain=False)
+                retrain=True)
 
     # --------------------------------------------
     #                    SCORE
@@ -270,14 +270,14 @@ if __name__ == "__main__":
         experiment = None
 
     conf, auc = trainer.score(validset)
-    print_score(dataset_name="VALIDATION SCORE",
+    print_score(dataset_name="VALIDATION",
                 task_list=TASK_LIST,
                 conf_mat_list=conf,
                 auc_list=auc,
                 experiment=experiment)
 
     conf, auc = trainer.score(testset)
-    print_score(dataset_name="{} TEST SCORE".format(testset_name.upper()),
+    print_score(dataset_name="{} TEST".format(testset_name.upper()),
                 task_list=TASK_LIST,
                 conf_mat_list=conf,
                 auc_list=auc,
@@ -285,7 +285,7 @@ if __name__ == "__main__":
 
     if not args.extra_data:
         conf, auc = trainer.score(testset2)
-        print_score(dataset_name="{} TEST SCORE".format(testset2_name.upper()),
+        print_score(dataset_name="{} TEST".format(testset2_name.upper()),
                     task_list=TASK_LIST,
                     conf_mat_list=conf,
                     auc_list=auc,
