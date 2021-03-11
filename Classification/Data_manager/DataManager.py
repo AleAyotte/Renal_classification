@@ -142,6 +142,10 @@ class RenalDataset(Dataset):
             label_list = [int(label[key]) for label in self.__labels]
             all_labels[key] = np.bincount(label_list)
 
+            # If there are more than 2 classes, we only take the two last.
+            if len(all_labels[key]) > 2:
+                all_labels[key] = all_labels[key][1:]
+
         return all_labels
 
     def normalize_clin_data(self,
