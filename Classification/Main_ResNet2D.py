@@ -115,9 +115,6 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    # TODO: CHANGE THE testset name in the hdf5 file
-    # "test" is the stratified test and test2 is the independent test.
-    test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
     testset_name = args.testset
     testset2_name = "independant" if args.testset == "stratified" else "stratified"
 
@@ -130,12 +127,12 @@ if __name__ == "__main__":
                             clinical_features=clin_features)
     validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=None,
                             clinical_features=clin_features)
-    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=test1,
+    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=testset_name,
                            clinical_features=clin_features)
 
     # If we want to use some extra data, then will we used the data of the second test set.
     if args.extra_data:
-        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"], split=test2,
+        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"], split=testset2_name,
                                 clinical_features=clin_features)
         data, label, clin = testset2.extract_data(np.arange(len(testset2)))
         trainset.add_data(data, label, clin)
@@ -144,7 +141,7 @@ if __name__ == "__main__":
         del clin
     # Else the second test set will be used to access the performance of the dataset at the end.
     else:
-        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=test2,
+        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=testset2_name,
                                 clinical_features=clin_features)
 
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
@@ -173,11 +170,11 @@ if __name__ == "__main__":
     print_data_distribution("Validation Set",
                             [args.task],
                             validset.labels_bincount())
-    print_data_distribution("{} Set".format(testset_name.capitalize()),
+    print_data_distribution(f"{testset_name.capitalize()} Set",
                             [args.task],
                             testset.labels_bincount())
     if not args.extra_data:
-        print_data_distribution("{} Set".format(testset2_name.capitalize()),
+        print_data_distribution(f"{testset2_name.capitalize()} Set",
                                 [args.task],
                                 testset2.labels_bincount())
     print("\n")
@@ -240,20 +237,23 @@ if __name__ == "__main__":
     print_score(dataset_name="VALIDATION",
                 task_list=[args.task],
                 conf_mat_list=[conf],
-                auc_list=[auc])
+                auc_list=[auc],
+                experiment=experiment)
 
     conf, auc = trainer.score(testset)
     print_score(dataset_name="{} TEST".format(testset_name.upper()),
                 task_list=[args.task],
                 conf_mat_list=[conf],
-                auc_list=[auc])
+                auc_list=[auc],
+                experiment=experiment)
 
     if not args.extra_data:
         conf, auc = trainer.score(testset2)
         print_score(dataset_name="{} TEST".format(testset2_name.upper()),
                     task_list=[args.task],
                     conf_mat_list=[conf],
-                    auc_list=[auc])
+                    auc_list=[auc],
+                    experiment=experiment)
 
     if experiment is not None:
         hparam = vars(args)

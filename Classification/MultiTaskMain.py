@@ -19,8 +19,10 @@ from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]
+DATA_PATH = "final_dtset/all.hdf5"
+FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
 SAVE_PATH = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
+TASK_LIST = ["malignant", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
 
 
 def argument_parser():
@@ -29,9 +31,6 @@ def argument_parser():
                         help="The activation function use in the NeuralNet.",
                         choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
     parser.add_argument('--b_size', type=int, default=32, help="The batch size.")
-    parser.add_argument('--dataset', type=str, default='Option1_without_N4',
-                        help="The name of the folder that contain the dataset.",
-                        choices=['Option1_with_N4', 'Option1_without_N4', "New_Option1"])
     parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                         help="The number of layer in the MultiLevelResNet.")
     parser.add_argument('--device', type=str, default="cuda:0",
@@ -111,8 +110,6 @@ if __name__ == "__main__":
     if args.mode == "Mixup":
         raise NotImplementedError
 
-    data_path = "final_dtset/{}/all.hdf5".format(args.dataset)
-
     # --------------------------------------------
     #              DATA AUGMENTATION
     # --------------------------------------------
@@ -137,19 +134,24 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    # TODO: CHANGE THE testset name in the hdf5 file
-    # "test" is the stratified test and test2 is the independent test.
-    test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
     testset_name = args.testset
     testset2_name = "independant" if args.testset == "stratified" else "stratified"
 
-    trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
-    validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=None)
-    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test1)
+    trainset = RenalDataset(DATA_PATH, transform=transform,
+                            imgs_keys=["t1", "t2", "roi"],
+                            tasks=TASK_LIST)
+    validset = RenalDataset(DATA_PATH, transform=test_transform,
+                            imgs_keys=["t1", "t2", "roi"],
+                            tasks=TASK_LIST, split=None)
+    testset = RenalDataset(DATA_PATH, transform=test_transform,
+                           imgs_keys=["t1", "t2", "roi"],
+                           tasks=TASK_LIST, split=testset_name)
 
     # If we want to use some extra data, then will we used the data of the second test set.
     if args.extra_data:
-        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"], split="test2")
+        testset2 = RenalDataset(DATA_PATH, transform=transform,
+                                imgs_keys=["t1", "t2", "roi"],
+                                tasks=TASK_LIST, split=testset2_name)
         data, label, _ = testset2.extract_data(np.arange(len(testset2)))
         trainset.add_data(data, label)
         del data
@@ -157,7 +159,9 @@ if __name__ == "__main__":
 
     # Else the second test set will be used to access the performance of the dataset at the end.
     else:
-        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
+        testset2 = RenalDataset(DATA_PATH, transform=test_transform,
+                                imgs_keys=["t1", "t2", "roi"],
+                                tasks=TASK_LIST, split=testset2_name)
 
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
@@ -179,17 +183,17 @@ if __name__ == "__main__":
     #                SANITY CHECK
     # --------------------------------------------
     print_data_distribution("Training Set",
-                            TASK_LIST[0:2],
+                            TASK_LIST,
                             trainset.labels_bincount())
     print_data_distribution("Validation Set",
-                            TASK_LIST[0:2],
+                            TASK_LIST,
                             validset.labels_bincount())
     print_data_distribution("{} Set".format(testset_name.capitalize()),
-                            TASK_LIST[0:2],
+                            TASK_LIST,
                             testset.labels_bincount())
     if not args.extra_data:
         print_data_distribution("{} Set".format(testset2_name.capitalize()),
-                                TASK_LIST[0:2],
+                                TASK_LIST,
                                 testset2.labels_bincount())
     print("\n")
 
@@ -247,14 +251,14 @@ if __name__ == "__main__":
 
     conf, auc = trainer.score(validset)
     print_score(dataset_name="VALIDATION",
-                task_list=TASK_LIST,
+                task_list=FINAL_TASK_LIST,
                 conf_mat_list=conf,
                 auc_list=auc,
                 experiment=experiment)
 
     conf, auc = trainer.score(testset)
     print_score(dataset_name="{} TEST".format(testset_name.upper()),
-                task_list=TASK_LIST,
+                task_list=FINAL_TASK_LIST,
                 conf_mat_list=conf,
                 auc_list=auc,
                 experiment=experiment)
@@ -262,7 +266,7 @@ if __name__ == "__main__":
     if not args.extra_data:
         conf, auc = trainer.score(testset2)
         print_score(dataset_name="{} TEST".format(testset2_name.upper()),
-                    task_list=TASK_LIST,
+                    task_list=FINAL_TASK_LIST,
                     conf_mat_list=conf,
                     auc_list=auc,
                     experiment=experiment)

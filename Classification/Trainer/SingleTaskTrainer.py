@@ -152,7 +152,7 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
+            images, labels = data["sample"].to(self._device), data["labels"]["outcome"].to(self._device)
             images, labels = Variable(images), Variable(labels)
             features = None
 
@@ -233,7 +233,7 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
+            images, labels = data["sample"].to(self._device), data["labels"]["outcome"].to(self._device)
             images, labels = Variable(images), Variable(labels)
             features = None
 
@@ -312,7 +312,7 @@ class SingleTaskTrainer(Trainer):
         labels = torch.empty(0).long()
 
         for data in dt_loader:
-            images, label = data["sample"].to(self._device), data["labels"]
+            images, label = data["sample"].to(self._device), data["labels"]["outcome"]
             features = None
 
             if "features" in list(data.keys()):

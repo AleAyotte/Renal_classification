@@ -31,9 +31,6 @@ def argument_parser():
                         choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
     parser.add_argument('--b_size', type=int, default=32,
                         help="The batch size.")
-    parser.add_argument('--dataset', type=str, default='New_Option1',
-                        help="The name of the folder that contain the dataset.",
-                        choices=['Option1_with_N4', 'Option1_without_N4', 'New_Option1'])
     parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                         help="The number of layer in the ResNet.")
     parser.add_argument('--device', type=str, default="cuda:0",
@@ -112,7 +109,7 @@ def argument_parser():
 
 if __name__ == "__main__":
     args = argument_parser()
-    data_path = "final_dtset/{}/{}.hdf5".format(args.dataset, args.task)
+    data_path = "final_dtset/{}.hdf5".format(args.task)
 
     # --------------------------------------------
     #              DATA AUGMENTATION
@@ -138,26 +135,32 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    # TODO: CHANGE THE testset name in the hdf5 file
-    # "test" is the stratified test and test2 is the independent test.
-    test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
     testset_name = args.testset
     testset2_name = "independant" if args.testset == "stratified" else "stratified"
 
-    trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
-    validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=None)
-    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test1)
+    trainset = RenalDataset(data_path, transform=transform,
+                            imgs_keys=["t1", "t2", "roi"])
+    validset = RenalDataset(data_path, transform=test_transform,
+                            imgs_keys=["t1", "t2", "roi"],
+                            split=None)
+    testset = RenalDataset(data_path, transform=test_transform,
+                           imgs_keys=["t1", "t2", "roi"],
+                           split=testset_name)
 
     # If we want to use some extra data, then will we used the data of the second test set.
     if args.extra_data:
-        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"], split=test2)
+        testset2 = RenalDataset(data_path, transform=transform,
+                                imgs_keys=["t1", "t2", "roi"],
+                                split=testset2_name)
         data, label, _ = testset2.extract_data(np.arange(len(testset2)))
         trainset.add_data(data, label)
         del data
         del label
     # Else the second test set will be used to access the performance of the dataset at the end.
     else:
-        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
+        testset2 = RenalDataset(data_path, transform=test_transform,
+                                imgs_keys=["t1", "t2", "roi"],
+                                split=testset2_name)
 
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
 
@@ -180,17 +183,17 @@ if __name__ == "__main__":
     #                SANITY CHECK
     # --------------------------------------------
     print_data_distribution("Training Set",
-                            [args.task],
+                            ["outcome"],
                             trainset.labels_bincount())
     print_data_distribution("Validation Set",
-                            [args.task],
+                            ["outcome"],
                             validset.labels_bincount())
-    print_data_distribution("{} Set".format(testset_name.capitalize()),
-                            [args.task],
+    print_data_distribution(f"{testset_name.capitalize()} Set",
+                            ["outcome"],
                             testset.labels_bincount())
     if not args.extra_data:
-        print_data_distribution("{} Set".format(testset2_name.capitalize()),
-                                [args.task],
+        print_data_distribution(f"{testset2_name.capitalize()} Set",
+                                ["outcome"],
                                 testset2.labels_bincount())
     print("\n")
 
@@ -257,7 +260,7 @@ if __name__ == "__main__":
                 experiment=experiment)
 
     conf, auc = trainer.score(testset)
-    print_score(dataset_name="{} TEST".format(testset_name.upper()),
+    print_score(dataset_name=f"{testset_name.upper()} TEST",
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
@@ -265,7 +268,7 @@ if __name__ == "__main__":
 
     if not args.extra_data:
         conf, auc = trainer.score(testset2)
-        print_score(dataset_name="{} TEST".format(testset2_name.upper()),
+        print_score(dataset_name=f"{testset2_name.upper()} TEST",
                     task_list=[args.task],
                     conf_mat_list=[conf],
                     auc_list=[auc],
