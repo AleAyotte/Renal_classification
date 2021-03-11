@@ -21,22 +21,24 @@ class RenalDataset(Dataset):
     """
     Renal classification dataset.
 
-        ...
+    ...
     Attributes
     ----------
     transform: Union[compose, None]
-    __with_clinical: bool
-        Indicate if the dataset should also store the clinical data.
-    __imgs_keys: Union[Sequence[string], string]
-        A string or a list of string that indicate The images name in the hdf5 file that will be load in the dataset
-        (Exemple: "t1").
-    __data: np.array
-        A numpy array that contain the dataset medical images.
     __clinical_data: Union[np.array, None]
         If __with_clinical is True, then it will be a numpy array that contain the clinical of each patient in the
         dataset.
+    __data: np.array
+        A numpy array that contain the dataset medical images.
+    __imgs_keys: Union[Sequence[string], string]
+        A string or a list of string that indicate The images name in the hdf5 file that will be load in the dataset
+        (Exemple: "t1").
     __labels : np.array
         A numpy array that contain the labels of each data for each task.
+    __tasks : Sequence[string]
+        A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
+    __with_clinical: bool
+        Indicate if the dataset should also store the clinical data.
     Methods
     -------
     add_data(data, label, clinical_data):
@@ -47,25 +49,30 @@ class RenalDataset(Dataset):
     normalize_clinical_data(mean, std, get_norm_param):
         Normalize the clinical substracting them the given mean and divide them by the given std. If no mean or std
         is given, the they will defined with current dataset clinical data.
+    labels_bincount():
+        Count the number of data per class for each task.
     """
     def __init__(self,
                  hdf5_filepath: str,
                  imgs_keys: Union[Sequence[str], str],
+                 clinical_features: Union[Sequence[str], str] = None,
                  split: Union[str, None] = "train",
-                 transform: Union[Compose, None] = None,
-                 clinical_features: Union[Sequence[str], str] = None):
+                 tasks: Union[Sequence[str], None] = None,
+                 transform: Union[Compose, None] = None):
         """
         Create a dataset by loading the renal image at the given path.
 
         :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
-        :param split: A string that indicate which subset will be load. (Option: train, test, test2). (Default="train")
-        :param transform: A function/transform that will be applied on the images and the ROI.
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
+        :param split: A string that indicate which subset will be load. (Option: train, test, test2). (Default="train")
+        :param tasks: A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
+        :param transform: A function/transform that will be applied on the images and the ROI.
         """
-        assert split in ['train', 'test', 'test2', None]
+        # assert split in ['train', 'test', 'test2', None]
         self.transform = transform
+        self.__tasks = tasks if tasks is not None else ["outcome"]
         self.__with_clinical = clinical_features is not None
         self.__imgs_keys = imgs_keys
         self.__data = np.array([])
@@ -123,22 +130,19 @@ class RenalDataset(Dataset):
 
         return data, labels, clin
 
-    def labels_bincount(self) -> Sequence[np.array]:
+    def labels_bincount(self) -> dict:
         """
         Count the number of data per class for each task
 
         :return: A list of np.array where each np.array represent the number of data per class.
                  The length of the list is equal to the number of task.
         """
+        all_labels = {}
+        for key in list(self.__labels[0].keys()):
+            label_list = [int(label[key]) for label in self.__labels]
+            all_labels[key] = np.bincount(label_list)
 
-        all_labels = []
-        if type(self.__labels[0]) == dict:
-            for key in list(self.__labels[0].keys()):
-                all_labels.append([int(label[key]) for label in self.__labels])
-        else:
-            all_labels.append(self.__labels.astype(int))
-
-        return [np.bincount(label_list) for label_list in all_labels]
+        return all_labels
 
     def normalize_clin_data(self,
                             mean: Union[Sequence[float], np.array, None] = None,
@@ -158,7 +162,6 @@ class RenalDataset(Dataset):
         :return: If get_norm_param is True then the mean and the std of the current dataset will be return. Otherwise,
                  nothing will be return.
         """
-
         assert type(mean) == type(std), "The mean and the std should has the same type."
         assert self.__with_clinical, "No clinical has been loaded."
         if mean is None and std is None:
@@ -195,12 +198,11 @@ class RenalDataset(Dataset):
 
             self.__data.append(imgs)
 
-            if "outcome" in list(dtset[key].attrs.keys()):
-                self.__labels.append(dtset[key].attrs["outcome"])
-            else:
-                self.__labels.append({"malignant": dtset[key].attrs["malignant"],
-                                      "subtype": dtset[key].attrs["subtype"],
-                                      "grade": dtset[key].attrs["grade"]})
+            outcomes = {}
+            for task in self.__tasks:
+                outcomes[task] = dtset[key].attrs[task]
+            self.__labels.append(outcomes)
+
             if self.__with_clinical:
                 attrs = dtset[key].attrs
                 self.__clinical_data.append([attrs[feat_name] for feat_name in features_names])
@@ -236,15 +238,11 @@ class RenalDataset(Dataset):
         sample = torch.stack(temp) if len(temp) > 1 else temp[0]
 
         # Extract and stack the labels in a dictionnary of torch tensor
-        if type(self.__labels[0]) == dict:
-            labels = {}
-            for key in list(self.__labels[idx][0].keys()):
-                labels[key] = torch.tensor([
-                    _dict[key] for _dict in self.__labels[idx]
-                ]).long().squeeze()
-        # Extract and stack the labels in a torch tensor
-        else:
-            labels = torch.tensor(self.__labels[idx]).long().squeeze()
+        labels = {}
+        for key in list(self.__labels[idx][0].keys()):
+            labels[key] = torch.tensor([
+                _dict[key] for _dict in self.__labels[idx]
+            ]).long().squeeze()
 
         if self.__with_clinical:
             features = torch.tensor(self.__clinical_data[idx]).long().squeeze()
