@@ -36,6 +36,11 @@ class SingleTaskTrainer(Trainer):
     ...
     Attributes
     ----------
+    _classes_weights : str
+        The configuration of weights that will be applied on the loss during the training.
+        Flat: All classes have the same weight during the training.
+        Balanced: The weights are inversionaly proportional to the number of data of each classes in the training set.
+        (Default="balanced")
     _loss : str
         The name of the loss that will be used during the training.
     __loss : torch.nn
@@ -50,8 +55,6 @@ class SingleTaskTrainer(Trainer):
         The name of the task on which the model will be train.
     _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none.
-    __weights : Sequence[Sequence[int]]
-        The list of weights that will be used to adjust the loss function
     _writer : SummaryWriter
         Use to keep track of the training with tensorboard.
     Methods
@@ -75,6 +78,11 @@ class SingleTaskTrainer(Trainer):
         """
         The constructor of the trainer class. 
 
+        :param classes_weights: The configuration of weights that will be applied on the loss during the training.
+                                Flat: All classes have the same weight during the training.
+                                Balanced: The weights are inversionaly proportional to the number of data of each
+                                          classes in the training set.
+                                (Default="balanced")
         :param loss: The loss that will be use during mixup epoch. (Default="bce")
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
@@ -95,23 +103,14 @@ class SingleTaskTrainer(Trainer):
                          early_stopping=early_stopping,
                          mixed_precision=mixed_precision,
                          pin_memory=pin_memory,
-                         num_workers=num_workers, 
+                         num_workers=num_workers,
+                         classes_weights=classes_weights,
                          save_path=save_path,
                          track_mode=track_mode)
         self.__loss = None
 
         assert task.lower() in ALL_TASK, "Task should be one of those options: 'malignant', 'subtype', 'grade'"
         self.__task = task
-
-        assert classes_weights.lower() in ["flat", "balanced"], \
-            "classes_weights should be one of those options: 'Flat', 'Balanced'"
-        weights = {"flat": [[1., 1.],
-                            [1., 1.],
-                            [1., 1.]],
-                   "balanced": [[1.3459, 0.7956],
-                                [2.0840, 0.6578],
-                                [0.7535, 1.4858]]}
-        self.__weights = weights[classes_weights.lower()][ALL_TASK.index(task)]
 
     def _init_loss(self, gamma: float) -> None:
         """
@@ -120,7 +119,10 @@ class SingleTaskTrainer(Trainer):
         :param gamma: Gamma parameter of the focal loss.
         """
 
-        weight = torch.Tensor(self.__weights).to(self._device)
+        if self._classes_weights == "balanced":
+            weight = torch.Tensor(self._weights["outcome"]).to(self._device)
+        else:
+            weight = None
 
         if self._loss == "ce":
             self.__loss = nn.CrossEntropyLoss(weight=weight)

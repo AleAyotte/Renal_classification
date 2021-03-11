@@ -37,6 +37,11 @@ class MultiTaskTrainer(Trainer):
     ...
     Attributes
     ----------
+    _classes_weights : str
+        The configuration of weights that will be applied on the loss during the training.
+        Flat: All classes have the same weight during the training.
+        Balanced: The weights are inversionaly proportional to the number of data of each classes in the training set.
+        (Default="balanced")
     _loss : str
         The name of the loss that will be used during the training.
     __m_loss : torch.nn
@@ -89,8 +94,6 @@ class MultiTaskTrainer(Trainer):
                                 Flat: All classes have the same weight during the training.
                                 Balanced: The weights are inversionaly proportional to the number of data of each 
                                           classes in the training set.
-                                Focused: Same as balanced but in the subtype and grade task, the total weights of the 
-                                         two not none classes are 4 times higher than the weight class.
                                 (Default="balanced")
         :param shared_net: If true, the model to train will be a SharedNet. In this we need to optimizer, one for the
                            subnets and one for the sharing units and the Uncertainty loss parameters. (Default=False)
@@ -99,7 +102,8 @@ class MultiTaskTrainer(Trainer):
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default=all)
         """
-        super().__init__(loss=loss,
+        super().__init__(classes_weights=classes_weights,
+                         loss=loss,
                          tol=tol,
                          early_stopping=early_stopping,
                          mixed_precision=mixed_precision,
@@ -109,13 +113,6 @@ class MultiTaskTrainer(Trainer):
                          save_path=save_path,
                          track_mode=track_mode)
 
-        assert classes_weights.lower() in ["flat", "balanced"], \
-            "classes_weights should be one of those options: 'Flat' or 'Balanced'"
-        weights = {"flat": [[1., 1.],
-                            [1., 1.]],
-                   "balanced": [[[1.3459, 0.7956]],
-                                [2.0840, 0.6578]]}
-        self.__weights = weights[classes_weights.lower()]
         self.__m_loss = None
         self.__s_loss = None
         
@@ -125,18 +122,22 @@ class MultiTaskTrainer(Trainer):
 
         :param gamma: Gamma parameter of the focal loss.
         """
-        weight_0 = torch.Tensor(self.__weights[0]).to(self._device)
-        weight_1 = torch.Tensor(self.__weights[1]).to(self._device)
+        if self._classes_weights == "balanced":
+            weight_m = torch.Tensor(self._weights["malignant"]).to(self._device)
+            weight_s = torch.Tensor(self._weights["subtype"]).to(self._device)
+        else:
+            weight_m = None
+            weight_s = None
 
         if self._loss == "ce":
-            self.__m_loss = nn.CrossEntropyLoss(weight=weight_0)
-            self.__s_loss = nn.CrossEntropyLoss(weight=weight_1)
+            self.__m_loss = nn.CrossEntropyLoss(weight=weight_m)
+            self.__s_loss = nn.CrossEntropyLoss(weight=weight_s)
         elif self._loss == "bce":
-            self.__m_loss = nn.BCEWithLogitsLoss(pos_weight=weight_0)
-            self.__s_loss = nn.BCEWithLogitsLoss(pos_weight=weight_1)
+            self.__m_loss = nn.BCEWithLogitsLoss(pos_weight=weight_m)
+            self.__s_loss = nn.BCEWithLogitsLoss(pos_weight=weight_s)
         elif self._loss == "focal":
-            self.__m_loss = FocalLoss(gamma=gamma, weight=weight_0)
-            self.__s_loss = FocalLoss(gamma=gamma, weight=weight_1)
+            self.__m_loss = FocalLoss(gamma=gamma, weight=weight_m)
+            self.__s_loss = FocalLoss(gamma=gamma, weight=weight_s)
         else:  # loss == "marg"
             raise NotImplementedError
     

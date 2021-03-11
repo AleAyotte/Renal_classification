@@ -39,6 +39,11 @@ class Trainer(ABC):
     ...
     Attributes
     ----------
+    _classes_weights : str
+        The configuration of weights that will be applied on the loss during the training.
+        Flat: All classes have the same weight during the training.
+        Balanced: The weights are inversionaly proportional to the number of data of each classes in the training set.
+        (Default="balanced")
     __early_stopping : bool
         If true, the training will be stop after the third of the training if the model did not achieve at least 50%
         validation accuracy for at least one epoch.
@@ -65,6 +70,9 @@ class Trainer(ABC):
         then this is consider as an improvement.
     _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none.
+    _weights : dict
+        A dictionnary of np.array that represent the balanced weights that would be used to adjust the loss function
+        if __classes_weights == 'balanced'
     _writer : SummaryWriter
         Use to keep track of the training with tensorboard.
     Methods
@@ -75,31 +83,37 @@ class Trainer(ABC):
         Compute the accuracy of the model on a given data loader.
     """
     def __init__(self,
-                 loss: str = "ce",
-                 tol: float = 0.01,
+                 classes_weights: str = "balanced",
                  early_stopping: bool = False,
+                 loss: str = "ce",
                  mixed_precision: bool = False,
-                 pin_memory: bool = False,
                  num_workers: int = 0,
-                 shared_net: bool = False,
+                 pin_memory: bool = False,
                  save_path: str = "",
+                 shared_net: bool = False,
+                 tol: float = 0.01,
                  track_mode: str = "all"):
         """
         The constructor of the trainer class. 
 
-        :param loss: The loss that will be use during mixup epoch. (Default="ce")
-        :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
-                    (Default=0.01)
+        :param classes_weights: The configuration of weights that will be applied on the loss during the training.
+                                Flat: All classes have the same weight during the training.
+                                Balanced: The weights are inversionaly proportional to the number of data of each
+                                          classes in the training set.
+                                (Default="balanced")
         :param early_stopping: If true, the training will be stop after the third of the training if the model did
                                not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
+        :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
-        :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
-                           copied into the CUDA pinned memory. (Default=False)
-        :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
+        :param num_workers: Number of parallel process used for the preprocessing of the data. If 0,
                             the main process will be used for the data augmentation. (Default=0)
+        :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will
+                           copied into the CUDA pinned memory. (Default=False)
+        :param save_path: Indicate where the weights of the network and the result will be saved.
         :param shared_net: If true, the model to train will be a SharedNet. In this we need to optimizer, one for the
                            subnets and one for the sharing units and the Uncertainty loss parameters. (Default=False)
-        :param save_path: Indicate where the weights of the network and the result will be saved.
+        :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
+                    (Default=0.01)
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default=all)
@@ -110,77 +124,82 @@ class Trainer(ABC):
             "You can only choose one of the following loss ['ce', 'bce', 'marg']"
         assert track_mode.lower() in ["all", "low", "none"], \
             "Track mode should be one of those options: 'all', 'low' or 'none'"
-        self.__tol = tol
-        self._mixed_precision = mixed_precision
-        self.__pin_memory = pin_memory
-        self.__num_work = num_workers
-        self.__save_path = save_path
-        self._track_mode = track_mode.lower()
-        self.__early_stopping = early_stopping
-        self.model = None
-        self._device = None
-        self._writer = None
-        self._loss = loss.lower()
-        self._soft = nn.Softmax(dim=-1)
-        self.__shared_net = shared_net
-        self.__num_cumulated_batch = 1
+        assert classes_weights.lower() in ["flat", "balanced"], \
+            "classes_weights should be one of those options: 'Flat', 'Balanced'"
+
+        self._classes_weights = classes_weights
         self.__cumulate_counter = 0
+        self._device = None
+        self.__early_stopping = early_stopping
         self.__experiment = None
+        self._loss = loss.lower()
+        self._mixed_precision = mixed_precision
+        self.model = None
+        self.__num_cumulated_batch = 1
+        self.__num_work = num_workers
+        self.__pin_memory = pin_memory
+        self.__save_path = save_path
+        self.__shared_net = shared_net
+        self._soft = nn.Softmax(dim=-1)
+        self.__tol = tol
+        self._track_mode = track_mode.lower()
+        self._weights = {}
+        self._writer = None
 
     def fit(self,
             model: Union[NeuralNet, ResNet2D],
             trainset: RenalDataset,
             validset: RenalDataset,
-            num_epoch: int = 200, 
             batch_size: int = 32,
-            num_cumulated_batch: int = 1,
-            gamma: float = 2.,
-            learning_rate: float = 1e-3,
-            shared_lr: float = 0,
+            device: str = "cuda:0",
             eps: float = 1e-4,
-            mom: float = 0.9,
-            l2: float = 1e-4, 
-            t_0: int = 200,
             eta_min: float = 1e-4,
-            shared_eta_min: float = 0,
-            grad_clip: float = 0, 
-            mode: str = "standard", 
-            warm_up_epoch: int = 0,
-            optim: str = "Adam", 
+            gamma: float = 2.,
+            grad_clip: float = 0,
+            l2: float = 1e-4,
+            learning_rate: float = 1e-3,
+            mode: str = "standard",
+            mom: float = 0.9,
+            num_cumulated_batch: int = 1,
+            num_epoch: int = 200,
+            optim: str = "Adam",
             retrain: bool = False,
+            shared_eta_min: float = 0,
+            shared_lr: float = 0,
+            t_0: int = 200,
             transfer_path: str = None,
-            device: str = "cuda:0", 
-            verbose: bool = True) -> None:
+            verbose: bool = True,
+            warm_up_epoch: int = 0) -> None:
         """
         Train the model on the given dataset
 
         :param model: The model to train.
         :param trainset: The dataset that will be used to train the model.
-        :param validset: The dataset that will be used to mesure the model performance.
-        :param num_epoch: Maximum number of epoch during the training. (Default=200)
-        :param batch_size: The batch size that will be used during the training. (Default=32)
-        :param num_cumulated_batch: The number of batch that will be cumulated before updating the weight of the model.
-        :param gamma: Gamma parameter of the focal loss. (Default=2.0)
-        :param learning_rate: Start learning rate of the optimizer. (Default=1e-3)
-        :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
-                          equal to learning_rate*100. Only used when shared_net is True.
+        :param validset: The dataset that will be used to mesure the model performan
+        :param batch_size: The batch size that will be used during the training. (Default=32)ce.
+        :param device: The device on which the training will be done. (Default="cuda:0", first GPU)
         :param eps: The epsilon parameter of the Adam Optimizer. (Default=1e-4)
-        :param mom: The momentum parameter of the SGD Optimizer. (Default=0.9)
-        :param l2: L2 regularization coefficient. (Default=1e-4)
-        :param t_0: Number of epoch before the first restart. (Default=200)
         :param eta_min: Minimum value of the learning rate. (Default=1e-4)
-        :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
-                                will be equal to learning_rate*100. Only used when shared_net is True.
+        :param gamma: Gamma parameter of the focal loss. (Default=2.0)
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient. (Default=0)
+        :param l2: L2 regularization coefficient. (Default=1e-4)
+        :param learning_rate: Start learning rate of the optimizer. (Default=1e-3)
         :param mode: The training type: Option: Standard training (No mixup) (Default)
                                                 Mixup (Manifold mixup)
-        :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
+        :param mom: The momentum parameter of the SGD Optimizer. (Default=0.9)
+        :param num_cumulated_batch: The number of batch that will be cumulated before updating the weight of the model.
+        :param num_epoch: Maximum number of epoch during the training. (Default=200)
         :param optim: A string that indicate the optimizer that will be used for training. (Default='Adam')
         :param retrain: If false, the weights of the model will initialize. (Default=False)
+        :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
+                                will be equal to learning_rate*100. Only used when shared_net is True.
+        :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
+                          equal to learning_rate*100. Only used when shared_net is True.
+        :param t_0: Number of epoch before the first restart. (Default=200)
         :param transfer_path: If not None, initialize the model with transfer learning by loading the weight of
                               the model at the given path.
-        :param device: The device on which the training will be done. (Default="cuda:0", first GPU)
         :param verbose: If true, show the progress of the training. (Default=True)
+        :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
         """
         # Indicator for early stopping
         best_accuracy = 0
@@ -198,6 +217,7 @@ class Trainer(ABC):
         self._device = device
         self.model = model.to(device)
         self.model.set_mixup(batch_size) if mode.lower() == "mixup" else None
+        self.__init_weights(trainset.labels_bincount())
         self._init_loss(gamma=gamma)
 
         start_epoch = 0
@@ -277,7 +297,7 @@ class Trainer(ABC):
         # Go in training mode to activate mixup module
         self.model.train()
 
-        with tqdm(total=num_epoch, initial=start_epoch, leave=False) as t:
+        with tqdm(total=num_epoch, initial=start_epoch, leave=True) as t:
             for epoch in range(start_epoch, num_epoch):
 
                 current_mode = mode if warm_up_epoch <= epoch else current_mode
@@ -332,19 +352,19 @@ class Trainer(ABC):
         self.model.restore(self.__save_path)
 
     def _update_model(self,
-                      scaler: Union[GradScaler, None],
-                      optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
-                      schedulers: Sequence[CosineAnnealingWarmRestarts],
                       grad_clip: float,
-                      loss: torch.FloatTensor) -> None:
+                      loss: torch.FloatTensor,
+                      optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                      scaler: Union[GradScaler, None],
+                      schedulers: Sequence[CosineAnnealingWarmRestarts]) -> None:
         """
         Scale the loss if self._mixed_precision is True and update the weights of the model.
 
-        :param scaler: The gradient scaler that will be used to scale the loss if self._mixed_precision is True.
-        :param optimizers: The torch optimizer that will used to train the model.
-        :param schedulers: The learning rate scheduler that will be used at each iteration.
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param loss: The loss of the current epoch.
+        :param optimizers: The torch optimizer that will used to train the model.
+        :param scaler: The gradient scaler that will be used to scale the loss if self._mixed_precision is True.
+        :param schedulers: The learning rate scheduler that will be used at each iteration.
         """
         self.__cumulate_counter += 1
 
@@ -376,6 +396,17 @@ class Trainer(ABC):
 
         for scheduler in schedulers:
             scheduler.step()
+
+    def __init_weights(self, labels_bincounts: dict) -> None:
+        """
+        Compute the balanced weight according to a given distribution of data.
+
+        :param labels_bincounts: A dictionnary of numpy.array that give the distribution of data per class per task.
+                                 The tasks name are used has key in this dictionnary.
+        """
+
+        for key, value in labels_bincounts.items():
+            self._weights[key] = np.sum(value) / (2 * value)
 
     @abstractmethod
     def _get_conf_matrix(self,
