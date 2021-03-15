@@ -55,8 +55,8 @@ class CrossStitchUnit(torch.nn.Module):
             temp[:, t] = c
             alpha.append(temp)
 
-        alpha = torch.from_numpy(np.array(alpha)).float().swapaxes(1, 2)
-        alpha = alpha.swapaxes(1, 2)  # Output, Task, Channels
+        alpha = torch.from_numpy(np.array(alpha)).float()
+        alpha = torch.transpose(alpha, 1, 2)  # Output, Task, Channels
 
         self.alpha = torch.nn.Parameter(data=alpha, requires_grad=True)
 
