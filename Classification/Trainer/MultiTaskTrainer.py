@@ -189,7 +189,7 @@ class MultiTaskTrainer(Trainer):
                 losses = torch.stack((m_loss, s_loss))
                 loss = self.model.uncertainty_loss(losses)
 
-            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
+            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
 
             if self._track_mode == "all":
@@ -294,7 +294,7 @@ class MultiTaskTrainer(Trainer):
                                              permut,
                                              it + epoch*n_iters)
 
-            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
+            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             self.model.disable_mixup(mixup_key)
             sum_loss += loss
 

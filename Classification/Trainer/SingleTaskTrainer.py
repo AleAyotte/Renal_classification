@@ -25,7 +25,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
 
-ALL_TASK = ["malignant", "subtype", "grade"]
+ALL_TASK = ["malignant", "subtype", "grade", "ssign", "grade_2"]
 
 
 class SingleTaskTrainer(Trainer):
@@ -169,7 +169,7 @@ class SingleTaskTrainer(Trainer):
                 pred = self.model(images) if features is None else self.model(images, features)
                 loss = self.__loss(pred, labels)
 
-            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
+            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
 
             if self._track_mode == "all":
@@ -257,7 +257,7 @@ class SingleTaskTrainer(Trainer):
                                              permut,
                                              it + epoch*n_iters)
 
-            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
+            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
 
             self.model.disable_mixup(mixup_key)
