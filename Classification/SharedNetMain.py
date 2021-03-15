@@ -165,8 +165,8 @@ if __name__ == "__main__":
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     mal_net = ResNet(mixup=args.mixup,
                      depth=34,
-                     # first_channels=32,
-                     first_channels=48,
+                     first_channels=32,
+                     # first_channels=48,
                      in_shape=in_shape,
                      drop_rate=0.1,
                      drop_type="linear",
@@ -176,7 +176,8 @@ if __name__ == "__main__":
     sub_net = ResNet(mixup=args.mixup,
                      depth=34,
                      # first_channels=24,
-                     first_channels=36,
+                     first_channels=32,
+                     # first_channels=36,
                      in_shape=in_shape,
                      drop_rate=0.1,
                      drop_type="linear",
@@ -190,10 +191,12 @@ if __name__ == "__main__":
     net = SharedNet(malignant_net=mal_net,
                     subtype_net=sub_net,
                     mixup=args.mixup,
-                    subspace_1=[4, 3],
-                    subspace_2=[8, 6],
-                    subspace_3=[8, 6],
-                    subspace_4=[4, 3],
+                    num_shared_channels=[32, 64, 128, 256],
+                    sharing_unit="cross_stitch",
+                    # subspace_1=[4, 3],
+                    # subspace_2=[8, 6],
+                    # subspace_3=[8, 6],
+                    # subspace_4=[4, 3],
                     c=0.85,
                     spread=0.1).to(args.device)
     summary(net, (3, 96, 96, 32))
@@ -250,7 +253,7 @@ if __name__ == "__main__":
                 num_epoch=args.num_epoch,
                 t_0=max(args.num_epoch, 1),
                 l2=0.009,
-                retrain=True)
+                retrain=False)
 
     # --------------------------------------------
     #                    SCORE
@@ -263,8 +266,7 @@ if __name__ == "__main__":
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False,
-                                auto_output_logging=False)
+                                log_code=False)
 
         experiment.set_name("SharedNet" + "_" + "MultiTask")
         experiment.log_code("SharedNetMain.py")

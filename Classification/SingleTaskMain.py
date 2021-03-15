@@ -86,7 +86,7 @@ def argument_parser():
                         help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
     parser.add_argument('--task', type=str, default="malignant",
                         help="The task on which the model will be train.",
-                        choices=["malignant", "subtype", "grade"])
+                        choices=["malignant", "subtype", "grade", "SSIGN", "grade_2"])
     parser.add_argument('--testset', type=str, default="stratified",
                         help="The name of the first testset. If 'testset'== stratified then the first testset will be "
                              "the stratified dataset and the independant will be the second and hence could be used as "
@@ -114,6 +114,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     #              DATA AUGMENTATION
     # --------------------------------------------
+    """
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
         RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
@@ -126,7 +127,20 @@ if __name__ == "__main__":
         ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
     ])
-
+    """
+    transform = Compose([
+        AddChanneld(keys=["t1", "t2", "roi"]),
+        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
+        RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
+        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
+                    rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
+        # RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
+        RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 24], random_center=False),
+        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
+                  keep_size=False, mode="trilinear", align_corners=True),
+        ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
+        ToTensord(keys=["t1", "t2", "roi"])
+    ])
     test_transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
         ToTensord(keys=["t1", "t2", "roi"])
@@ -241,8 +255,7 @@ if __name__ == "__main__":
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False,
-                                auto_output_logging=False)
+                                log_code=False)
 
         experiment.set_name("ResNet3D" + "_" + args.task)
         experiment.log_code("SingleTaskMain.py")

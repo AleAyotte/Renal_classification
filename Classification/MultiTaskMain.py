@@ -14,6 +14,7 @@ from Model.ResNet import MultiLevelResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
+import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
@@ -72,7 +73,7 @@ def argument_parser():
                         help="The number of training epoch.")
     parser.add_argument('--num_cumu_batch', type=int, default=1,
                         help="The number of batch that will be cumulated before updating the weight of the model.")
-    parser.add_argument('--optim', type=str, default="sgd",
+    parser.add_argument('--optim', type=str, default="optim",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
     parser.add_argument('--pad_mode', type=str, default="constant",
@@ -113,6 +114,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     #              DATA AUGMENTATION
     # --------------------------------------------
+    """
     transform = Compose([
         AddChanneld(keys=["t1", "t2", "roi"]),
         RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
@@ -121,6 +123,19 @@ if __name__ == "__main__":
                     rotate_range=[0, 0, 6.28], translate_range=0, padding_mode="zeros"),
         RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
         RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=1.00, max_zoom=1.05,
+                  keep_size=False, mode="trilinear", align_corners=True),
+        ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
+        ToTensord(keys=["t1", "t2", "roi"])
+    ])
+    """
+    transform = Compose([
+        AddChanneld(keys=["t1", "t2", "roi"]),
+        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
+        RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
+        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
+                    rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
+        RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
+        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
                   keep_size=False, mode="trilinear", align_corners=True),
         ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
         ToTensord(keys=["t1", "t2", "roi"])
@@ -210,6 +225,8 @@ if __name__ == "__main__":
                       track_mode=args.track_mode,
                       mixed_precision=True)
 
+    torch.backends.cudnn.benchmark = True
+
     trainer.fit(model=net, 
                 trainset=trainset,
                 validset=validset,
@@ -225,7 +242,9 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                l2=1e-6)
+                l2=0.009,
+                retrain=False)
+                # l2=1e-6)
 
     # --------------------------------------------
     #                    SCORE
@@ -238,8 +257,7 @@ if __name__ == "__main__":
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False,
-                                auto_output_logging=False)
+                                log_code=False)
 
         experiment.set_name("ResNet3D" + "_" + "MultiTask")
         experiment.log_code("MultiTaskMain.py")
