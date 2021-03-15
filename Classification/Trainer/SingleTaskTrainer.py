@@ -25,7 +25,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
 
-ALL_TASK = ["malignant", "subtype", "grade", "ssign", "grade_2"]
+ALL_TASK = ["malignant", "subtype", "grade", "ssign"]
 
 
 class SingleTaskTrainer(Trainer):
