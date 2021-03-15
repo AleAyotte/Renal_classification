@@ -86,7 +86,7 @@ def argument_parser():
                         help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
     parser.add_argument('--task', type=str, default="malignant",
                         help="The task on which the model will be train.",
-                        choices=["malignant", "subtype", "grade", "SSIGN", "grade_2"])
+                        choices=["malignant", "subtype", "grade", "SSIGN"])
     parser.add_argument('--testset', type=str, default="stratified",
                         help="The name of the first testset. If 'testset'== stratified then the first testset will be "
                              "the stratified dataset and the independant will be the second and hence could be used as "

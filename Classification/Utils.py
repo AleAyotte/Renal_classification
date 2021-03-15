@@ -19,7 +19,7 @@ API_KEY_FILEPATH = "comet_api_key.txt"  # path to the file that contain the API 
 
 def print_data_distribution(dataset_name: str,
                             task_list: Sequence[str],
-                            labels_bincount_list: Sequence[np.array]) -> None:
+                            labels_bincount_list: dict) -> None:
     """
     Print the number of data per class per task for a given dataset.
 
@@ -40,8 +40,8 @@ def print_data_distribution(dataset_name: str,
 
     for i in range(len(task_list)):
         print("|{:^12s}|{:^12}|{:^12}|".format(task_list[i],
-                                               labels_bincount_list[i][0],
-                                               labels_bincount_list[i][1]))
+                                               labels_bincount_list[task_list[i]][0],
+                                               labels_bincount_list[task_list[i]][1]))
         print(line_sep)
 
 
