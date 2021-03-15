@@ -10,7 +10,7 @@
 import argparse
 from comet_ml import Experiment
 from Data_manager.DataManager import RenalDataset, split_trainset
-from Model.ResNet import MultiLevelResNet
+from Model.ResNet import HardSharedResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     #                NEURAL NETWORK
     # --------------------------------------------
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    net = MultiLevelResNet(mixup=args.mixup,
+    net = HardSharedResNet(mixup=args.mixup,
                            depth=args.depth,
                            split_level=args.split_level,
                            in_shape=in_shape,
