@@ -99,7 +99,7 @@ class MultiLevelResNet(NeuralNet):
         if pre_act:
             block = {18: PreResBlock, 34: PreResBlock, 50: PreResBottleneck, 101: PreResBottleneck}
         else:
-            block = {18: ResBlock, 34: ResBlock}
+            block = {18: ResBlock, 34: ResBlock, 50: ResBottleneck, 101: ResBottleneck}
 
         layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
 
@@ -138,15 +138,15 @@ class MultiLevelResNet(NeuralNet):
 
         for i in range(4):
             strides = [2, 2, 1] if i == 0 else [2, 2, 2]
-            layers = self.__make_layer(block[depth], layers[depth][i],
-                                       first_channels * (2**i), kernel=kernel,
-                                       strides=strides, norm=norm,
-                                       drop_rate=dropout[i], act=act)
-            if split_level < i+1:
-                common_layers.append(layers)
+            temp_layers = self.__make_layer(block[depth], layers[depth][i],
+                                            first_channels * (2**i), kernel=kernel,
+                                            strides=strides, norm=norm,
+                                            drop_rate=dropout[i], act=act)
+            if split_level > i+1:
+                common_layers.append(temp_layers)
             else:
-                task1_layers.append(layers)
-                task2_layers.append(copy.deepcopy(layers))
+                task1_layers.append(temp_layers)
+                task2_layers.append(copy.deepcopy(temp_layers))
 
         in_shape = list(in_shape)
         out_shape = [int(in_shape[0] / 16), int(in_shape[1] / 16), int(in_shape[2] / 8)]
@@ -193,8 +193,11 @@ class MultiLevelResNet(NeuralNet):
         out = self.common_layers(x)
 
         # We split the neural network in two.
-        out_task1 = self.task1_layers(out if self.__backend_task1 else out.detach())
-        out_task2 = self.task2_layers(out.detach() if self.__backend_task1 else out)
+        # out_task1 = self.task1_layers(out if self.__backend_task1 else out.detach())
+        # out_task2 = self.task2_layers(out.detach() if self.__backend_task1 else out)
+
+        out_task2 = self.task2_layers(out)
+        out_task1 = self.task1_layers(out.detach())
 
         task1_features = out_task1.view(-1, self.__num_flat_features)
         task2_features = out_task2.view(-1, self.__num_flat_features)
@@ -202,4 +205,5 @@ class MultiLevelResNet(NeuralNet):
         task1_pred = self.task1_fc_layer(task1_features)
         task2_pred = self.task2_fc_layer(task2_features)
 
-        return task1_pred, task2_pred
+        # return task1_pred, task2_pred
+        return task2_pred
