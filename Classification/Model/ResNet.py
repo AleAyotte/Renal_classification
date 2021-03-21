@@ -334,7 +334,7 @@ class HardSharedResNet(NeuralNet):
         if pre_act:
             block = {18: PreResBlock, 34: PreResBlock, 50: PreResBottleneck, 101: PreResBottleneck}
         else:
-            block = {18: ResBlock, 34: ResBlock}
+            block = {18: ResBlock, 34: ResBlock, 50: ResBottleneck, 101: ResBottleneck}
 
         layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
 
