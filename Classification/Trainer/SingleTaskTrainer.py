@@ -9,6 +9,7 @@
                         to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
 """
 
+from Model.CapsNet2D import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -130,9 +131,9 @@ class SingleTaskTrainer(Trainer):
             self.__loss = nn.BCEWithLogitsLoss(pos_weight=weight)
         elif self._loss == "focal":
             self.__loss = FocalLoss(gamma=gamma, weight=weight)
-        else:  # loss == "marg"
-            raise NotImplementedError
-    
+        else:
+            self.__loss = MarginLoss()
+
     def _standard_epoch(self,
                         train_loader: DataLoader,
                         optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
