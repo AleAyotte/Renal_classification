@@ -10,6 +10,7 @@
                         grade prediction).
 """
 
+from Model.CapsNet2D import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -139,7 +140,8 @@ class MultiTaskTrainer(Trainer):
             self.__m_loss = FocalLoss(gamma=gamma, weight=weight_m)
             self.__s_loss = FocalLoss(gamma=gamma, weight=weight_s)
         else:  # loss == "marg"
-            raise NotImplementedError
+            self.__m_loss = MarginLoss()
+            self.__s_loss = MarginLoss()
     
     def _standard_epoch(self,
                         train_loader: DataLoader,
