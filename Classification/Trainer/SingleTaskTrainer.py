@@ -26,7 +26,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
 
-ALL_TASK = ["malignant", "subtype", "grade", "ssign"]
+ALL_TASK = ["malignancy", "subtype", "grade", "ssign"]
 
 
 class SingleTaskTrainer(Trainer):
@@ -75,7 +75,7 @@ class SingleTaskTrainer(Trainer):
                  classes_weights: str = "balanced",
                  save_path: str = "",
                  track_mode: str = "all",
-                 task="Malignant"):
+                 task="malignancy"):
         """
         The constructor of the trainer class. 
 
@@ -110,7 +110,8 @@ class SingleTaskTrainer(Trainer):
                          track_mode=track_mode)
         self.__loss = None
 
-        assert task.lower() in ALL_TASK, "Task should be one of those options: 'malignant', 'subtype', 'grade'"
+        assert task.lower() in ALL_TASK, "Task should be one of those options: " \
+                                         "'malignancy', 'subtype', 'grade', 'ssign'"
         self.__task = task
 
     def _init_loss(self, gamma: float) -> None:
@@ -121,7 +122,7 @@ class SingleTaskTrainer(Trainer):
         """
 
         if self._classes_weights == "balanced":
-            weight = torch.Tensor(self._weights["outcome"]).to(self._device)
+            weight = torch.Tensor(self._weights[self.__task]).to(self._device)
         else:
             weight = None
 
@@ -155,7 +156,7 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            images, labels = data["sample"].to(self._device), data["labels"]["outcome"].to(self._device)
+            images, labels = data["sample"].to(self._device), data["labels"][self.__task].to(self._device)
             images, labels = Variable(images), Variable(labels)
             features = None
 
@@ -236,7 +237,7 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            images, labels = data["sample"].to(self._device), data["labels"]["outcome"].to(self._device)
+            images, labels = data["sample"].to(self._device), data["labels"][self.__task].to(self._device)
             images, labels = Variable(images), Variable(labels)
             features = None
 
@@ -315,7 +316,7 @@ class SingleTaskTrainer(Trainer):
         labels = torch.empty(0).long()
 
         for data in dt_loader:
-            images, label = data["sample"].to(self._device), data["labels"]["outcome"]
+            images, label = data["sample"].to(self._device), data["labels"][self.__task]
             features = None
 
             if "features" in list(data.keys()):

@@ -124,7 +124,7 @@ class MultiTaskTrainer(Trainer):
         :param gamma: Gamma parameter of the focal loss.
         """
         if self._classes_weights == "balanced":
-            weight_m = torch.Tensor(self._weights["malignant"]).to(self._device)
+            weight_m = torch.Tensor(self._weights["malignancy"]).to(self._device)
             weight_s = torch.Tensor(self._weights["subtype"]).to(self._device)
         else:
             weight_m = None
@@ -167,7 +167,7 @@ class MultiTaskTrainer(Trainer):
             images, labels = data["sample"].to(self._device), data["labels"]
             images = Variable(images)
 
-            m_labels = Variable(labels["malignant"]).to(self._device)
+            m_labels = Variable(labels["malignancy"]).to(self._device)
             s_labels = Variable(labels["subtype"]).to(self._device)
 
             features = None
@@ -196,7 +196,7 @@ class MultiTaskTrainer(Trainer):
 
             if self._track_mode == "all":
                 self._writer.add_scalars('Training/Loss', 
-                                         {'Malignant': m_loss.item(),
+                                         {'Malignancy': m_loss.item(),
                                           'Subtype': s_loss.item(),
                                           'Total': loss.item()}, 
                                          it + epoch*n_iters)
@@ -244,7 +244,7 @@ class MultiTaskTrainer(Trainer):
 
         if self._track_mode == "all":
             self._writer.add_scalars('Training/Loss', 
-                                     {'Malignant': m_loss.item(),
+                                     {'Malignancy': m_loss.item(),
                                       'Subtype': s_loss.item(),
                                       'Total': loss.item()}, 
                                      it)
@@ -274,7 +274,7 @@ class MultiTaskTrainer(Trainer):
             images, labels = data["sample"].to(self._device), data["labels"]
             images = Variable(images)
 
-            m_labels = Variable(labels["malignant"].to(self._device))
+            m_labels = Variable(labels["malignancy"].to(self._device))
             s_labels = Variable(labels["subtype"].to(self._device))
 
             features = None
@@ -337,12 +337,12 @@ class MultiTaskTrainer(Trainer):
 
         if self._track_mode != "none":
             self._writer.add_scalars('{}/Accuracy'.format(dataset_name), 
-                                     {'Malignant': m_acc,
+                                     {'Malignancy': m_acc,
                                       'Subtype': s_acc,
                                       'Cond Subtype': s_cond_acc},
                                      epoch)
 
-            self._writer.add_scalars('{}/Recall/Malignant'.format(dataset_name), 
+            self._writer.add_scalars('{}/Recall/Malignancy'.format(dataset_name),
                                      {'Recall 0': m_recall[0],
                                       'Recall 1': m_recall[1]},
                                      epoch)
@@ -360,7 +360,7 @@ class MultiTaskTrainer(Trainer):
             if dataset_name == "Validation":
                 phi = self.model.uncertainty_loss.phi.detach().cpu().numpy()
                 self._writer.add_scalars("Other/Uncertainty",
-                                         {"phi_Malignant": phi[0],
+                                         {"phi_Malignancy": phi[0],
                                           "phi_Subtype": phi[1]},
                                          epoch)
         return mean_acc, loss
@@ -397,7 +397,7 @@ class MultiTaskTrainer(Trainer):
                 m_outs = torch.cat([m_outs, m_out])
                 s_outs = torch.cat([s_outs, s_out])
 
-                m_labels = torch.cat([m_labels, labels["malignant"]])
+                m_labels = torch.cat([m_labels, labels["malignancy"]])
                 s_labels = torch.cat([s_labels, labels["subtype"]])
 
         # Compute the pred and the conditional prediction
