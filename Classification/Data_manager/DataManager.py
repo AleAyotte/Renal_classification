@@ -235,6 +235,41 @@ class RenalDataset(Dataset):
         self.__clinical_data = np.array(self.__clinical_data)
         f.close()
 
+    def stratified_split(self,
+                         pop: bool = True,
+                         random_seed: int = 0,
+                         sample_size: float = 0.1) -> Tuple[Sequence[dict],
+                                                            Union[Sequence[dict], Sequence[int]],
+                                                            Sequence[str],
+                                                            Sequence[Sequence[int]]]:
+        """
+        Split the current dataset and return a stratified portion of it.
+
+        :param pop: If True, the extracted data are removed from the dataset. (Default: True)
+        :param random_seed: The seed that will be used to split the data.
+        :param sample_size: Proportion of the current set that will be used to create the new stratified set.
+        :return: A tuple that contain the data (images), the labels, the encoding_keys and the clinical data.
+        """
+        group_by = {}
+        for i, key in enumerate(self.__encoding_keys):
+            if key not in list(group_by.keys()):
+                group_by[key] = [i]
+            else:
+                group_by[key].append(i)
+
+        # Create a stratified group
+        new_set = []
+        random.seed(random_seed)
+        for key, value in group_by.items():
+            if len(value) > 1:
+                _, split = train_test_split(value, test_size=sample_size, random_state=random_seed)
+                new_set.extend(split)
+            else:
+                if random.random() > sample_size:
+                    new_set.extend(value)
+
+        return self.extract_data(idx=new_set, pop=pop)
+
     def __len__(self) -> int:
         return len(self.__data)
 
