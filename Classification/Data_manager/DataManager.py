@@ -12,9 +12,14 @@
 import h5py
 from monai.transforms import Compose
 import numpy as np
+import random
+from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import Dataset
 from typing import Sequence, Tuple, Union
+
+
+STRATITFIED_KEY = ["malignancy", "subtype", "grade", "ssign", "institution"]
 
 
 class RenalDataset(Dataset):
@@ -70,7 +75,7 @@ class RenalDataset(Dataset):
         :param tasks: A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
-        # assert split in ['train', 'test', 'test2', None]
+        assert split in ['train', 'test', None]
         self.transform = transform
         self.__tasks = tasks if tasks is not None else ["outcome"]
         self.__with_clinical = clinical_features is not None
@@ -78,6 +83,7 @@ class RenalDataset(Dataset):
         self.__data = np.array([])
         self.__clinical_data = None
         self.__labels = np.array([])
+        self.__encoding_keys = np.array([])
 
         if clinical_features is not None:
             self.__clinical_data = np.empty(shape=(0, len(clinical_features)))
@@ -90,17 +96,20 @@ class RenalDataset(Dataset):
 
     def add_data(self,
                  data: Sequence[dict],
+                 encoding_keys: Sequence[str],
                  label: Union[Sequence[dict], Sequence[int]],
                  clinical_data: Sequence[Sequence[int]] = None) -> None:
         """
         Add data to the dataset.
 
         :param data: A sequence of dictionary that contain the images.
+        :param encoding_keys: ADD DESCRIPTION
         :param label: A sequence of dictionary or a sequence of int that contain the labels.
         :param clinical_data: A sequence of sequence of int that contain the clinical data.
         """
         self.__data = np.append(self.__data, data, 0)
         self.__labels = np.append(self.__labels, label, 0)
+        self.__encoding_keys = np.append(self.__encoding_keys, encoding_keys, 0)
         if clinical_data is not None:
             self.__clinical_data = np.append(self.__clinical_data, clinical_data, 0)
 
@@ -108,27 +117,30 @@ class RenalDataset(Dataset):
                      idx: Sequence[int],
                      pop: bool = True) -> Tuple[Sequence[dict],
                                                 Union[Sequence[dict], Sequence[int]],
+                                                Sequence[str],
                                                 Sequence[Sequence[int]]]:
         """
         Extract data without applying transformation on the images.
 
         :param idx: The index of the data to extract.
         :param pop: If True, the extracted data are removed from the dataset. (Default: True)
-        :return: A tuple that contain the data (images), the labels and the clinical data.
+        :return: A tuple that contain the data (images), the labels, the encoding_keys and the clinical data.
         """
         mask = np.ones(len(self.__data), dtype=bool)
         mask[idx] = False
 
         data = self.__data[~mask]
         labels = self.__labels[~mask]
+        encoding_keys = self.__encoding_keys[~mask]
         clin = self.__clinical_data[~mask] if self.__with_clinical else None
 
         if pop:
             self.__data = self.__data[mask]
             self.__labels = self.__labels[mask]
+            self.__encoding_keys = self.__encoding_keys[mask]
             self.__clinical_data = self.__clinical_data[mask] if self.__with_clinical else None
 
-        return data, labels, clin
+        return data, labels, encoding_keys, clin
 
     def labels_bincount(self) -> dict:
         """
@@ -194,6 +206,7 @@ class RenalDataset(Dataset):
         self.__data = []
         self.__labels = []
         self.__clinical_data = []
+        self.__encoding_keys = []
 
         for key in list(dtset.keys()):
             imgs = {}
@@ -207,12 +220,18 @@ class RenalDataset(Dataset):
                 outcomes[task] = dtset[key].attrs[task]
             self.__labels.append(outcomes)
 
+            encoding_key = ""
+            for strat_key in STRATITFIED_KEY:
+                encoding_key += '_' + str(dtset[key].attrs[strat_key])
+            self.__encoding_keys.append(outcomes)
+
             if self.__with_clinical:
                 attrs = dtset[key].attrs
                 self.__clinical_data.append([attrs[feat_name] for feat_name in features_names])
 
         self.__data = np.array(self.__data)
         self.__labels = np.array(self.__labels)
+        self.__encoding_keys = np.array(self.__encoding_keys)
         self.__clinical_data = np.array(self.__clinical_data)
         f.close()
 
