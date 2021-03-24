@@ -223,7 +223,7 @@ class RenalDataset(Dataset):
             encoding_key = ""
             for strat_key in STRATITFIED_KEY:
                 encoding_key += '_' + str(dtset[key].attrs[strat_key])
-            self.__encoding_keys.append(outcomes)
+            self.__encoding_keys.append(encoding_key)
 
             if self.__with_clinical:
                 attrs = dtset[key].attrs
