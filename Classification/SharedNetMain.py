@@ -14,7 +14,6 @@ from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
-import numpy as np
 from random import randint
 import torch
 from torchsummary import summary
@@ -22,7 +21,7 @@ from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-DATA_PATH = "final_dtset/all.hdf5"
+DATA_PATH = "final_dtset/new/all.hdf5"
 FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
 LOAD_PATH = "save/14_Fev_2020/"
 SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
@@ -42,9 +41,6 @@ def argument_parser():
                         help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
     parser.add_argument('--eta_min', type=float, default=1e-6,
                         help="The minimal value of the learning rate.")
-    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
-                        help="If true, the second testest will be add to the training dataset. "
-                             "The second dataset is determined with '--testset'.")
     parser.add_argument('--grad_clip', type=float, default=2.25,
                         help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
                              "the training.")
@@ -80,11 +76,11 @@ def argument_parser():
                         help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
                              "information transfer between multiple subnets",
                         choices=["sluice", "cross_stitch"])
-    parser.add_argument('--testset', type=str, default="stratified",
-                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
-                             "the stratified dataset and the independant will be the second and hence could be used as "
-                             "extra data.",
-                        choices=["stratified", "independant"])
+    parser.add_argument('--testset', type=str, default="test",
+                        help="The name of the testset. If testset=='test' then a random stratified testset will be "
+                             "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
+                             "be loaded",
+                        choices=["test", "hold_out_set"])
     parser.add_argument('--track_mode', type=str, default="all",
                         help="Determine the quantity of training statistics that will be saved with tensorboard."
                              "If low, the training loss will be saved only at each epoch and not at each iteration.",
@@ -130,7 +126,6 @@ if __name__ == "__main__":
     #               CREATE DATASET
     # --------------------------------------------
     testset_name = args.testset
-    testset2_name = "independant" if args.testset == "stratified" else "stratified"
 
     trainset = RenalDataset(DATA_PATH, transform=transform,
                             imgs_keys=["t1", "t2", "roi"],
@@ -140,26 +135,18 @@ if __name__ == "__main__":
                             tasks=TASK_LIST, split=None)
     testset = RenalDataset(DATA_PATH, transform=test_transform,
                            imgs_keys=["t1", "t2", "roi"],
-                           tasks=TASK_LIST, split=testset_name)
+                           tasks=TASK_LIST, split=None if testset_name == "test" else testset_name)
 
-    # If we want to use some extra data, then will we used the data of the second test set.
-    if args.extra_data:
-        testset2 = RenalDataset(DATA_PATH, transform=transform,
-                                imgs_keys=["t1", "t2", "roi"],
-                                tasks=TASK_LIST, split=testset2_name)
-        data, label, _ = testset2.extract_data(np.arange(len(testset2)))
-        trainset.add_data(data, label)
-        del data
-        del label
-
-    # Else the second test set will be used to access the performance of the dataset at the end.
-    else:
-        testset2 = RenalDataset(DATA_PATH, transform=test_transform,
-                                imgs_keys=["t1", "t2", "roi"],
-                                tasks=TASK_LIST, split=testset2_name)
+    if testset_name == "test":
+        trainset, testset = split_trainset(trainset, testset, validation_split=0.2)
 
     seed = randint(0, 10000)
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed)
+
+    # We remove the unlabeled data.
+    trainset.remove_unlabeled_data()
+    validset.remove_unlabeled_data()
+    testset.remove_unlabeled_data()
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -215,10 +202,6 @@ if __name__ == "__main__":
     print_data_distribution("{} Set".format(testset_name.capitalize()),
                             TASK_LIST,
                             testset.labels_bincount())
-    if not args.extra_data:
-        print_data_distribution("{} Set".format(testset2_name.capitalize()),
-                                TASK_LIST,
-                                testset2.labels_bincount())
     print("\n")
 
     # --------------------------------------------
@@ -286,19 +269,11 @@ if __name__ == "__main__":
                 experiment=experiment)
 
     conf, auc = trainer.score(testset)
-    print_score(dataset_name="{} TEST".format(testset_name.upper()),
+    print_score(dataset_name=f"{testset_name.upper()}",
                 task_list=FINAL_TASK_LIST,
                 conf_mat_list=conf,
                 auc_list=auc,
                 experiment=experiment)
-
-    if not args.extra_data:
-        conf, auc = trainer.score(testset2)
-        print_score(dataset_name="{} TEST".format(testset2_name.upper()),
-                    task_list=FINAL_TASK_LIST,
-                    conf_mat_list=conf,
-                    auc_list=auc,
-                    experiment=experiment)
 
     if experiment is not None:
         hparam = vars(args)

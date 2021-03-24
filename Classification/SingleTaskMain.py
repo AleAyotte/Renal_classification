@@ -14,7 +14,6 @@ from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import ResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
-import numpy as np
 from random import randint
 import torch
 from torchsummary import summary

@@ -13,7 +13,6 @@ from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet import HardSharedResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
-import numpy as np
 from random import randint
 import torch
 from torchsummary import summary
@@ -170,7 +169,7 @@ if __name__ == "__main__":
     trainset.remove_unlabeled_data()
     validset.remove_unlabeled_data()
     testset.remove_unlabeled_data()
-    
+
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
