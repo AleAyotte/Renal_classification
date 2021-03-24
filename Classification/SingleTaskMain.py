@@ -15,6 +15,7 @@ from Model.ResNet import ResNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
+from random import randint
 import torch
 from torchsummary import summary
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
@@ -175,8 +176,8 @@ if __name__ == "__main__":
         testset2 = RenalDataset(data_path, transform=test_transform,
                                 imgs_keys=["t1", "t2", "roi"],
                                 split=testset2_name)
-
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
+    seed = randint(0, 10000)
+    trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -242,7 +243,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                retrain=False)
+                retrain=True)
 
     # --------------------------------------------
     #                    SCORE
@@ -289,5 +290,5 @@ if __name__ == "__main__":
 
     if experiment is not None:
         hparam = vars(args)
-        del hparam["task"]
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
+        experiment.log_parameter("seed", seed)

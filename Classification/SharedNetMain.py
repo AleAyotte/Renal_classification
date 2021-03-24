@@ -15,6 +15,7 @@ from Model.SharedNet import SharedNet
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 import numpy as np
+from random import randint
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
@@ -157,7 +158,8 @@ if __name__ == "__main__":
                                 imgs_keys=["t1", "t2", "roi"],
                                 tasks=TASK_LIST, split=testset2_name)
 
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
+    seed = randint(0, 10000)
+    trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -301,3 +303,5 @@ if __name__ == "__main__":
     if experiment is not None:
         hparam = vars(args)
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
+        experiment.log_parameter("seed", seed)
+        experiment.log_parameter("Task", "SharedNet")
