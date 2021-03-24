@@ -22,6 +22,7 @@ from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
+DATA_PATH = "final_dtset/new/all.hdf5"
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
 
 
@@ -50,9 +51,6 @@ def argument_parser():
                         help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
     parser.add_argument('--eta_min', type=float, default=1e-6,
                         help="The minimal value of the learning rate.")
-    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
-                        help="If true, the second testest will be add to the training dataset."
-                             "The second dataset is determined with '--testset'.")
     parser.add_argument('--grad_clip', type=float, default=1.25,
                         help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
                              "the training.")
@@ -85,14 +83,14 @@ def argument_parser():
                         choices=["constant", "edge", "reflect", "symmetric"])
     parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
                         help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
-    parser.add_argument('--task', type=str, default="malignant",
+    parser.add_argument('--task', type=str, default="malignancy",
                         help="The task on which the model will be train.",
-                        choices=["malignant", "subtype", "grade", "SSIGN"])
-    parser.add_argument('--testset', type=str, default="stratified",
+                        choices=["malignancy", "subtype", "grade", "SSIGN"])
+    parser.add_argument('--testset', type=str, default="test",
                         help="The name of the first testset. If 'testset'== stratified then the first testset will be "
                              "the stratified dataset and the independant will be the second and hence could be used as "
                              "extra data.",
-                        choices=["stratified", "independent"])
+                        choices=["test", "hold_out_set"])
     parser.add_argument('--track_mode', type=str, default="all",
                         help="Determine the quantity of training statistics that will be saved with tensorboard. "
                              "If low, the training loss will be saved only at each epoch and not at each iteration.",
@@ -110,7 +108,6 @@ def argument_parser():
 
 if __name__ == "__main__":
     args = argument_parser()
-    data_path = "final_dtset/{}.hdf5".format(args.task)
 
     # --------------------------------------------
     #              DATA AUGMENTATION
@@ -151,31 +148,22 @@ if __name__ == "__main__":
     #               CREATE DATASET
     # --------------------------------------------
     testset_name = args.testset
-    testset2_name = "independant" if args.testset == "stratified" else "stratified"
 
-    trainset = RenalDataset(data_path, transform=transform,
-                            imgs_keys=["t1", "t2", "roi"])
-    validset = RenalDataset(data_path, transform=test_transform,
+    trainset = RenalDataset(DATA_PATH, transform=transform,
                             imgs_keys=["t1", "t2", "roi"],
+                            tasks=[args.task])
+    validset = RenalDataset(DATA_PATH, transform=test_transform,
+                            imgs_keys=["t1", "t2", "roi"],
+                            tasks=[args.task],
                             split=None)
-    testset = RenalDataset(data_path, transform=test_transform,
+    testset = RenalDataset(DATA_PATH, transform=test_transform,
                            imgs_keys=["t1", "t2", "roi"],
-                           split=testset_name)
+                           tasks=[args.task],
+                           split=None if testset_name == "test" else testset_name)
 
-    # If we want to use some extra data, then will we used the data of the second test set.
-    if args.extra_data:
-        testset2 = RenalDataset(data_path, transform=transform,
-                                imgs_keys=["t1", "t2", "roi"],
-                                split=testset2_name)
-        data, label, _ = testset2.extract_data(np.arange(len(testset2)))
-        trainset.add_data(data, label)
-        del data
-        del label
-    # Else the second test set will be used to access the performance of the dataset at the end.
-    else:
-        testset2 = RenalDataset(data_path, transform=test_transform,
-                                imgs_keys=["t1", "t2", "roi"],
-                                split=testset2_name)
+    if testset_name == "test":
+        trainset, testset = split_trainset(trainset, testset, validation_split=0.2)
+
     seed = randint(0, 10000)
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed)
 
@@ -198,18 +186,14 @@ if __name__ == "__main__":
     #                SANITY CHECK
     # --------------------------------------------
     print_data_distribution("Training Set",
-                            ["outcome"],
+                            [args.task],
                             trainset.labels_bincount())
     print_data_distribution("Validation Set",
-                            ["outcome"],
+                            [args.task],
                             validset.labels_bincount())
     print_data_distribution(f"{testset_name.capitalize()} Set",
-                            ["outcome"],
+                            [args.task],
                             testset.labels_bincount())
-    if not args.extra_data:
-        print_data_distribution(f"{testset2_name.capitalize()} Set",
-                                ["outcome"],
-                                testset2.labels_bincount())
     print("\n")
 
     # --------------------------------------------
@@ -279,14 +263,6 @@ if __name__ == "__main__":
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
-
-    if not args.extra_data:
-        conf, auc = trainer.score(testset2)
-        print_score(dataset_name=f"{testset2_name.upper()} TEST",
-                    task_list=[args.task],
-                    conf_mat_list=[conf],
-                    auc_list=[auc],
-                    experiment=experiment)
 
     if experiment is not None:
         hparam = vars(args)
