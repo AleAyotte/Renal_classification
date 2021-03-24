@@ -323,14 +323,10 @@ def split_trainset(trainset: RenalDataset,
     :param random_seed: The random seed that will be used shuffle and split the data.
     :return: Two RenalDataset that will represent the trainset and the validation set respectively
     """
-    dataset_size = len(trainset)
-    indices = list(range(dataset_size))
-    split = int(np.floor(validation_split * dataset_size))
-    np.random.seed(random_seed)
-    np.random.shuffle(indices)
 
-    val_indices = indices[:split]
-    data, label, clin = trainset.extract_data(idx=val_indices)
-    validset.add_data(data, label, clin)
+    data, label, enconding_keys, clin = trainset.stratified_split(pop=True,
+                                                                  sample_size=validation_split,
+                                                                  random_seed=random_seed)
+    validset.add_data(data, enconding_keys, label, clin)
 
     return trainset, validset
