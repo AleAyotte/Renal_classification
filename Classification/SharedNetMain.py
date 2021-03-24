@@ -21,7 +21,7 @@ from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-DATA_PATH = "final_dtset/new/all.hdf5"
+DATA_PATH = "final_dtset/all.hdf5"
 FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
 LOAD_PATH = "save/14_Fev_2020/"
 SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
