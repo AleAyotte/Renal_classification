@@ -258,7 +258,7 @@ if __name__ == "__main__":
                 experiment=experiment)
 
     conf, auc = trainer.score(testset)
-    print_score(dataset_name=f"{testset_name.upper()} TEST",
+    print_score(dataset_name=f"{testset_name.upper()}",
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
