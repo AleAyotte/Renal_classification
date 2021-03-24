@@ -101,6 +101,24 @@ class DynamicHighCapsule(nn.Module):
             self.priors_weights[None, :, :, :, :]
         ).transpose(2, 4)
 
+        """
+        coupling_coef = Variable(torch.zeros(*priors.size())).cuda()
+        probs = Variable(torch.ones(*priors.size())).cuda()
+        # The routing by agreements
+        with torch.no_grad():
+            for it in range(self.num_iter - 1):
+                # probs = F.softmax(coupling_coef, dim=-1)
+                out = squash((probs * priors).sum(dim=-1, keepdims=True), dim=2)
+
+                delta_logits = (priors * out).sum(dim=2, keepdims=True)
+                coupling_coef = coupling_coef + delta_logits
+
+                # Max-Min Normalization
+                min_coeff = coupling_coef.min(dim=-1, keepdim=True).values
+                max_coeff = coupling_coef.max(dim=-1, keepdim=True).values
+                probs = (coupling_coef - min_coeff) / (max_coeff - min_coeff)
+        """
+
         coupling_coef = Variable(torch.zeros(*priors.size())).cuda()
 
         # The routing by agreements
@@ -122,7 +140,7 @@ class MarginLoss(nn.Module):
 
     def forward(self, pred, labels):
         labels = to_one_hot(labels, num_classes=2)
-
+        # print(pred)
         left = F.relu(0.9 - pred, inplace=True) ** 2
         right = F.relu(pred - 0.1, inplace=True) ** 2
         margin_loss = labels * left + 0.5 * (1. - labels) * right
@@ -195,5 +213,6 @@ class CapsNet2D(NeuralNet):
         out = self.prim(out)
         out = self.high_layer(out)
 
+        # print(out)
         pred = torch.linalg.norm(out, dim=-1)
         return F.softmax(pred, dim=-1)
