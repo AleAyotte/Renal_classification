@@ -87,9 +87,9 @@ def argument_parser():
                         help="The task on which the model will be train.",
                         choices=["malignancy", "subtype", "grade", "SSIGN"])
     parser.add_argument('--testset', type=str, default="test",
-                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
-                             "the stratified dataset and the independant will be the second and hence could be used as "
-                             "extra data.",
+                        help="The name of the testset. If testset=='test' then a random stratified testset will be "
+                             "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
+                             "be loaded",
                         choices=["test", "hold_out_set"])
     parser.add_argument('--track_mode', type=str, default="all",
                         help="Determine the quantity of training statistics that will be saved with tensorboard. "
