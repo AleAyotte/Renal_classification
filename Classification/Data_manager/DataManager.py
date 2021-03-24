@@ -59,25 +59,25 @@ class RenalDataset(Dataset):
     """
     def __init__(self,
                  hdf5_filepath: str,
+                 tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
                  clinical_features: Union[Sequence[str], str] = None,
                  split: Union[str, None] = "train",
-                 tasks: Union[Sequence[str], None] = None,
                  transform: Union[Compose, None] = None):
         """
         Create a dataset by loading the renal image at the given path.
 
         :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
+        :param tasks: A list of clinical_features that will be used has labels for tasks.
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
         :param split: A string that indicate which subset will be load. (Option: train, test, test2). (Default="train")
-        :param tasks: A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
         assert split in ['train', 'test', None]
         self.transform = transform
-        self.__tasks = tasks if tasks is not None else ["outcome"]
+        self.__tasks = tasks
         self.__with_clinical = clinical_features is not None
         self.__imgs_keys = imgs_keys
         self.__data = np.array([])
@@ -234,6 +234,21 @@ class RenalDataset(Dataset):
         self.__encoding_keys = np.array(self.__encoding_keys)
         self.__clinical_data = np.array(self.__clinical_data)
         f.close()
+
+    def remove_unlabeled_data(self) -> None:
+        """
+        Remove the data that has no label for every task. This should be done after the validation and test splits.
+        """
+        num_tasks = len(self.__tasks)
+        unlabeled_idx = []
+        for i in range(len(self.__labels)):
+            unlabeled_task = 0
+            for task in self.__tasks:
+                unlabeled_task += 1 if self.__labels[i][task] == -1 else 0
+
+            if unlabeled_task == num_tasks:
+                unlabeled_idx.append(i)
+        _, _, _, _ = self.extract_data(idx=unlabeled_idx, pop=True)
 
     def stratified_split(self,
                          pop: bool = True,

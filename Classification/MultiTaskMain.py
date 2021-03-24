@@ -166,6 +166,11 @@ if __name__ == "__main__":
     seed = randint(0, 10000)
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed)
 
+    # We remove the unlabeled data.
+    trainset.remove_unlabeled_data()
+    validset.remove_unlabeled_data()
+    testset.remove_unlabeled_data()
+    
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
