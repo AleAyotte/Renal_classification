@@ -22,8 +22,8 @@ from Utils import print_score, print_data_distribution, read_api_key, save_hpara
 
 
 DATA_PATH = "final_dtset/all.hdf5"
-SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
 CSV_PATH = "save/STL3D_"
+SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
 
 
 def argument_parser():
