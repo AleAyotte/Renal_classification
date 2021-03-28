@@ -54,6 +54,9 @@ class Trainer(ABC):
         If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
+    _num_classes: dict
+        A dictionnary that indicate the number of classes for each task. For a regression task, the number of classes
+        should be equal to one.
     __num_work : int
         Number of parallel process used for the preprocessing of the data. If 0, the main process will 
         be used for the data augmentation.
@@ -66,6 +69,8 @@ class Trainer(ABC):
         one for the sharing units and the Uncertainty loss parameters.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
+    _tasks : list
+        A list of string that contain the name of every task for which the model will be train.
     __tol : float
         Represent the tolerance factor. If the loss of a given epoch is below (1 - __tol) * best_loss, 
         then this is consider as an improvement.
@@ -565,7 +570,7 @@ class Trainer(ABC):
                     row.extend([label, pred.cpu().item()])
 
                 csv_writer.writerow(row)
-                
+
     def score(self,
               testset: RenalDataset,
               save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
