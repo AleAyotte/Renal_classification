@@ -23,6 +23,7 @@ from Utils import print_score, print_data_distribution, read_api_key, save_hpara
 
 DATA_PATH = "final_dtset/all.hdf5"
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
+CSV_PATH = "save/STL3D_"
 
 
 def argument_parser():
@@ -251,8 +252,11 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/SingleTaskTrainer.py")
         experiment.log_code("Model/ResNet.py")
+
+        csv_path = CSV_PATH + args.task + "_" + testset_name + ".csv"
     else:
         experiment = None
+        csv_path = ""
 
     conf, auc = trainer.score(validset)
     print_score(dataset_name="VALIDATION",
@@ -261,7 +265,7 @@ if __name__ == "__main__":
                 auc_list=[auc],
                 experiment=experiment)
 
-    conf, auc = trainer.score(testset)
+    conf, auc = trainer.score(testset, save_path=csv_path)
     print_score(dataset_name=f"{testset_name.upper()}",
                 task_list=[args.task],
                 conf_mat_list=[conf],
