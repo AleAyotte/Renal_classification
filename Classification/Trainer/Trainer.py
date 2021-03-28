@@ -532,6 +532,40 @@ class Trainer(ABC):
                         "accuracy": accuracy},
                        self.__save_path)
 
+    def _save_prediction(self,
+                         outs: Dict[str, torch.Tensor],
+                         labels: dict,
+                         save_path: str = "") -> None:
+        """
+        Save the prediction made by the model on a given dataset.
+
+        :param outs: A dictionnary of torch.tensor that represent the output of the model for each task.
+        :param labels: A dictionnary of torch.tensor that represent the labels and where the keys are the name
+                       of each task.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
+        """
+
+        preds = {}
+        with torch.no_grad():
+            for task in self._tasks:
+                preds[task] = self._soft(outs[task]) if self._num_classes[task] > 1 else outs[task]
+
+        with open(save_path, mode="w") as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=',')
+
+            first_row = [task if i == 0 else "" for task in self._tasks for i in range(2)]
+            csv_writer.writerow(first_row)
+            csv_writer.writerow([title for _ in self._tasks for title in ["labels", "prediction"]])
+
+            for i in range(len(labels[self._tasks[0]])):
+                row = []
+                for task in self._tasks:
+                    label = labels[task][i].item()
+                    pred = preds[task][i] if self._num_classes[task] == 1 else preds[task][i][-1]
+                    row.extend([label, pred.cpu().item()])
+
+                csv_writer.writerow(row)
+                
     def score(self,
               testset: RenalDataset,
               save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
