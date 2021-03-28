@@ -10,6 +10,7 @@
 """
 
 from abc import ABC, abstractmethod
+import csv
 from Data_manager.DataManager import RenalDataset
 from Model.NeuralNet import NeuralNet
 from Model.ResNet_2D import ResNet2D
@@ -23,7 +24,7 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-from typing import Sequence, Tuple, Union
+from typing import Sequence, Tuple, Union, Dict
 
 
 DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
@@ -83,6 +84,8 @@ class Trainer(ABC):
         Compute the accuracy of the model on a given data loader.
     """
     def __init__(self,
+                 tasks: Sequence[str],
+                 num_classes: dict,
                  classes_weights: str = "balanced",
                  early_stopping: bool = False,
                  loss: str = "ce",
@@ -94,8 +97,9 @@ class Trainer(ABC):
                  tol: float = 0.01,
                  track_mode: str = "all"):
         """
-        The constructor of the trainer class. 
+        The constructor of the trainer class.
 
+        :param tasks: A list of tasks on which the model will be train.
         :param classes_weights: The configuration of weights that will be applied on the loss during the training.
                                 Flat: All classes have the same weight during the training.
                                 Balanced: The weights are inversionaly proportional to the number of data of each
@@ -126,6 +130,9 @@ class Trainer(ABC):
             "Track mode should be one of those options: 'all', 'low' or 'none'"
         assert classes_weights.lower() in ["flat", "balanced"], \
             "classes_weights should be one of those options: 'Flat', 'Balanced'"
+        assert list(tasks).sort() == list(num_classes.keys()).sort(), \
+            "The number of classes should be given for each task. " \
+            "For a regression task num_classes should be equal to 1."
 
         self._classes_weights = classes_weights
         self.__cumulate_counter = 0
@@ -135,12 +142,14 @@ class Trainer(ABC):
         self._loss = loss.lower()
         self._mixed_precision = mixed_precision
         self.model = None
+        self._num_classes = num_classes
         self.__num_cumulated_batch = 1
         self.__num_work = num_workers
         self.__pin_memory = pin_memory
         self.__save_path = save_path
         self.__shared_net = shared_net
         self._soft = nn.Softmax(dim=-1)
+        self._tasks = tasks
         self.__tol = tol
         self._track_mode = track_mode.lower()
         self._weights = {}
@@ -411,14 +420,16 @@ class Trainer(ABC):
     @abstractmethod
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
-                         get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Tuple[Sequence[np.array], Sequence[float]],
-                                                          Tuple[np.array, float]]:
+                         get_loss: bool = False,
+                         save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
+                                                       Tuple[Sequence[np.array], Sequence[float]],
+                                                       Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return also the loss if True.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
         :return: The confusion matrix for each classes and the average loss if get_loss == True.
         """
         raise NotImplementedError("Must override _get_conf_matrix.")
@@ -468,6 +479,40 @@ class Trainer(ABC):
         """
         raise NotImplementedError("Must override _mixup_epoch.")
 
+    def _predict(self,
+                 dt_loader: DataLoader) -> Tuple[Dict[str, torch.Tensor],
+                                                 Dict[str, torch.Tensor]]:
+        """
+        Take a data loader and compute the prediction for every data in the dataloader.
+
+        :param dt_loader: A torch.Dataloader that use a RenalDataset object.
+        :return:
+        """
+
+        outs = {}
+        labels = {}
+        # Two dictionnary that contain a torch.Tensor associated to each task (keys)
+        for task in self._tasks:
+            labels[task] = torch.empty(0).long()
+            outs[task] = torch.empty(0, self._num_classes[task]).to(self._device)
+
+        for data in dt_loader:
+            images, label = data["sample"].to(self._device), data["labels"]
+            features = None
+
+            if "features" in list(data.keys()):
+                features = Variable(data["features"].to(self._device))
+
+            with torch.no_grad():
+                out = self.model(images) if features is None else self.model(images, features)
+
+                for task in self._tasks:
+                    labels[task] = torch.cat([labels[task], label[task]])
+                    outs[task] = torch.cat([outs[task],
+                                            out if len(self._tasks) == 1 else out[task]])
+
+        return outs, labels
+
     def __save_checkpoint(self,
                           epoch: int,
                           loss: float,
@@ -488,13 +533,15 @@ class Trainer(ABC):
                        self.__save_path)
 
     def score(self,
-              testset: RenalDataset) -> Union[Tuple[Sequence[np.array], float],
-                                              Tuple[Sequence[np.array], Sequence[float]],
-                                              Tuple[np.array, float]]:
+              testset: RenalDataset,
+              save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
+                                            Tuple[Sequence[np.array], Sequence[float]],
+                                            Tuple[np.array, float]]:
         """
-        Compute the accuracy of the model on a given test dataset
+        Compute the accuracy of the model on a given test dataset.
 
-        :param testset: A torch dataset which contain our test data points and labels
+        :param testset: A torch dataset which contain our test data points and labels.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
         :return: The accuracy of the model.
         """
         test_loader = torch.utils.data.DataLoader(testset,
@@ -503,7 +550,7 @@ class Trainer(ABC):
 
         self.model.eval()
 
-        return self._get_conf_matrix(dt_loader=test_loader)
+        return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path)
 
     @abstractmethod
     def _standard_epoch(self,
