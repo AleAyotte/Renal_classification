@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       Contain the main function to train a 2D ResNet on one of the three task
                         (malignancy, subtype and grade prediction).

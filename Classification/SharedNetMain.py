@@ -68,7 +68,7 @@ def argument_parser():
                              "shared_eta_min will be equal to eta_min * 100.")
     parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
                         help="If true, load the last saved model and continue the training.")
-    parser.add_argument('--share_unit', type=str, default="sluice",
+    parser.add_argument('--share_unit', type=str, default="cross_stitch",
                         help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
                              "information transfer between multiple subnets",
                         choices=["sluice", "cross_stitch"])
@@ -132,11 +132,11 @@ if __name__ == "__main__":
                     subtype_net=sub_net,
                     mixup=args.mixup,
                     num_shared_channels=[32, 64, 128, 256],
-                    sharing_unit="cross_stitch",
-                    # subspace_1=[4, 3],
-                    # subspace_2=[8, 6],
-                    # subspace_3=[8, 6],
-                    # subspace_4=[4, 3],
+                    sharing_unit=args.sharing_unit,
+                    subspace_1=[4, 3],
+                    subspace_2=[8, 6],
+                    subspace_3=[8, 6],
+                    subspace_4=[4, 3],
                     c=0.85,
                     spread=0.1).to(args.device)
     summary(net, (3, 96, 96, 32))
