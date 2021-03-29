@@ -9,11 +9,8 @@
 """
 import argparse
 from comet_ml import Experiment
-from Data_manager.DataManager import RenalDataset, split_trainset
-from Model.ResNet import HardSharedResNet
-from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
-from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
-from random import randint
+from Data_manager.DatasetBuilder import build_datasets
+from Model.HardSharedResNet import HardSharedResNet
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
@@ -111,71 +108,17 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     # --------------------------------------------
-    #              DATA AUGMENTATION
-    # --------------------------------------------
-    """
-    transform = Compose([
-        AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-        RandScaleIntensityd(keys=["t1", "t2"], factors=0.1, prob=0.5),
-        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
-                    rotate_range=[0, 0, 6.28], translate_range=0, padding_mode="zeros"),
-        RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=1.00, max_zoom=1.05,
-                  keep_size=False, mode="trilinear", align_corners=True),
-        ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
-        ToTensord(keys=["t1", "t2", "roi"])
-    ])
-    """
-    transform = Compose([
-        AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-        RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
-                    rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
-        RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
-                  keep_size=False, mode="trilinear", align_corners=True),
-        ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
-        ToTensord(keys=["t1", "t2", "roi"])
-    ])
-
-    test_transform = Compose([
-        AddChanneld(keys=["t1", "t2", "roi"]),
-        ToTensord(keys=["t1", "t2", "roi"])
-    ])
-
-    # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    testset_name = args.testset
-
-    trainset = RenalDataset(DATA_PATH, transform=transform,
-                            imgs_keys=["t1", "t2", "roi"],
-                            tasks=TASK_LIST)
-    validset = RenalDataset(DATA_PATH, transform=test_transform,
-                            imgs_keys=["t1", "t2", "roi"],
-                            tasks=TASK_LIST, split=None)
-    testset = RenalDataset(DATA_PATH, transform=test_transform,
-                           imgs_keys=["t1", "t2", "roi"],
-                           tasks=TASK_LIST, split=None if testset_name == "test" else testset_name)
-
-    if testset_name == "test":
-        trainset, testset = split_trainset(trainset, testset, validation_split=0.2)
-
-    seed = randint(0, 10000)
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed)
-
-    # We remove the unlabeled data.
-    trainset.remove_unlabeled_data()
-    validset.remove_unlabeled_data()
-    testset.remove_unlabeled_data()
+    trainset, validset, testset = build_datasets(tasks=TASK_LIST, testset_name=args.testset)
 
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    net = HardSharedResNet(mixup=args.mixup,
+    net = HardSharedResNet(tasks=TASK_LIST,
+                           num_classes={"malignancy": 2, "subtype": 2},
+                           mixup=args.mixup,
                            depth=args.depth,
                            split_level=args.split_level,
                            in_shape=in_shape,
@@ -194,7 +137,7 @@ if __name__ == "__main__":
     print_data_distribution("Validation Set",
                             TASK_LIST,
                             validset.labels_bincount())
-    print_data_distribution("{} Set".format(testset_name.capitalize()),
+    print_data_distribution("{} Set".format(args.testset.capitalize()),
                             TASK_LIST,
                             testset.labels_bincount())
     print("\n")
@@ -254,9 +197,10 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/ResNet.py")
 
-        csv_path = CSV_PATH + "_" + testset_name + ".csv"
+        csv_path = CSV_PATH + "_" + args.testset + ".csv"
     else:
         experiment = None
+        csv_path = ""
 
     conf, auc = trainer.score(validset)
     print_score(dataset_name="VALIDATION",
@@ -266,7 +210,7 @@ if __name__ == "__main__":
                 experiment=experiment)
 
     conf, auc = trainer.score(testset, save_path=csv_path)
-    print_score(dataset_name=f"{testset_name.upper()}",
+    print_score(dataset_name=f"{args.testset.upper()}",
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
@@ -275,5 +219,4 @@ if __name__ == "__main__":
     if experiment is not None:
         hparam = vars(args)
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
-        experiment.log_parameter("seed", seed)
         experiment.log_parameter("Task", "Hard_Shared_Net")

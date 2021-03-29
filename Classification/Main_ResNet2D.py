@@ -11,6 +11,7 @@
 
 import argparse
 from comet_ml import Experiment
+from Data_manager.DatasetBuilder import build_datasets
 from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet_2D import ResNet2D
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
@@ -21,6 +22,7 @@ from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
+CSV_PATH = "save/STL2D_"
 SAVE_PATH = "save/STL2D_NET.pth"  # Save path of the single task learning with ResNet2D experiment
 
 
@@ -91,68 +93,17 @@ def argument_parser():
 
 if __name__ == "__main__":
     args = argument_parser()
-    data_path = "dataset_2D/Data_with_N4/{}.hdf5".format(args.task)
-
-    # --------------------------------------------
-    #              DATA AUGMENTATION
-    # --------------------------------------------
-    transform = Compose([
-        RandFlipd(keys=["t1", "t2"], spatial_axis=[0], prob=0.5),
-        RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-        RandAffined(keys=["t1", "t2"], prob=0.8, shear_range=0.5,
-                    rotate_range=6.28, translate_range=0.1),
-        RandZoomd(keys=["t1", "t2"], prob=0.5, min_zoom=0.95, max_zoom=1.05,
-                  keep_size=False),
-        ResizeWithPadOrCropd(keys=["t1", "t2"], spatial_size=[224, 224], mode=args.pad_mode),
-        ToTensord(keys=["t1", "t2"])
-    ])
-
-    test_transform = Compose([
-        AddChanneld(keys=["t1", "t2"]),
-        ToTensord(keys=["t1", "t2"])
-    ])
-
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    testset_name = args.testset
-    testset2_name = "independant" if args.testset == "stratified" else "stratified"
-
     if args.task in ["subtype", "grade"]:
         clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
     else:
         clin_features = ["Age", "Sex", "size"]
-
-    trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"],
-                            clinical_features=clin_features)
-    validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=None,
-                            clinical_features=clin_features)
-    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=testset_name,
-                           clinical_features=clin_features)
-
-    # If we want to use some extra data, then will we used the data of the second test set.
-    if args.extra_data:
-        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2"], split=testset2_name,
-                                clinical_features=clin_features)
-        data, label, clin = testset2.extract_data(np.arange(len(testset2)))
-        trainset.add_data(data, label, clin)
-        del data
-        del label
-        del clin
-    # Else the second test set will be used to access the performance of the dataset at the end.
-    else:
-        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2"], split=testset2_name,
-                                clinical_features=clin_features)
-
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
-
-    # --------------------------------------------
-    #             NORMALIZE THE DATA
-    # --------------------------------------------
-    mean, std = trainset.normalize_clin_data(get_norm_param=True)
-    validset.normalize_clin_data(mean=mean, std=std)
-    testset.normalize_clin_data(mean=mean, std=std)
-    testset2.normalize_clin_data(mean=mean, std=std) if not args.extra_data else None
+    trainset, validset, testset = build_datasets(tasks=[args.task],
+                                                 testset_name=args.testset,
+                                                 clin_features=clin_features,
+                                                 num_dimension=2)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -170,13 +121,9 @@ if __name__ == "__main__":
     print_data_distribution("Validation Set",
                             [args.task],
                             validset.labels_bincount())
-    print_data_distribution(f"{testset_name.capitalize()} Set",
+    print_data_distribution(f"{args.testset.capitalize()} Set",
                             [args.task],
                             testset.labels_bincount())
-    if not args.extra_data:
-        print_data_distribution(f"{testset2_name.capitalize()} Set",
-                                [args.task],
-                                testset2.labels_bincount())
     print("\n")
 
     # --------------------------------------------
@@ -230,8 +177,11 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/SingleTaskTrainer.py")
         experiment.log_code("Model/ResNet_2D.py")
+
+        csv_path = CSV_PATH + args.task + "_" + args.testset + ".csv"
     else:
         experiment = None
+        csv_path = ""
 
     conf, auc = trainer.score(validset)
     print_score(dataset_name="VALIDATION",
@@ -240,20 +190,12 @@ if __name__ == "__main__":
                 auc_list=[auc],
                 experiment=experiment)
 
-    conf, auc = trainer.score(testset)
-    print_score(dataset_name="{} TEST".format(testset_name.upper()),
+    conf, auc = trainer.score(testset, save_path=csv_path)
+    print_score(dataset_name=f"{args.testset.upper()}",
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
-
-    if not args.extra_data:
-        conf, auc = trainer.score(testset2)
-        print_score(dataset_name="{} TEST".format(testset2_name.upper()),
-                    task_list=[args.task],
-                    conf_mat_list=[conf],
-                    auc_list=[auc],
-                    experiment=experiment)
 
     if experiment is not None:
         hparam = vars(args)
