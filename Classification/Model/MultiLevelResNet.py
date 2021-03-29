@@ -1,5 +1,15 @@
+"""
+    @file:              MultiLevelResNet.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     03/2021
+    @Last modification: 03/2021
+
+    @Description:       This file contain the classe MultiLevelResNet that inherit from the NeuralNet class.
+"""
 import copy
-from Model.Module import Mixup, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck, UncertaintyLoss
+from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
+from Model.Module import Mixup, UncertaintyLoss
 from Model.NeuralNet import NeuralNet
 from monai.networks.blocks.convolutions import Convolution
 import numpy as np
@@ -193,11 +203,8 @@ class MultiLevelResNet(NeuralNet):
         out = self.common_layers(x)
 
         # We split the neural network in two.
-        # out_task1 = self.task1_layers(out if self.__backend_task1 else out.detach())
-        # out_task2 = self.task2_layers(out.detach() if self.__backend_task1 else out)
-
-        out_task2 = self.task2_layers(out)
-        out_task1 = self.task1_layers(out.detach())
+        out_task1 = self.task1_layers(out if self.__backend_task1 else out.detach())
+        out_task2 = self.task2_layers(out.detach() if self.__backend_task1 else out)
 
         task1_features = out_task1.view(-1, self.__num_flat_features)
         task2_features = out_task2.view(-1, self.__num_flat_features)
@@ -205,5 +212,4 @@ class MultiLevelResNet(NeuralNet):
         task1_pred = self.task1_fc_layer(task1_features)
         task2_pred = self.task2_fc_layer(task2_features)
 
-        # return task1_pred, task2_pred
-        return task2_pred
+        return task1_pred, task2_pred

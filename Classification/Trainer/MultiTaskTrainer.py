@@ -10,7 +10,7 @@
                         grade prediction).
 """
 
-from Model.CapsNet2D import MarginLoss
+from Model.Module import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -20,7 +20,6 @@ from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 import torch
 from torch import nn
 from torch.cuda import amp
-from torch.autograd import Variable
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter

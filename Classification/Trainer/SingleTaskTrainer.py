@@ -9,7 +9,7 @@
                         to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
 """
 
-from Model.CapsNet2D import MarginLoss
+from Model.Module import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
