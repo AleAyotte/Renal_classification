@@ -151,7 +151,7 @@ class RenalDataset(Dataset):
         """
         all_labels = {}
         for key in list(self.__labels[0].keys()):
-            label_list = [int(label[key]) for label in self.__labels]
+            label_list = [int(label[key]) for label in self.__labels if label[key] >= 0]
             all_labels[key] = np.bincount(label_list)
 
             # If there are more than 2 classes, we only take the two last.
