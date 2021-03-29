@@ -23,7 +23,7 @@ DATA_PATH = "final_dtset/all.hdf5"
 FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
 LOAD_PATH = "save/14_Fev_2020/"
 SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
-TASK_LIST = ["malignant", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
+TASK_LIST = ["malignancy", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
 TOL = 1.0  # The tolerance factor use by the trainer
 
 
@@ -59,7 +59,7 @@ def argument_parser():
                         help="The number of training epoch.")
     parser.add_argument('--num_cumu_batch', type=int, default=1,
                         help="The number of batch that will be cumulated before updating the weight of the model.")
-    parser.add_argument('--optim', type=str, default="sgd",
+    parser.add_argument('--optim', type=str, default="adam",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
     parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
@@ -68,7 +68,7 @@ def argument_parser():
                              "shared_eta_min will be equal to eta_min * 100.")
     parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
                         help="If true, load the last saved model and continue the training.")
-    parser.add_argument('--share_unit', type=str, default="cross_stitch",
+    parser.add_argument('--sharing_unit', type=str, default="cross_stitch",
                         help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
                              "information transfer between multiple subnets",
                         choices=["sluice", "cross_stitch"])
@@ -128,8 +128,11 @@ if __name__ == "__main__":
         mal_net.restore(LOAD_PATH + "malignant.pth")
         sub_net.restore(LOAD_PATH + "subtype.pth")
 
-    net = SharedNet(malignant_net=mal_net,
-                    subtype_net=sub_net,
+    sub_nets = torch.nn.ModuleDict()
+    sub_nets["malignancy"] = mal_net
+    sub_nets["subtype"] = sub_net
+
+    net = SharedNet(sub_nets=sub_nets,
                     mixup=args.mixup,
                     num_shared_channels=[32, 64, 128, 256],
                     sharing_unit=args.sharing_unit,
@@ -166,7 +169,7 @@ if __name__ == "__main__":
                       loss=args.loss,
                       tol=TOL,
                       num_workers=args.worker,
-                      pin_memory=args.pin_memory,
+                      pin_memory=False,
                       classes_weights=args.weights,
                       shared_net=False,
                       track_mode=args.track_mode,
@@ -220,16 +223,16 @@ if __name__ == "__main__":
 
     conf, auc = trainer.score(validset)
     print_score(dataset_name="VALIDATION",
-                task_list=FINAL_TASK_LIST,
-                conf_mat_list=conf,
-                auc_list=auc,
+                task_list=list(auc.keys()),
+                conf_mat_list=list(conf.values()),
+                auc_list=list(auc.values()),
                 experiment=experiment)
 
     conf, auc = trainer.score(testset, save_path=csv_path)
     print_score(dataset_name=f"{args.testset.upper()}",
-                task_list=FINAL_TASK_LIST,
-                conf_mat_list=conf,
-                auc_list=auc,
+                task_list=list(auc.keys()),
+                conf_mat_list=list(conf.values()),
+                auc_list=list(auc.values()),
                 experiment=experiment)
 
     if experiment is not None:
