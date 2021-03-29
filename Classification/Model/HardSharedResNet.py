@@ -10,7 +10,8 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
 
-from Model.Module import Mixup, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck, UncertaintyLoss
+from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
+from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
 from Model.NeuralNet import NeuralNet
 import numpy as np

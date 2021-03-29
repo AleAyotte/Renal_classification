@@ -1,137 +1,12 @@
+from Model.Block import PrimaryCapsule, DynamicHighCapsule
 from Model.NeuralNet import NeuralNet
 from monai.networks.layers.factories import Act
 import numpy as np
 from Trainer.Utils import init_weights, to_one_hot
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torch.nn import functional as F
-from typing import Sequence, Tuple, Union
-
-
-def squash(capsules: torch.Tensor,
-           dim: int = -1) -> torch.Tensor:
-    """
-    Reduce the norm of a vector between 0 and 1 without changing the orientation.
-
-    :param capsules: A tensor that represent the capsules to normalize.
-    :param dim: Along which dimension should we normalize the capsules.
-    :return: A torch.Tensor that represent the normalized capsules.
-    """
-    norm = torch.linalg.norm(capsules, dim=dim, keepdim=True)
-    return norm / (1 + norm ** 2) * capsules
-
-
-class PrimaryCapsule(nn.Module):
-    def __init__(self,
-                 dimension: int,
-                 caps_dim: int,
-                 in_channels: int,
-                 kernel: Union[int, Sequence[int]],
-                 num_primary_caps: int,
-                 padding: Union[Sequence[int], int] = 0,
-                 stride: int = 1
-                 ):
-        """
-        The construtor of the PrimaryCapsule class
-
-        :param dimension: The number of dimension of the convolution.
-        :param caps_dim: The output dimension of the capsules.
-        :param in_channels: The number of input channels for the convolution.
-        :param kernel: The convolution's kernel size.
-        :param num_primary_caps: The number of primary capsule block. The number of outputs channels will be
-                                 equal to num_primary_caps * caps_dim.
-        :param padding: The convolution's padding size.
-        :param stride: The convolution stride parameter.
-        """
-
-        super().__init__()
-        assert dimension in [2, 3], "The PrimaryCapule layer can only be of dimension 2 or 3."
-
-        self.caps_dim = caps_dim
-
-        if dimension == 2:
-            self.conv = nn.Conv2d(kernel_size=kernel, in_channels=in_channels,
-                                  out_channels=num_primary_caps * caps_dim,
-                                  stride=stride, padding=padding)
-        else:
-            self.conv = nn.Conv3d(kernel_size=kernel, in_channels=in_channels,
-                                  out_channels=num_primary_caps * caps_dim,
-                                  stride=stride, padding=padding)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.conv(x).view(x.size()[0], self.caps_dim, -1).transpose(1, 2)
-        return squash(out)
-
-
-class DynamicHighCapsule(nn.Module):
-    """
-    An implementation of an high level capusle layer that use the dynamic routing-by-agreements
-    """
-    def __init__(self,
-                 in_caps: int,
-                 in_caps_dim: int,
-                 out_caps: int,
-                 out_caps_dim: int,
-                 num_routing_iter: int = 3):
-        """
-        The constructor of the DynamicHighCapsule class
-
-        :param in_caps:
-        :param in_caps_dim:
-        :param out_caps:
-        :param out_caps_dim:
-        :param num_routing_iter:
-        """
-
-        super().__init__()
-        assert num_routing_iter > 0, "The number of routing iter should be greater than 0."
-
-        self.in_caps = in_caps
-        self.num_iter = num_routing_iter
-        self.out_caps = out_caps
-
-        self.priors_weights = nn.Parameter(torch.randn(out_caps, in_caps, in_caps_dim, out_caps_dim),
-                                           requires_grad=True)
-        print(np.prod(self.priors_weights.size()))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        priors = torch.matmul(
-            x[:, None, :, None, :],
-            self.priors_weights[None, :, :, :, :]
-        ).transpose(2, 4)
-
-        """
-        coupling_coef = Variable(torch.zeros(*priors.size())).cuda()
-        probs = Variable(torch.ones(*priors.size())).cuda()
-        # The routing by agreements
-        with torch.no_grad():
-            for it in range(self.num_iter - 1):
-                # probs = F.softmax(coupling_coef, dim=-1)
-                out = squash((probs * priors).sum(dim=-1, keepdims=True), dim=2)
-
-                delta_logits = (priors * out).sum(dim=2, keepdims=True)
-                coupling_coef = coupling_coef + delta_logits
-
-                # Max-Min Normalization
-                min_coeff = coupling_coef.min(dim=-1, keepdim=True).values
-                max_coeff = coupling_coef.max(dim=-1, keepdim=True).values
-                probs = (coupling_coef - min_coeff) / (max_coeff - min_coeff)
-        """
-
-        coupling_coef = Variable(torch.zeros(*priors.size())).cuda()
-
-        # The routing by agreements
-        with torch.no_grad():
-            for it in range(self.num_iter - 1):
-                probs = F.softmax(coupling_coef, dim=-1)
-                out = squash((probs * priors).sum(dim=-1, keepdims=True), dim=2)
-
-                delta_logits = (priors * out).sum(dim=2, keepdims=True)
-                coupling_coef = coupling_coef + delta_logits
-
-        probs = F.softmax(coupling_coef, dim=-1)
-        return squash((probs * priors).sum(dim=-1).squeeze())
+from typing import Sequence, Union
 
 
 class MarginLoss(nn.Module):
@@ -140,7 +15,6 @@ class MarginLoss(nn.Module):
 
     def forward(self, pred, labels):
         labels = to_one_hot(labels, num_classes=2)
-        # print(pred)
         left = F.relu(0.9 - pred, inplace=True) ** 2
         right = F.relu(pred - 0.1, inplace=True) ** 2
         margin_loss = labels * left + 0.5 * (1. - labels) * right
