@@ -84,6 +84,6 @@ def to_one_hot(inp: Union[torch.Tensor, Variable],
     y_onehot = torch.FloatTensor(inp.size(0), num_classes)
     y_onehot.zero_()
 
-    y_onehot.scatter_(1, inp.unsqueeze(1).data.cpu(), 1)
+    y_onehot.scatter_(1, inp.unsqueeze(1).data, 1)
 
     return Variable(y_onehot.to(device), requires_grad=False)
