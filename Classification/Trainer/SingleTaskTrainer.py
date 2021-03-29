@@ -312,6 +312,7 @@ class SingleTaskTrainer(Trainer):
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return the loss instead of the auc score.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
         :return: The confusion matrix and the average loss if get_loss == True.
         """
 
