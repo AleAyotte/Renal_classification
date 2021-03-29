@@ -1,16 +1,13 @@
 """
-    @file:              Module.py
+    @file:              Block.py
     @Author:            Alexandre Ayotte
 
-    @Creation Date:     12/2020
+    @Creation Date:     03/2021
     @Last modification: 03/2021
 
     @Description:       This file contain some generic module used to create several model like the ResNet,
-                        MultiLevelResNet and SharedNet. The module are SluiceUnit, CrossStitchUnit, Mixup and
-                        UncertaintyLoss.
-
-    @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
-                        2) Capsule Networks with Max-Min Normalization, Zhao et al. arxiv 2019
+                        MultiLevelResNet and CapsNet. The module are DynamicHighCapsule, PrimaryCapsule, Resblock and
+                        ResBottleneck.
 """
 from monai.networks.blocks.convolutions import ResidualUnit
 from monai.networks.layers.factories import Act, Norm
@@ -24,6 +21,17 @@ from typing import Sequence, Union
 class DynamicHighCapsule(nn.Module):
     """
     An implementation of an high level capsule layer that use the dynamic routing-by-agreements.
+
+    ...
+    Attributes
+    ----------
+    __max_min_norm : bool
+        If true, the routing-by-agreements has describe in ref 2) will be used. Else, the standard dynamical
+        routing-by-agreements define by sabour et al. (2017) will be used.
+    __num_iter : int
+        The number of iteration in the dynamical routing-by-agreements
+    priors_weights : torch.nn.Parameter
+        The weight that will be used to compute the priors probability u_{j|i} with the inputs capsules.
     """
     def __init__(self,
                  in_caps: int,
@@ -47,8 +55,8 @@ class DynamicHighCapsule(nn.Module):
         super().__init__()
         assert num_routing_iter > 0, "The number of routing iter should be greater than 0."
 
-        self.__num_iter = num_routing_iter
         self.__max_min_norm = max_min_norm
+        self.__num_iter = num_routing_iter
         self.priors_weights = nn.Parameter(torch.randn(out_caps, in_caps, in_caps_dim, out_caps_dim),
                                            requires_grad=True)
 
@@ -317,6 +325,14 @@ class PreResBottleneck(nn.Module):
 class PrimaryCapsule(nn.Module):
     """
     An implementation of a primary capsule layer.
+
+    ...
+    Attributes
+    ----------
+    __caps_dim : int
+        The lenght of each capsule.
+    conv : Union[torch.nn.Conv2d, torch.nn.Conv3d]
+        The convolution layer that will be used to transform an input images into capsules.
     """
     def __init__(self,
                  dimension: int,
@@ -342,7 +358,7 @@ class PrimaryCapsule(nn.Module):
         super().__init__()
         assert dimension in [2, 3], "The PrimaryCapule layer can only be of dimension 2 or 3."
 
-        self.caps_dim = caps_dim
+        self.__caps_dim = caps_dim
 
         if dimension == 2:
             self.conv = nn.Conv2d(kernel_size=kernel, in_channels=in_channels,
@@ -354,7 +370,7 @@ class PrimaryCapsule(nn.Module):
                                   stride=stride, padding=padding)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.conv(x).view(x.size()[0], self.caps_dim, -1).transpose(1, 2)
+        out = self.conv(x).view(x.size()[0], self.__caps_dim, -1).transpose(1, 2)
         return squash(out)
 
 
