@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 02/2021
+    @Last modification: 03/2021
 
     @Description:       This file contain the RenalDataset class, which is used to load and preprocess both 2D and 3D
                         data to train a model. It also contain the split_trainset function which is used to create the
