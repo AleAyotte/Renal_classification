@@ -30,10 +30,8 @@ class HardSharedResNet(NeuralNet):
     conv: Convolution
         First block of the network. If pre_act is True then, its only a convolution. Else, its combination of
         convolution, activation et normalisation.
-    fc_layer_mal: nn.Linear
-        The last fully connected layer that will be used to classify the malignity of the tumor.
-    fc_layer_sub_1: nn.Linear
-        The first fully connected layer that will be used to classify the subtype of the tumor.
+    fc_layer : torch.nn.ModuleDict
+        A dictionnary that contain the fully connected of each task.
     __in_channels: int
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
