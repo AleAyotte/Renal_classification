@@ -9,6 +9,7 @@
                         to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
 """
 
+from Model.Module import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -25,7 +26,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
 
-ALL_TASK = ["malignant", "subtype", "grade"]
+ALL_TASK = ["malignancy", "subtype", "grade", "ssign"]
 
 
 class SingleTaskTrainer(Trainer):
@@ -36,6 +37,11 @@ class SingleTaskTrainer(Trainer):
     ...
     Attributes
     ----------
+    _classes_weights : str
+        The configuration of weights that will be applied on the loss during the training.
+        Flat: All classes have the same weight during the training.
+        Balanced: The weights are inversionaly proportional to the number of data of each classes in the training set.
+        (Default="balanced")
     _loss : str
         The name of the loss that will be used during the training.
     __loss : torch.nn
@@ -46,12 +52,10 @@ class SingleTaskTrainer(Trainer):
         The neural network to train and evaluate.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
-    __task : str
-        The name of the task on which the model will be train.
+    _tasks : list
+        A list of string that contain the name of every task for which the model will be train.
     _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none.
-    __weights : Sequence[Sequence[int]]
-        The list of weights that will be used to adjust the loss function
     _writer : SummaryWriter
         Use to keep track of the training with tensorboard.
     Methods
@@ -67,14 +71,20 @@ class SingleTaskTrainer(Trainer):
                  early_stopping: bool = False,
                  mixed_precision: bool = False,
                  pin_memory: bool = False,
+                 num_classes: int = 2,
                  num_workers: int = 0,
                  classes_weights: str = "balanced",
                  save_path: str = "",
                  track_mode: str = "all",
-                 task="Malignant"):
+                 task="malignancy"):
         """
         The constructor of the trainer class. 
 
+        :param classes_weights: The configuration of weights that will be applied on the loss during the training.
+                                Flat: All classes have the same weight during the training.
+                                Balanced: The weights are inversionaly proportional to the number of data of each
+                                          classes in the training set.
+                                (Default="balanced")
         :param loss: The loss that will be use during mixup epoch. (Default="bce")
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
@@ -90,28 +100,22 @@ class SingleTaskTrainer(Trainer):
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default=all)
         """
-        super().__init__(loss=loss,
+        assert task.lower() in ALL_TASK, "Task should be one of those options: " \
+                                         "'malignancy', 'subtype', 'grade', 'ssign'"
+
+        super().__init__(tasks=[task],
+                         num_classes={task: num_classes},
+                         loss=loss,
                          tol=tol,
                          early_stopping=early_stopping,
                          mixed_precision=mixed_precision,
                          pin_memory=pin_memory,
-                         num_workers=num_workers, 
+                         num_workers=num_workers,
+                         classes_weights=classes_weights,
                          save_path=save_path,
                          track_mode=track_mode)
         self.__loss = None
-
-        assert task.lower() in ALL_TASK, "Task should be one of those options: 'malignant', 'subtype', 'grade'"
         self.__task = task
-
-        assert classes_weights.lower() in ["flat", "balanced"], \
-            "classes_weights should be one of those options: 'Flat', 'Balanced'"
-        weights = {"flat": [[1., 1.],
-                            [1., 1.],
-                            [1., 1.]],
-                   "balanced": [[1.3459, 0.7956],
-                                [2.0840, 0.6578],
-                                [0.7535, 1.4858]]}
-        self.__weights = weights[classes_weights.lower()][ALL_TASK.index(task)]
 
     def _init_loss(self, gamma: float) -> None:
         """
@@ -120,7 +124,10 @@ class SingleTaskTrainer(Trainer):
         :param gamma: Gamma parameter of the focal loss.
         """
 
-        weight = torch.Tensor(self.__weights).to(self._device)
+        if self._classes_weights == "balanced":
+            weight = torch.Tensor(self._weights[self._tasks[0]]).to(self._device)
+        else:
+            weight = None
 
         if self._loss == "ce":
             self.__loss = nn.CrossEntropyLoss(weight=weight)
@@ -128,9 +135,9 @@ class SingleTaskTrainer(Trainer):
             self.__loss = nn.BCEWithLogitsLoss(pos_weight=weight)
         elif self._loss == "focal":
             self.__loss = FocalLoss(gamma=gamma, weight=weight)
-        else:  # loss == "marg"
-            raise NotImplementedError
-    
+        else:
+            self.__loss = MarginLoss()
+
     def _standard_epoch(self,
                         train_loader: DataLoader,
                         optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
@@ -152,12 +159,11 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
-            images, labels = Variable(images), Variable(labels)
+            images, labels = data["sample"].to(self._device), data["labels"][self._tasks[0]].to(self._device)
             features = None
 
             if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
+                features = data["features"].to(self._device)
 
             for optimizer in optimizers:
                 optimizer.zero_grad()
@@ -167,7 +173,7 @@ class SingleTaskTrainer(Trainer):
                 pred = self.model(images) if features is None else self.model(images, features)
                 loss = self.__loss(pred, labels)
 
-            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
+            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
 
             if self._track_mode == "all":
@@ -233,12 +239,11 @@ class SingleTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
-            images, labels = Variable(images), Variable(labels)
+            images, labels = data["sample"].to(self._device), data["labels"][self._tasks[0]].to(self._device)
             features = None
 
             if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
+                features = data["features"].to(self._device)
 
             for optimizer in optimizers:
                 optimizer.zero_grad()
@@ -255,7 +260,7 @@ class SingleTaskTrainer(Trainer):
                                              permut,
                                              it + epoch*n_iters)
 
-            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
+            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
 
             self.model.disable_mixup(mixup_key)
@@ -298,38 +303,32 @@ class SingleTaskTrainer(Trainer):
     
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
-                         get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Tuple[Sequence[np.array], Sequence[float]],
-                                                          Tuple[np.array, float]]:
+                         get_loss: bool = False,
+                         save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
+                                                       Tuple[Sequence[np.array], Sequence[float]],
+                                                       Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return the loss instead of the auc score.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
         :return: The confusion matrix and the average loss if get_loss == True.
         """
-        outs = torch.empty(0, 2).to(self._device)
-        labels = torch.empty(0).long()
 
-        for data in dt_loader:
-            images, label = data["sample"].to(self._device), data["labels"]
-            features = None
+        outs, labels = self._predict(dt_loader=dt_loader)
+        self._save_prediction(outs, labels, save_path) if save_path else None
 
-            if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
-
-            with torch.no_grad():
-                out = self.model(images) if features is None else self.model(images, features)
-
-                outs = torch.cat([outs, out])
-                labels = torch.cat([labels, label])
-        
         with torch.no_grad():
+            outs = outs[self._tasks[0]]
+            labels = labels[self._tasks[0]]
+
             pred = torch.argmax(outs, dim=1)
-            loss = self.__loss(outs, labels.to(self._device))
+            loss = self.__loss(outs, labels.to(self._device)) if get_loss else None
 
         conf_mat = confusion_matrix(labels.numpy(), pred.cpu().numpy())
 
+        # Save the prediction if a filepath has been gived for the csv file.
         if get_loss:
             return conf_mat, loss.item()
         else:

@@ -19,10 +19,7 @@ from Model.NeuralNet import NeuralNet
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Sequence, Tuple, Union
-
-
-NB_TASK = 2
+from typing import Dict, List, Sequence, Union
 
 
 class SharedNet(NeuralNet):
@@ -63,8 +60,7 @@ class SharedNet(NeuralNet):
         Reshape the features and compute the forward pass of the shared unit at the sharing level i.
     """
     def __init__(self,
-                 malignant_net: NeuralNet,
-                 subtype_net: NeuralNet,
+                 sub_nets: nn.ModuleDict,
                  sharing_unit: str = "sluice",
                  mixup: Sequence[float] = None,
                  subspace_1: Union[Sequence[int], None] = None,
@@ -77,8 +73,7 @@ class SharedNet(NeuralNet):
         """
         Create a Shared network with Shared Module like Sluice Unit or Cross-Stitch Unit.
 
-        :param malignant_net: The neural network that predict the malignancy of the renal tumor.
-        :param subtype_net: The neural network that predict the subtype of the renal tumor.
+        :param sub_nets:
         :param sharing_unit: The sharing unit that will be used to shared the information between the 3 network.
         :param mixup: A list of int that indicate the beta parameters of each mixup modules.
         :param subspace_1: A list of int that indicate the number of subspace in each network before the sluice unit 1.
@@ -95,8 +90,9 @@ class SharedNet(NeuralNet):
         # --------------------------------------------
         #                    NETS
         # --------------------------------------------
-        self.nets = nn.ModuleDict({"mal": malignant_net,
-                                   "sub": subtype_net})
+        self.nets = sub_nets
+        self.__tasks = list(self.nets.keys())
+        self.__nb_task = len(self.__tasks)
 
         # --------------------------------------------
         #                   MIXUP
@@ -111,7 +107,7 @@ class SharedNet(NeuralNet):
         # --------------------------------------------
         #              UNCERTAINTY LOSS
         # --------------------------------------------
-        self.uncertainty_loss = UncertaintyLoss(num_task=NB_TASK)
+        self.uncertainty_loss = UncertaintyLoss(num_task=self.__nb_task)
 
         # --------------------------------------------
         #               SHARING UNITS
@@ -124,8 +120,8 @@ class SharedNet(NeuralNet):
 
         if sharing_unit.lower() == "sluice":
             for it in range(4):
-                assert len(self.__subspace[it]) == NB_TASK, "You must give the number of subspace of each network " \
-                                                            "in this order: Malignant, Subtype, Grade."
+                assert len(self.__subspace[it]) == self.__nb_task, "You must give the number of subspace of each " \
+                                                                   "network in this order: Malignant, Subtype, Grade."
 
         else:
             assert len(num_shared_channels) == 4, "You must give the number of shared channels PER NETWORK for each " \
@@ -139,13 +135,13 @@ class SharedNet(NeuralNet):
                                                              spread)
             else:
                 self.sharing_units_dict[str(i)] = CrossStitchUnit(nb_channels=num_shared_channels[i - 1],
-                                                                  nb_task=NB_TASK,
+                                                                  nb_task=self.__nb_task,
                                                                   c=c,
                                                                   spread=spread)
 
     def shared_forward(self,
                        x: Sequence[torch.Tensor],
-                       sharing_level: int) -> Tuple[torch.Tensor, torch.Tensor]:
+                       sharing_level: int) -> List[torch.Tensor]:
         """
         Reshape the features and compute the forward pass of the shared unit at the sharing level i.
 
@@ -155,30 +151,29 @@ class SharedNet(NeuralNet):
         :return: A tuple of torch.Tensor that represent the shared features representation for each sub neural net.
         """
 
-        num_chan = [x[0].size()[1], x[1].size()[1]]
+        num_chan = [tensor.size()[1] for tensor in x]
         b_size, _, depth, width, height = x[0].size()
         num_sub = self.__subspace[sharing_level - 1]
 
         if self.__sharing_unit == "sluice":
             out = torch.cat(
                 [x[i].view(b_size, num_sub[i], int(num_chan[i] / num_sub[i]), depth, width, height)
-                    for i in range(NB_TASK)],
+                    for i in range(self.__nb_task)],
                 dim=1
             )
 
             out = self.sharing_units_dict[str(sharing_level)](out)
-            out_mal, out_sub = torch.split(out, tuple(num_sub), dim=1)
+            out = list(torch.split(out, tuple(num_sub), dim=1))
 
-            out_mal = out_mal.reshape(b_size, num_chan[0], depth, width, height)
-            out_sub = out_sub.reshape(b_size, num_chan[1], depth, width, height)
-
-            return out_mal, out_sub
+            for i in range(len(out)):
+                out[i] = out[i].reshape(b_size, num_chan[i], depth, width, height)
 
         else:
-            out = self.sharing_units_dict[str(sharing_level)](torch.stack(x, dim=0))
-            return out[0], out[1]
+            out = list(self.sharing_units_dict[str(sharing_level)](torch.stack(x, dim=0)))
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        return out
+
+    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         mixup_key_list = list(self.mixup.keys())
         b_size = x.size()[0]
 
@@ -187,66 +182,62 @@ class SharedNet(NeuralNet):
         # --------------------------------------------
         #                   CONV
         # --------------------------------------------
-        out_mal = self.nets["mal"].conv(out)
-        out_sub = self.nets["sub"].conv(out)
+        outs = []
+        for task in self.__tasks:
+            outs.append(self.nets[task].conv(out))
 
         # --------------------------------------------
         #                   LEVEL 1
         # --------------------------------------------
-        out_mal = self.nets["mal"].layers1(out_mal)
-        out_sub = self.nets["sub"].layers1(out_sub)
-
-        out_mal, out_sub = self.shared_forward([out_mal, out_sub], 1)
-
+        for count, task in enumerate(self.__tasks):
+            outs[count] = self.nets[task].layers1(outs[count])
+        outs = self.shared_forward(outs, 1)
         if "1" in mixup_key_list:
-            out_mal = self.mixup["1"](out_mal)
-            out_sub = self.mixup["1"](out_sub)
+            for count, task in enumerate(self.__tasks):
+                outs[count] = self.mixup["1"](outs[count])
 
         # --------------------------------------------
         #                   LEVEL 2
         # --------------------------------------------
-        out_mal = self.nets["mal"].layers2(out_mal)
-        out_sub = self.nets["sub"].layers2(out_sub)
+        for count, task in enumerate(self.__tasks):
+            outs[count] = self.nets[task].layers2(outs[count])
 
-        out_mal, out_sub = self.shared_forward([out_mal, out_sub], 2)
-
+        outs = self.shared_forward(outs, 2)
         if "2" in mixup_key_list:
-            out_mal = self.mixup["2"](out_mal)
-            out_sub = self.mixup["2"](out_sub)
+            for count, task in enumerate(self.__tasks):
+                outs[count] = self.mixup["2"](outs[count])
 
         # --------------------------------------------
         #                   LEVEL 3
         # --------------------------------------------
-        out_mal = self.nets["mal"].layers3(out_mal)
-        out_sub = self.nets["sub"].layers3(out_sub)
+        for count, task in enumerate(self.__tasks):
+            outs[count] = self.nets[task].layers3(outs[count])
 
-        out_mal, out_sub = self.shared_forward([out_mal, out_sub], 3)
+        outs = self.shared_forward(outs, 3)
 
         if "3" in mixup_key_list:
-            out_mal = self.mixup["3"](out_mal)
-            out_sub = self.mixup["3"](out_sub)
+            for count, task in enumerate(self.__tasks):
+                outs[count] = self.mixup["3"](outs[count])
 
         # --------------------------------------------
         #                   LEVEL 4
         # --------------------------------------------
-        out_mal = self.nets["mal"].layers4(out_mal)
-        out_sub = self.nets["sub"].layers4(out_sub)
+        for count, task in enumerate(self.__tasks):
+            outs[count] = self.nets[task].layers4(outs[count])
 
-        out_mal, out_sub = self.shared_forward([out_mal, out_sub], 4)
+        outs = self.shared_forward(outs, 4)
 
         # --------------------------------------------
         #                   POOLING
         # --------------------------------------------
-        out_mal = self.nets["mal"].avg_pool(out_mal)
-        out_sub = self.nets["sub"].avg_pool(out_sub)
+        for count, task in enumerate(self.__tasks):
+            outs[count] = self.nets[task].avg_pool(outs[count])
 
         # --------------------------------------------
         #                   FC_LAYERS
         # --------------------------------------------
-        feat_mal = out_mal.view(b_size, -1)
-        feat_sub = out_sub.view(b_size, -1)
+        preds = {}
+        for count, task in enumerate(self.__tasks):
+            preds[task] = self.nets[task].fc_layer(outs[count].view(b_size, -1))
 
-        out_mal = self.nets["mal"].fc_layer(feat_mal)
-        out_sub = self.nets["sub"].fc_layer(feat_sub)
-
-        return out_mal, out_sub
+        return preds

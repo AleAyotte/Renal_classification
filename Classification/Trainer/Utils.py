@@ -27,8 +27,10 @@ def compute_recall(conf_matrix: np.array) -> Sequence[float]:
     recalls = []
 
     for it in range(len(conf_matrix)):
-        recalls.append(conf_matrix[it, it] / conf_matrix[it].sum())
-        
+        if conf_matrix[it].sum() > 0:
+            recalls.append(conf_matrix[it, it] / conf_matrix[it].sum())
+        else:
+            recalls.append(float('nan'))
     return recalls
 
 
@@ -84,6 +86,6 @@ def to_one_hot(inp: Union[torch.Tensor, Variable],
     y_onehot = torch.FloatTensor(inp.size(0), num_classes)
     y_onehot.zero_()
 
-    y_onehot.scatter_(1, inp.unsqueeze(1).data.cpu(), 1)
+    y_onehot.scatter_(1, inp.unsqueeze(1).data, 1)
 
     return Variable(y_onehot.to(device), requires_grad=False)

@@ -10,18 +10,18 @@
 """
 import argparse
 from comet_ml import Experiment
-from Data_manager.DataManager import RenalDataset, split_trainset
+from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
-from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
-from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
-import numpy as np
 import torch
 from torchsummary import summary
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
+CSV_PATH = "save/STL3D_"
+DATA_PATH = "final_dtset/all.hdf5"
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
+TOL = 1.0  # The tolerance factor use by the trainer
 
 
 def argument_parser():
@@ -31,16 +31,13 @@ def argument_parser():
                         choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
     parser.add_argument('--b_size', type=int, default=32,
                         help="The batch size.")
-    parser.add_argument('--dataset', type=str, default='New_Option1',
-                        help="The name of the folder that contain the dataset.",
-                        choices=['Option1_with_N4', 'Option1_without_N4', 'New_Option1'])
     parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                         help="The number of layer in the ResNet.")
     parser.add_argument('--device', type=str, default="cuda:0",
                         help="The device on which the model will be trained.")
     parser.add_argument('--drop_rate', type=float, default=0,
                         help="The drop rate hyperparameter used to configure the dropout layer. See drop_type")
-    parser.add_argument('--drop_type', type=str, default="flat",
+    parser.add_argument('--drop_type', type=str, default="linear",
                         help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
                              "Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer "
                              "from 0 to 'drop_rate'.",
@@ -52,9 +49,6 @@ def argument_parser():
                         help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
     parser.add_argument('--eta_min', type=float, default=1e-6,
                         help="The minimal value of the learning rate.")
-    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
-                        help="If true, the second testest will be add to the training dataset."
-                             "The second dataset is determined with '--testset'.")
     parser.add_argument('--grad_clip', type=float, default=1.25,
                         help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
                              "the training.")
@@ -82,19 +76,16 @@ def argument_parser():
     parser.add_argument('--optim', type=str, default="sgd",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
-    parser.add_argument('--pad_mode', type=str, default="constant",
-                        help="How the image will be pad in the data augmentation.",
-                        choices=["constant", "edge", "reflect", "symmetric"])
-    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
-                        help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
-    parser.add_argument('--task', type=str, default="malignant",
+    parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
+                        help="If true, load the last saved model and continue the training.")
+    parser.add_argument('--task', type=str, default="malignancy",
                         help="The task on which the model will be train.",
-                        choices=["malignant", "subtype", "grade"])
-    parser.add_argument('--testset', type=str, default="stratified",
-                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
-                             "the stratified dataset and the independant will be the second and hence could be used as "
-                             "extra data.",
-                        choices=["stratified", "independent"])
+                        choices=["malignancy", "subtype", "grade", "SSIGN"])
+    parser.add_argument('--testset', type=str, default="test",
+                        help="The name of the testset. If testset=='test' then a random stratified testset will be "
+                             "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
+                             "be loaded",
+                        choices=["test", "hold_out_set"])
     parser.add_argument('--track_mode', type=str, default="all",
                         help="Determine the quantity of training statistics that will be saved with tensorboard. "
                              "If low, the training loss will be saved only at each epoch and not at each iteration.",
@@ -112,54 +103,11 @@ def argument_parser():
 
 if __name__ == "__main__":
     args = argument_parser()
-    data_path = "final_dtset/{}/{}.hdf5".format(args.dataset, args.task)
-
-    # --------------------------------------------
-    #              DATA AUGMENTATION
-    # --------------------------------------------
-    transform = Compose([
-        AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-        RandScaleIntensityd(keys=["t1", "t2"], factors=0.1, prob=0.5),
-        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
-                    rotate_range=[0, 0, 6.28], translate_range=0.1, padding_mode="zeros"),
-        RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=1.00, max_zoom=1.05,
-                  keep_size=False, mode="trilinear", align_corners=True),
-        ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
-        ToTensord(keys=["t1", "t2", "roi"])
-    ])
-
-    test_transform = Compose([
-        AddChanneld(keys=["t1", "t2", "roi"]),
-        ToTensord(keys=["t1", "t2", "roi"])
-    ])
 
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    # TODO: CHANGE THE testset name in the hdf5 file
-    # "test" is the stratified test and test2 is the independent test.
-    test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
-    testset_name = args.testset
-    testset2_name = "independant" if args.testset == "stratified" else "stratified"
-
-    trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
-    validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=None)
-    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test1)
-
-    # If we want to use some extra data, then will we used the data of the second test set.
-    if args.extra_data:
-        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"], split=test2)
-        data, label, _ = testset2.extract_data(np.arange(len(testset2)))
-        trainset.add_data(data, label)
-        del data
-        del label
-    # Else the second test set will be used to access the performance of the dataset at the end.
-    else:
-        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
-
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
+    trainset, validset, testset = build_datasets(tasks=[args.task], testset_name=args.testset)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -185,13 +133,9 @@ if __name__ == "__main__":
     print_data_distribution("Validation Set",
                             [args.task],
                             validset.labels_bincount())
-    print_data_distribution("{} Set".format(testset_name.capitalize()),
+    print_data_distribution(f"{args.testset.capitalize()} Set",
                             [args.task],
                             testset.labels_bincount())
-    if not args.extra_data:
-        print_data_distribution("{} Set".format(testset2_name.capitalize()),
-                                [args.task],
-                                testset2.labels_bincount())
     print("\n")
 
     # --------------------------------------------
@@ -200,9 +144,9 @@ if __name__ == "__main__":
     trainer = Trainer(early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
                       loss=args.loss,
-                      tol=0.2,
+                      tol=TOL,
                       num_workers=args.worker,
-                      pin_memory=args.pin_memory,
+                      pin_memory=False,
                       classes_weights=args.weights,
                       task=args.task,
                       track_mode=args.track_mode,
@@ -225,7 +169,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                retrain=False)
+                retrain=args.retrain)
 
     # --------------------------------------------
     #                    SCORE
@@ -238,16 +182,18 @@ if __name__ == "__main__":
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False,
-                                auto_output_logging=False)
+                                log_code=False)
 
         experiment.set_name("ResNet3D" + "_" + args.task)
         experiment.log_code("SingleTaskMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/SingleTaskTrainer.py")
         experiment.log_code("Model/ResNet.py")
+
+        csv_path = CSV_PATH + args.task + "_" + args.testset + ".csv"
     else:
         experiment = None
+        csv_path = ""
 
     conf, auc = trainer.score(validset)
     print_score(dataset_name="VALIDATION",
@@ -256,22 +202,13 @@ if __name__ == "__main__":
                 auc_list=[auc],
                 experiment=experiment)
 
-    conf, auc = trainer.score(testset)
-    print_score(dataset_name="{} TEST".format(testset_name.upper()),
+    conf, auc = trainer.score(testset, save_path=csv_path)
+    print_score(dataset_name=f"{args.testset.upper()}",
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
 
-    if not args.extra_data:
-        conf, auc = trainer.score(testset2)
-        print_score(dataset_name="{} TEST".format(testset2_name.upper()),
-                    task_list=[args.task],
-                    conf_mat_list=[conf],
-                    auc_list=[auc],
-                    experiment=experiment)
-
     if experiment is not None:
         hparam = vars(args)
-        del hparam["task"]
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)

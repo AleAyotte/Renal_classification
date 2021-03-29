@@ -10,6 +10,7 @@
                         grade prediction).
 """
 
+from Model.Module import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -19,11 +20,10 @@ from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 import torch
 from torch import nn
 from torch.cuda import amp
-from torch.autograd import Variable
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Sequence, Tuple, Union
+from typing import Dict, Sequence, Tuple, Union
 
 
 NUM_TASK = 2  # Number of task
@@ -37,18 +37,27 @@ class MultiTaskTrainer(Trainer):
     ...
     Attributes
     ----------
+    __cond_prob : Sequence[Sequence[str]]
+        A list of pairs, where the pair A, B represent the name of task from which we want to compute the conditionnal
+        probability P(A|B).
+    _classes_weights : str
+        The configuration of weights that will be applied on the loss during the training.
+        Flat: All classes have the same weight during the training.
+        Balanced: The weights are inversionaly proportional to the number of data of each classes in the training set.
+        (Default="balanced")
     _loss : str
         The name of the loss that will be used during the training.
-    __m_loss : torch.nn
-        The loss function of the malignant task.
-    __s_loss : torch.nn
-        The loss function of the subtype task.
     _mixed_precision : bool
         If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
+        _num_classes: dict
+    A dictionnary that indicate the number of classes for each task. For a regression task, the number of classes
+        should be equal to one.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
+    _tasks : list
+        A list of string that contain the name of every task for which the model will be train.
     _track_mode : str
         Control the information that are registred by tensorboard. Options: all, low, none (Default: all).
     __weights : Sequence[Sequence[int]]
@@ -62,7 +71,11 @@ class MultiTaskTrainer(Trainer):
     score(dt_loader: DataLoader, get_loss: bool = False):
         Compute the accuracy of the model on a given data loader.
     """
-    def __init__(self, loss: str = "ce",
+    def __init__(self,
+                 tasks: Sequence,
+                 num_classes: Union[None, Dict[str, int]],
+                 conditional_prob: Union[Sequence[Sequence[str]], None] = None,
+                 loss: str = "ce",
                  tol: float = 0.01,
                  early_stopping: bool = False,
                  mixed_precision: bool = False,
@@ -75,6 +88,8 @@ class MultiTaskTrainer(Trainer):
         """
         The constructor of the trainer class. 
 
+        :param conditional_prob: A list of pairs, where the pair A, B represent the name of task from which we want
+                                 to compute the conditionnal probability P(A|B).
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
@@ -89,8 +104,6 @@ class MultiTaskTrainer(Trainer):
                                 Flat: All classes have the same weight during the training.
                                 Balanced: The weights are inversionaly proportional to the number of data of each 
                                           classes in the training set.
-                                Focused: Same as balanced but in the subtype and grade task, the total weights of the 
-                                         two not none classes are 4 times higher than the weight class.
                                 (Default="balanced")
         :param shared_net: If true, the model to train will be a SharedNet. In this we need to optimizer, one for the
                            subnets and one for the sharing units and the Uncertainty loss parameters. (Default=False)
@@ -99,47 +112,73 @@ class MultiTaskTrainer(Trainer):
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default=all)
         """
-        super().__init__(loss=loss,
-                         tol=tol,
+        # If num_classes has not been defined, then we assume that every task are binary classification.
+        if num_classes is None:
+            num_classes = {}
+            for task in tasks:
+                num_classes[task] = 2
+
+        # If num_classes has been defined for some tasks but not all, we assume that the remaining are regression task
+        else:
+            key_set = set(num_classes.keys())
+            tasks_set = set(tasks)
+            missing_tasks = tasks_set - key_set
+            assert missing_tasks == (tasks_set ^ key_set), f"The following tasks are present in num_classes " \
+                                                           "but not in tasks {}".format(key_set - tasks_set)
+            for task in list(missing_tasks):
+                num_classes[task] = 1
+
+        # Define the number of classes for the tasks created by the conditionnal probability.
+        for tasks in conditional_prob:
+            task1, task2 = tasks
+            task_name = task1 + "|" + task2
+            num_classes[task_name] = num_classes[task1]
+
+        super().__init__(classes_weights=classes_weights,
                          early_stopping=early_stopping,
+                         loss=loss,
                          mixed_precision=mixed_precision,
-                         pin_memory=pin_memory,
+                         num_classes=num_classes,
                          num_workers=num_workers,
-                         shared_net=shared_net,
+                         pin_memory=pin_memory,
                          save_path=save_path,
+                         shared_net=shared_net,
+                         tasks=tasks,
+                         tol=tol,
                          track_mode=track_mode)
 
-        assert classes_weights.lower() in ["flat", "balanced"], \
-            "classes_weights should be one of those options: 'Flat' or 'Balanced'"
-        weights = {"flat": [[1., 1.],
-                            [1., 1.]],
-                   "balanced": [[[1.3459, 0.7956]],
-                                [2.0840, 0.6578]]}
-        self.__weights = weights[classes_weights.lower()]
-        self.__m_loss = None
-        self.__s_loss = None
-        
+        self.__losses = torch.nn.ModuleDict()
+        self.__cond_prob = [] if conditional_prob is None else conditional_prob
+
     def _init_loss(self, gamma: float) -> None:
         """
         Initialize the loss function by sending the classes weights on the appropriate device.
 
         :param gamma: Gamma parameter of the focal loss.
         """
-        weight_0 = torch.Tensor(self.__weights[0]).to(self._device)
-        weight_1 = torch.Tensor(self.__weights[1]).to(self._device)
+        # Define the classes weights
+        weight = {}
+        if self._classes_weights == "balanced":
+            for task in self._tasks:
+                weight[task] = torch.Tensor(self._weights[task]).to(self._device)
+        else:
+            for task in self._tasks:
+                weight[task] = None
 
+        # Define the losses
         if self._loss == "ce":
-            self.__m_loss = nn.CrossEntropyLoss(weight=weight_0)
-            self.__s_loss = nn.CrossEntropyLoss(weight=weight_1)
+            for task in self._tasks:
+                self.__losses[task] = nn.CrossEntropyLoss(weight=weight[task])
         elif self._loss == "bce":
-            self.__m_loss = nn.BCEWithLogitsLoss(pos_weight=weight_0)
-            self.__s_loss = nn.BCEWithLogitsLoss(pos_weight=weight_1)
+            for task in self._tasks:
+                self.__losses[task] = nn.BCEWithLogitsLoss(pos_weight=weight[task])
         elif self._loss == "focal":
-            self.__m_loss = FocalLoss(gamma=gamma, weight=weight_0)
-            self.__s_loss = FocalLoss(gamma=gamma, weight=weight_1)
+            for task in self._tasks:
+                self.__losses[task] = FocalLoss(gamma=gamma, weight=weight[task])
         else:  # loss == "marg"
-            raise NotImplementedError
-    
+            for task in self._tasks:
+                self._losses[task] = MarginLoss()
+
     def _standard_epoch(self,
                         train_loader: DataLoader,
                         optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
@@ -162,47 +201,46 @@ class MultiTaskTrainer(Trainer):
         for it, data in enumerate(train_loader, 0):
             # Extract the data
             images, labels = data["sample"].to(self._device), data["labels"]
-            images = Variable(images)
-
-            m_labels = Variable(labels["malignant"]).to(self._device)
-            s_labels = Variable(labels["subtype"]).to(self._device)
 
             features = None
             if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
+                features = data["features"].to(self._device)
 
             for optimizer in optimizers:
                 optimizer.zero_grad()
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
-                m_pred, s_pred = self.model(images) if features is None else self.model(images, features)
+                preds = self.model(images) if features is None else self.model(images, features)
 
-                # Create a mask of non malignant data
-                # We do not cast s_labels > 0 in torch.BoolTensor since its faster without it.
-                s_mask = torch.where(s_labels > 0, 1, 0).bool()
+                losses = []
+                metrics = {}
+                for task in self._tasks:
+                    labels[task] = labels[task].to(self._device)
 
-                m_loss = self.__m_loss(m_pred, m_labels)
-                s_loss = self.__s_loss(s_pred[s_mask], s_labels[s_mask] - 1)
+                    # Compute the loss only where have labels (label != -1).
+                    mask = torch.where(labels[task] > -1, 1, 0).bool()
+                    loss = self.__losses[task](preds[task][mask], labels[task][mask])
+                    losses.append(loss)
+                    metrics[task] = loss.item()
 
-                losses = torch.stack((m_loss, s_loss))
+                losses = torch.stack(losses)
                 loss = self.model.uncertainty_loss(losses)
 
-            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
+            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
 
             if self._track_mode == "all":
+                metrics["total"] = loss.item()
                 self._writer.add_scalars('Training/Loss', 
-                                         {'Malignant': m_loss.item(),
-                                          'Subtype': s_loss.item(),
-                                          'Total': loss.item()}, 
+                                         metrics,
                                          it + epoch*n_iters)
 
         return sum_loss.item() / n_iters
 
     def _mixup_criterion(self,
-                         pred: Sequence[torch.Tensor],
-                         labels: Sequence[Variable],
+                         pred: Dict[str, torch.Tensor],
+                         labels: Dict[str, torch.Tensor],
                          lamb: float,
                          permut: Sequence[int],
                          it: int) -> torch.FloatTensor:
@@ -215,37 +253,40 @@ class MultiTaskTrainer(Trainer):
         :param permut: A numpy array that indicate which images has been shuffle during the foward pass.
         :return: The mixup loss as torch tensor.
         """
-        m_pred, s_pred = pred
-        m_labels, s_labels = labels
 
-        s_mask = torch.where(s_labels > 0, 1, 0).bool()
+        losses = []
+        metrics = {}
 
-        s_labels = s_labels[s_mask] - 1
+        if self._loss == "bce":
+            for task in self._tasks:
+                # Transform the labels into one hot vectors.
+                hot_target = to_one_hot(labels[task] + 1,
+                                        self._num_classes[task],
+                                        self._device)
+                hot_target = hot_target[:, 1:]
 
-        if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
-            m_hot_target = to_one_hot(m_labels, NUM_TASK, self._device)
-            s_hot_target = to_one_hot(s_labels, NUM_TASK, self._device)
-
-            m_mixed_target = lamb*m_hot_target + (1-lamb)*m_hot_target[permut]
-            s_mixed_target = lamb*s_hot_target + (1-lamb)*s_hot_target[permut]
-
-            m_loss = self.__m_loss(m_pred, m_mixed_target)
-            s_loss = self.__s_loss(s_pred, s_mixed_target)
+                mixed_target = lamb*hot_target + (1-lamb)*hot_target[permut]
+                loss = self.__losses[task](pred[task], mixed_target)
+                losses.append(loss)
+                metrics[task] = loss.item()
 
         else:
-            m_loss = lamb*self.__m_loss(m_pred, m_labels) + (1-lamb)*self.__m_loss(m_pred, m_labels[permut])
-            s_loss = lamb*self.__s_loss(s_pred, s_labels) + (1-lamb)*self.__s_loss(s_pred, s_labels[permut])
+            for task in self._tasks:
 
-        losses = torch.stack((m_loss, s_loss))
+                labels[task] = labels[task].to(self._device)
+                loss = lamb*self.__losses[task](pred[task], labels[task])
+                loss += lamb*self.__losses[task](pred[task], labels[task][permut])
+                losses.append(loss)
+                metrics[task] = loss.item()
+
+        losses = torch.stack(losses)
         loss = self.model.uncertainty_loss(losses)
 
         if self._track_mode == "all":
+            metrics["total"] = loss.item()
             self._writer.add_scalars('Training/Loss', 
-                                     {'Malignant': m_loss.item(),
-                                      'Subtype': s_loss.item(),
-                                      'Total': loss.item()}, 
+                                     metrics,
                                      it)
-
         return loss
 
     def _mixup_epoch(self,
@@ -269,14 +310,10 @@ class MultiTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             images, labels = data["sample"].to(self._device), data["labels"]
-            images = Variable(images)
-
-            m_labels = Variable(labels["malignant"].to(self._device))
-            s_labels = Variable(labels["subtype"].to(self._device))
 
             features = None
             if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
+                features = data["features"].to(self._device)
 
             for optimizer in optimizers:
                 optimizer.zero_grad()
@@ -286,14 +323,14 @@ class MultiTaskTrainer(Trainer):
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
-                m_pred, s_pred = self.model(images) if features is None else self.model(images, features)
-                loss = self._mixup_criterion([m_pred, s_pred],
-                                             [m_labels, s_labels],
+                preds = self.model(images) if features is None else self.model(images, features)
+                loss = self._mixup_criterion(preds,
+                                             labels,
                                              lamb,
                                              permut,
                                              it + epoch*n_iters)
 
-            self._update_model(scaler, optimizers, schedulers, grad_clip, loss)
+            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             self.model.disable_mixup(mixup_key)
             sum_loss += loss
 
@@ -311,155 +348,119 @@ class MultiTaskTrainer(Trainer):
         :param dataset_name: The name of the dataset will be used to save the metrics with tensorboard.
         :return: The mean accuracy as float and the loss as float.
         """
-
         with amp.autocast(enabled=self._mixed_precision):
             conf_mat, loss = self._get_conf_matrix(dt_loader=dt_loader, get_loss=True)
-            m_conf, s_conf, s_cond_conf = conf_mat
 
-            m_recall = compute_recall(m_conf)
-            s_recall = compute_recall(s_conf)
+            recall = {}
+            acc = {}
+            all_acc = {}
 
-            m_acc = get_mean_accuracy(m_recall, geometric_mean=True)
-            s_acc = get_mean_accuracy(s_recall, geometric_mean=True)
-            mean_acc = get_mean_accuracy([m_acc, s_acc], geometric_mean=True)
+            for task, matrix in conf_mat.items():
+                rec = compute_recall(matrix)
+                recall[task] = rec
+                accuracy = get_mean_accuracy(rec, geometric_mean=True)
 
-            # If some malignant data has been well classified by the model.
-            if s_cond_conf is not None:
-                s_cond_recall = compute_recall(s_cond_conf)
-                s_cond_recall.append(float("nan")) if len(s_cond_recall) == 1 else None
-                s_cond_acc = get_mean_accuracy(s_cond_recall, geometric_mean=True)
-            else:
-                s_cond_recall = [float("nan"), float("nan")]
-                s_cond_acc = float("nan")
+                all_acc[task] = accuracy  # Include accuracy of conditionnal probability related task
+                if task in self._tasks:
+                    acc[task] = accuracy
+
+            mean_acc = get_mean_accuracy(list(acc.values()), geometric_mean=True)
 
         if self._track_mode != "none":
-            self._writer.add_scalars('{}/Accuracy'.format(dataset_name), 
-                                     {'Malignant': m_acc,
-                                      'Subtype': s_acc,
-                                      'Cond Subtype': s_cond_acc},
+            self._writer.add_scalars(f'{dataset_name}/Accuracy',
+                                     acc,
                                      epoch)
 
-            self._writer.add_scalars('{}/Recall/Malignant'.format(dataset_name), 
-                                     {'Recall 0': m_recall[0],
-                                      'Recall 1': m_recall[1]},
-                                     epoch)
-            
-            self._writer.add_scalars('{}/Recall/Subtype'.format(dataset_name), 
-                                     {'Recall 0': s_recall[0],
-                                      'Recall 1': s_recall[1]},
-                                     epoch)
-
-            self._writer.add_scalars('{}/Recall/Cond Subtype'.format(dataset_name),
-                                     {'Recall 0': s_cond_recall[0],
-                                      'Recall 1': s_cond_recall[1]},
-                                     epoch)
-
-            if dataset_name == "Validation":
-                phi = self.model.uncertainty_loss.phi.detach().cpu().numpy()
-                self._writer.add_scalars("Other/Uncertainty",
-                                         {"phi_Malignant": phi[0],
-                                          "phi_Subtype": phi[1]},
+            for task, recalls in recall.items():
+                rec = {}
+                for i in range(self._num_classes[task]):
+                    rec[f"Recall {i}"] = recalls[i]
+                self._writer.add_scalars(f'{dataset_name}/Recall/{task.capitalize()}',
+                                         rec,
                                          epoch)
         return mean_acc, loss
-    
+
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
-                         get_loss: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                          Tuple[Sequence[np.array], Sequence[float]],
-                                                          Tuple[np.array, float]]:
+                         get_loss: bool = False,
+                         save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
+                                                       Tuple[Sequence[np.array], Sequence[float]],
+                                                       Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return also the loss if True.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
         :return: The confusion matrix for each task. If get_loss is True then also return the average loss.
                  Otherwise, the AUC will be return for each task.
         """
-        m_outs = torch.empty(0, 2).to(self._device)
-        s_outs = torch.empty(0, 2).to(self._device)
+        outs, labels = self._predict(dt_loader=dt_loader)
+        self._save_prediction(outs, labels, save_path) if save_path else None
 
-        m_labels = torch.empty(0).long()
-        s_labels = torch.empty(0).long()
-
-        # Perform the forward pass on each element of the dataset
-        for data in dt_loader:
-            images, labels = data["sample"].to(self._device), data["labels"]
-
-            features = None
-            if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
-            with torch.no_grad():
-                m_out, s_out = self.model(images) if features is None else self.model(images, features)
-
-                m_outs = torch.cat([m_outs, m_out])
-                s_outs = torch.cat([s_outs, s_out])
-
-                m_labels = torch.cat([m_labels, labels["malignant"]])
-                s_labels = torch.cat([s_labels, labels["subtype"]])
-
-        # Compute the pred and the conditional prediction
-        # (prediction of subtype knowing model was accurate on malignancy)
+        losses = []
+        conf_mat = {}
+        auc_score = {}
+        preds = {}
+        masks = {}
         with torch.no_grad():
-            m_pred = torch.argmax(m_outs, dim=1).cpu()
+            # Compute the mask and the prediction
+            for task in self._tasks:
+                masks[task] = torch.where(labels[task] > -1, 1, 0).bool()
+                preds[task] = torch.argmax(outs[task], dim=1).cpu()
 
-            # Get index of data where m_pred == m_labels == 1 and create a mask
-            s_cond_mask = torch.where(
-                torch.logical_and(
-                    torch.BoolTensor(m_pred == m_labels),
-                    torch.BoolTensor(s_labels > 0)),
-                1, 0
-            ).bool()
+            # Compute the confusion matrix and the loss for each task.
+            for task in self._tasks:
+                task_labels = labels[task][masks[task]]
+                conf_mat[task] = confusion_matrix(task_labels.numpy(),
+                                                  preds[task][masks[task]].numpy())
 
-            # Create a mask of non malignant data
-            s_mask = torch.where(torch.BoolTensor(s_labels > 0), 1, 0).bool()
+                # We compute the loss only if asked.
+                if get_loss:
+                    if self._loss == "bce":
+                        target = to_one_hot(task_labels,
+                                            self._num_classes[task],
+                                            self._device)
+                    else:
+                        target = task_labels.to(self._device)
+                    losses.append(self.__losses[task](outs[task][masks[task]], target))
 
-            # Apply the mask and adjust the labels
-            s_cond_labels = s_labels[s_cond_mask] - 1
-            s_cond_outs = s_outs[s_cond_mask]
+                # If get_loss is False, then we compute the auc score.
+                else:
+                    task_outs = outs[task][masks[task].to(self._device)]
+                    fpr, tpr, _ = roc_curve(y_true=task_labels.numpy(),
+                                            y_score=task_outs[:, 1].cpu().numpy())
+                    auc_score[task] = auc(fpr, tpr)
 
-            # Apply the mask and adjust the labels
-            s_labels = s_labels[s_mask] - 1
-            s_outs = s_outs[s_mask]
+            # Conditional probability
+            for tasks in self.__cond_prob:
+                task1, task2 = tasks
+                task_name = task1 + "|" + task2
 
-            s_pred = torch.argmax(s_outs, dim=1).cpu()
-            s_cond_pred = torch.argmax(s_cond_outs, dim=1).cpu() if len(s_cond_outs) > 0 else None
+                # Only where
+                mask = torch.where(
+                    torch.logical_and(
+                        masks[task1],
+                        torch.BoolTensor(preds[task2] == labels[task2])),
+                    1, 0
+                ).bool()
 
-            if self.__m_loss.__class__.__name__ == "BCEWithLogitsLoss":
-                m_target = to_one_hot(m_labels, NUM_TASK, self._device)
-                s_target = to_one_hot(s_labels, NUM_TASK, self._device)
-            else:
-                m_target, s_target = m_labels, s_labels
+                cond_pred = preds[task1][mask]
+                if len(cond_pred) > 0:
+                    cond_conf = confusion_matrix(labels[task1][mask].numpy(),
+                                                 cond_pred.numpy(),
+                                                 labels=range(self._num_classes[task_name]))
 
-            m_loss = self.__m_loss(m_outs, m_target.to(self._device))
-            s_loss = self.__s_loss(s_outs, s_target.to(self._device))
+                    if not get_loss:
+                        task_outs = outs[task1][mask.to(self._device)]
+                        fpr, tpr, _ = roc_curve(y_true=labels[task1][mask].numpy(),
+                                                y_score=task_outs[:, 1].cpu().numpy())
+                        auc_score[task_name] = auc(fpr, tpr)
+                else:
+                    cond_conf = np.array([[float("nan"), float("nan")],
+                                          [float("nan"), float("nan")]])
+                conf_mat[task_name] = cond_conf
 
-            losses = torch.stack((m_loss, s_loss))
-            total_loss = self.model.uncertainty_loss(losses)
+            total_loss = self.model.uncertainty_loss(torch.stack(losses)) if get_loss else None
 
-        m_conf = confusion_matrix(m_labels.numpy(), m_pred.numpy())
-        s_conf = confusion_matrix(s_labels.numpy(), s_pred.numpy())
-
-        if s_cond_pred is not None:
-            s_cond_conf = confusion_matrix(s_cond_labels.numpy(), s_cond_pred.numpy())
-        else:
-            s_cond_conf = np.array([[float("nan"), float("nan")],
-                                    [float("nan"), float("nan")]])
-
-        if get_loss:
-            return [m_conf, s_conf, s_cond_conf], total_loss.item()
-
-        else:
-            # Compute the roc curve and the AUC on the malignancy and the subtype task
-            fpr, tpr, _ = roc_curve(y_true=m_labels.numpy(), y_score=m_outs[:, 1].cpu().numpy())
-            m_auc_score = auc(fpr, tpr)
-            fpr, tpr, _ = roc_curve(y_true=s_labels.numpy(), y_score=s_outs[:, 1].cpu().numpy())
-            s_auc_score = auc(fpr, tpr)
-
-            # Compute the roc curve and the AUC on subtype input that has been well classified for the malignancy
-            if s_cond_pred is not None:
-                fpr, tpr, _ = roc_curve(y_true=s_cond_labels.numpy(), y_score=s_cond_outs[:, 1].cpu().numpy())
-                s_cond_auc_score = auc(fpr, tpr)
-            else:
-                s_cond_auc_score = float("nan")
-
-            return [m_conf, s_conf, s_cond_conf], [m_auc_score, s_auc_score, s_cond_auc_score]
+        return (conf_mat, total_loss) if get_loss else (conf_mat, auc_score)

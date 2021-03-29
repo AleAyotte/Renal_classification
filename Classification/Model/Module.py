@@ -5,7 +5,7 @@
     @Creation Date:     12/2020
     @Last modification: 03/2021
 
-    @Description:       This file contain some generic module used to create several model like the ResNet,
+    @Description:       This file contain some generic module used to create several model like
                         MultiLevelResNet and SharedNet. The module are SluiceUnit, CrossStitchUnit, Mixup and
                         UncertaintyLoss.
 
@@ -19,7 +19,10 @@
 
 import numpy as np
 import torch
-from typing import Tuple, Sequence
+from torch import nn
+from torch.nn import functional as F
+from Trainer.Utils import to_one_hot
+from typing import Sequence, Tuple
 
 
 class CrossStitchUnit(torch.nn.Module):
@@ -55,8 +58,8 @@ class CrossStitchUnit(torch.nn.Module):
             temp[:, t] = c
             alpha.append(temp)
 
-        alpha = torch.from_numpy(np.array(alpha)).float().swapaxes(1, 2)
-        alpha = alpha.swapaxes(1, 2)  # Output, Task, Channels
+        alpha = torch.from_numpy(np.array(alpha)).float()
+        alpha = torch.transpose(alpha, 1, 2)  # Output, Task, Channels
 
         self.alpha = torch.nn.Parameter(data=alpha, requires_grad=True)
 
@@ -64,6 +67,21 @@ class CrossStitchUnit(torch.nn.Module):
         # Output, Task, Batch, Channels, Depth, Width, Height
         out = torch.mul(self.alpha[:, :, None, :, None, None, None], x[None, :, :, :, :, :, :])
         return out.sum(1)
+
+
+class MarginLoss(nn.Module):
+    """
+    An implementation of the margin loss.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, pred, labels):
+        labels = to_one_hot(labels, num_classes=2)
+        left = F.relu(0.9 - pred, inplace=True) ** 2
+        right = F.relu(pred - 0.1, inplace=True) ** 2
+        margin_loss = labels * left + 0.5 * (1. - labels) * right
+        return margin_loss.mean()
 
 
 class Mixup(torch.nn.Module):
@@ -115,8 +133,8 @@ class Mixup(torch.nn.Module):
 
         if self.training and self.enable:
             device = x.get_device()
-            lamb = torch.from_numpy(np.array([self.lamb]).astype('float32')).to(device)
-            lamb = torch.autograd.Variable(lamb)
+            lamb = torch.Tensor([self.lamb]).float().to(device)
+            lamb.requires_grad = True
             return lamb*x + (1 - lamb)*x[self.permut.to(device)]
         else:
             return x

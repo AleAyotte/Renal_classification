@@ -9,29 +9,28 @@
 """
 import argparse
 from comet_ml import Experiment
-from Data_manager.DataManager import RenalDataset, split_trainset
+from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
-from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
-from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
-import numpy as np
+import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
+CSV_PATH = "save/SharedNet_"
+DATA_PATH = "final_dtset/all.hdf5"
+FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
 LOAD_PATH = "save/14_Fev_2020/"
 SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
-TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]
+TASK_LIST = ["malignancy", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
+TOL = 1.0  # The tolerance factor use by the trainer
 
 
 def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--b_size', type=int, default=32,
                         help="The batch size.")
-    parser.add_argument('--dataset', type=str, default='New_Option1',
-                        help="The name of the folder that contain the dataset.",
-                        choices=['Option1_with_N4', 'Option1_without_N4', "New_Option1"])
     parser.add_argument('--device', type=str, default="cuda:0",
                         help="The device on which the model will be trained.")
     parser.add_argument('--early_stopping', type=bool, default=False, nargs='?', const=True,
@@ -41,9 +40,6 @@ def argument_parser():
                         help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
     parser.add_argument('--eta_min', type=float, default=1e-6,
                         help="The minimal value of the learning rate.")
-    parser.add_argument('--extra_data', type=bool, default=False, nargs='?', const=True,
-                        help="If true, the second testest will be add to the training dataset. "
-                             "The second dataset is determined with '--testset'.")
     parser.add_argument('--grad_clip', type=float, default=2.25,
                         help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
                              "the training.")
@@ -63,27 +59,24 @@ def argument_parser():
                         help="The number of training epoch.")
     parser.add_argument('--num_cumu_batch', type=int, default=1,
                         help="The number of batch that will be cumulated before updating the weight of the model.")
-    parser.add_argument('--optim', type=str, default="sgd",
+    parser.add_argument('--optim', type=str, default="adam",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
-    parser.add_argument('--pad_mode', type=str, default="constant",
-                        help="How the image will be pad in the data augmentation.",
-                        choices=["constant", "edge", "reflect", "symmetric"])
-    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
-                        help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
     parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
                         help="If True, then the SharedNet will be create with two subnet that has been pretrained on "
                              "their corresponding task. Also, the shared_lr will be equal to lr * 100 and "
                              "shared_eta_min will be equal to eta_min * 100.")
-    parser.add_argument('--share_unit', type=str, default="sluice",
+    parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
+                        help="If true, load the last saved model and continue the training.")
+    parser.add_argument('--sharing_unit', type=str, default="cross_stitch",
                         help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
                              "information transfer between multiple subnets",
                         choices=["sluice", "cross_stitch"])
-    parser.add_argument('--testset', type=str, default="stratified",
-                        help="The name of the first testset. If 'testset'== stratified then the first testset will be "
-                             "the stratified dataset and the independant will be the second and hence could be used as "
-                             "extra data.",
-                        choices=["stratified", "independant"])
+    parser.add_argument('--testset', type=str, default="test",
+                        help="The name of the testset. If testset=='test' then a random stratified testset will be "
+                             "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
+                             "be loaded",
+                        choices=["test", "hold_out_set"])
     parser.add_argument('--track_mode', type=str, default="all",
                         help="Determine the quantity of training statistics that will be saved with tensorboard."
                              "If low, the training loss will be saved only at each epoch and not at each iteration.",
@@ -104,54 +97,10 @@ if __name__ == "__main__":
     if args.mode == "Mixup":
         raise NotImplementedError
 
-    data_path = "final_dtset/{}/all.hdf5".format(args.dataset)
-    # --------------------------------------------
-    #              DATA AUGMENTATION
-    # --------------------------------------------
-    transform = Compose([
-        AddChanneld(keys=["t1", "t2", "roi"]),
-        RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-        RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-        RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
-                    rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
-        RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-        RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
-                  keep_size=False, mode="trilinear", align_corners=True),
-        ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
-        ToTensord(keys=["t1", "t2", "roi"])
-    ])
-
-    test_transform = Compose([
-        AddChanneld(keys=["t1", "t2", "roi"]),
-        ToTensord(keys=["t1", "t2", "roi"])
-    ])
-
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    # TODO: CHANGE THE testset name in the hdf5 file
-    # "test" is the stratified test and test2 is the independent test.
-    test1, test2 = ("test", "test2") if args.testset == "stratified" else ("test2", "test")
-    testset_name = args.testset
-    testset2_name = "independant" if args.testset == "stratified" else "stratified"
-
-    trainset = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"])
-    validset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=None)
-    testset = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test1)
-
-    # If we want to use some extra data, then will we used the data of the second test set.
-    if args.extra_data:
-        testset2 = RenalDataset(data_path, transform=transform, imgs_keys=["t1", "t2", "roi"], split="test2")
-        data, label, _ = testset2.extract_data(np.arange(len(testset2)))
-        trainset.add_data(data, label)
-        del data
-        del label
-
-    # Else the second test set will be used to access the performance of the dataset at the end.
-    else:
-        testset2 = RenalDataset(data_path, transform=test_transform, imgs_keys=["t1", "t2", "roi"], split=test2)
-
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.2)
+    trainset, validset, testset = build_datasets(tasks=TASK_LIST, testset_name=args.testset)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -167,8 +116,8 @@ if __name__ == "__main__":
                      pre_act=True).to(args.device)
 
     sub_net = ResNet(mixup=args.mixup,
-                     depth=18,
-                     first_channels=24,
+                     depth=34,
+                     first_channels=32,
                      in_shape=in_shape,
                      drop_rate=0.1,
                      drop_type="linear",
@@ -179,9 +128,14 @@ if __name__ == "__main__":
         mal_net.restore(LOAD_PATH + "malignant.pth")
         sub_net.restore(LOAD_PATH + "subtype.pth")
 
-    net = SharedNet(malignant_net=mal_net,
-                    subtype_net=sub_net,
+    sub_nets = torch.nn.ModuleDict()
+    sub_nets["malignancy"] = mal_net
+    sub_nets["subtype"] = sub_net
+
+    net = SharedNet(sub_nets=sub_nets,
                     mixup=args.mixup,
+                    num_shared_channels=[32, 64, 128, 256],
+                    sharing_unit=args.sharing_unit,
                     subspace_1=[4, 3],
                     subspace_2=[8, 6],
                     subspace_3=[8, 6],
@@ -199,28 +153,29 @@ if __name__ == "__main__":
     print_data_distribution("Validation Set",
                             TASK_LIST,
                             validset.labels_bincount())
-    print_data_distribution("{} Set".format(testset_name.capitalize()),
+    print_data_distribution(f"{args.testset.capitalize()} Set",
                             TASK_LIST,
                             testset.labels_bincount())
-    if not args.extra_data:
-        print_data_distribution("{} Set".format(testset2_name.capitalize()),
-                                TASK_LIST,
-                                testset2.labels_bincount())
     print("\n")
 
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(early_stopping=args.early_stopping,
+    trainer = Trainer(tasks=TASK_LIST,
+                      num_classes={"malignancy": 2, "subtype": 2},
+                      conditional_prob=[["subtype", "malignancy"]],
+                      early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
                       loss=args.loss,
-                      tol=1.00,
+                      tol=TOL,
                       num_workers=args.worker,
-                      pin_memory=args.pin_memory,
+                      pin_memory=False,
                       classes_weights=args.weights,
                       shared_net=False,
                       track_mode=args.track_mode,
                       mixed_precision=True)
+
+    torch.backends.cudnn.benchmark = True
 
     trainer.fit(model=net,
                 trainset=trainset,
@@ -238,8 +193,9 @@ if __name__ == "__main__":
                 device=args.device,
                 optim=args.optim,
                 num_epoch=args.num_epoch,
-                t_0=args.num_epoch,
-                l2=0.009)
+                t_0=max(args.num_epoch, 1),
+                l2=0.009,
+                retrain=args.retrain)
 
     # --------------------------------------------
     #                    SCORE
@@ -252,37 +208,34 @@ if __name__ == "__main__":
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False,
-                                auto_output_logging=False)
+                                log_code=False)
 
         experiment.set_name("SharedNet" + "_" + "MultiTask")
         experiment.log_code("SharedNetMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/SharedNet.py")
+
+        csv_path = CSV_PATH + "_" + args.testset + ".csv"
     else:
         experiment = None
+        csv_path = ""
 
     conf, auc = trainer.score(validset)
-    print_score(dataset_name="VALIDATION SCORE",
-                task_list=TASK_LIST,
-                conf_mat_list=conf,
-                auc_list=auc)
+    print_score(dataset_name="VALIDATION",
+                task_list=list(auc.keys()),
+                conf_mat_list=list(conf.values()),
+                auc_list=list(auc.values()),
+                experiment=experiment)
 
-    conf, auc = trainer.score(testset)
-    print_score(dataset_name="{} TEST SCORE".format(testset_name.upper()),
-                task_list=TASK_LIST,
-                conf_mat_list=conf,
-                auc_list=auc)
-
-    if not args.extra_data:
-        conf, auc = trainer.score(testset2)
-        print_score(dataset_name="{} TEST SCORE".format(testset2_name.upper()),
-                    task_list=TASK_LIST,
-                    conf_mat_list=conf,
-                    auc_list=auc)
+    conf, auc = trainer.score(testset, save_path=csv_path)
+    print_score(dataset_name=f"{args.testset.upper()}",
+                task_list=list(auc.keys()),
+                conf_mat_list=list(conf.values()),
+                auc_list=list(auc.values()),
+                experiment=experiment)
 
     if experiment is not None:
         hparam = vars(args)
-        del hparam["task"]
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
+        experiment.log_parameter("Task", "SharedNet")

@@ -19,7 +19,7 @@ API_KEY_FILEPATH = "comet_api_key.txt"  # path to the file that contain the API 
 
 def print_data_distribution(dataset_name: str,
                             task_list: Sequence[str],
-                            labels_bincount_list: Sequence[np.array]) -> None:
+                            labels_bincount_list: dict) -> None:
     """
     Print the number of data per class per task for a given dataset.
 
@@ -29,20 +29,20 @@ def print_data_distribution(dataset_name: str,
     :param labels_bincount_list: A list of numpy array where each numpy array represent the number of data per class
                                  for a task.
     """
-    print("**************************************")
-    print("**{:^34s}**".format(dataset_name))
-    print("**************************************")
+
+    line_sep = "+" + "-" * 12 + "+" + "-" * 12 + "+" + "-" * 12 + "+"
+
+    print(f"+{'-'*38}+")
+    print(f"|{dataset_name:^38s}|")
+    print(line_sep)
+    print(f"|{'Task':^12s}|{'Negative':^12s}|{'Positive':^12s}|")
+    print(line_sep)
 
     for i in range(len(task_list)):
-        print("*"*20)
-        print("**{:^16s}**".format(task_list[i].capitalize()))
-        print("*"*20)
-
-        labels_bincount = labels_bincount_list[i]
-
-        print("There is {} negative examples and {} positive examples\n".format(
-            labels_bincount[0], labels_bincount[1]
-        ))
+        print("|{:^12s}|{:^12}|{:^12}|".format(task_list[i],
+                                               labels_bincount_list[task_list[i]][0],
+                                               labels_bincount_list[task_list[i]][1]))
+        print(line_sep)
 
 
 def print_score(dataset_name: str,
@@ -62,17 +62,23 @@ def print_score(dataset_name: str,
     :param experiment: A comet experiment object. If gived, then the confusion matrix and the metrics will
                        saved online. (Default=None)
     """
-    print("**************************************")
-    print("**{:^34s}**".format(dataset_name.upper() + " SCORE"))
-    print("**************************************")
+
+    dataset_label = dataset_name.upper() + " SCORE"
+    line_sep = "+" + "-" * 20 + "+" + "-" * 11 + "+" + "-" * 11 + "+" + "-" * 11 + "+"
+
+    print(f"+{'-'*56}+")
+    print(f"|{dataset_label:^56s}|")
+    print(line_sep)
+    print(f"|{'Task':^20s}|{'AUC':^11s}|{'Recall0':^11s}|{'Recall1':^11s}|")
+    print(line_sep)
 
     for i in range(len(task_list)):
         auc = auc_list[i]
         recall = compute_recall(conf_mat_list[i])
         recall.append(float("nan")) if len(recall) == 1 else None
 
-        print("{} AUC: {}".format(task_list[i], auc))
-        print("{} Recall: {}\n".format(task_list[i], recall))
+        print(f"|{task_list[i]:^20s}|{auc:^11.2f}|{recall[0]:^11.2f}|{recall[1]:^11.2f}|")
+        print(line_sep)
 
         if experiment is not None:
             name = dataset_name + " " + task_list[i].capitalize()
