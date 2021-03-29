@@ -20,6 +20,7 @@ from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
+CSV_PATH = "save/HardSharing_"
 DATA_PATH = "final_dtset/all.hdf5"
 FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
 SAVE_PATH = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
@@ -71,7 +72,7 @@ def argument_parser():
                         help="The number of training epoch.")
     parser.add_argument('--num_cumu_batch', type=int, default=1,
                         help="The number of batch that will be cumulated before updating the weight of the model.")
-    parser.add_argument('--optim', type=str, default="optim",
+    parser.add_argument('--optim', type=str, default="adam",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
     parser.add_argument('--pad_mode', type=str, default="constant",
@@ -201,7 +202,10 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(early_stopping=args.early_stopping,
+    trainer = Trainer(tasks=TASK_LIST,
+                      num_classes={"malignancy": 2, "subtype": 2},
+                      conditional_prob=[["subtype", "malignancy"]],
+                      early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
                       loss=args.loss,
                       tol=1.00,
@@ -249,21 +253,23 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/ResNet.py")
+
+        csv_path = CSV_PATH + "_" + testset_name + ".csv"
     else:
         experiment = None
 
     conf, auc = trainer.score(validset)
     print_score(dataset_name="VALIDATION",
-                task_list=FINAL_TASK_LIST,
-                conf_mat_list=conf,
-                auc_list=auc,
+                task_list=list(auc.keys()),
+                conf_mat_list=list(conf.values()),
+                auc_list=list(auc.values()),
                 experiment=experiment)
 
-    conf, auc = trainer.score(testset)
+    conf, auc = trainer.score(testset, save_path=csv_path)
     print_score(dataset_name=f"{testset_name.upper()}",
-                task_list=FINAL_TASK_LIST,
-                conf_mat_list=conf,
-                auc_list=auc,
+                task_list=list(auc.keys()),
+                conf_mat_list=list(conf.values()),
+                auc_list=list(auc.values()),
                 experiment=experiment)
 
     if experiment is not None:
