@@ -16,8 +16,9 @@ from random import randint
 from typing import Sequence, Tuple, Union
 
 
-DATA_PATH_3D = "final_dtset/all.hdf5"
 DATA_PATH_2D = "dataset_2D/Data_with_N4"
+DATA_PATH_3D = "final_dtset/all.hdf5"
+PAD_MODE = "constant"  # choices=["constant", "edge", "reflect", "symmetric"]
 
 
 def get_data_augmentation(num_dimension: int = 3) -> Tuple[Compose, Compose]:
@@ -46,7 +47,7 @@ def get_data_augmentation(num_dimension: int = 3) -> Tuple[Compose, Compose]:
             RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 24], random_center=False),
             RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
                       keep_size=False, mode="trilinear", align_corners=True),
-            ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode="constant"),
+            ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=PAD_MODE),
             ToTensord(keys=["t1", "t2", "roi"])
         ])
         test_transform = Compose([
