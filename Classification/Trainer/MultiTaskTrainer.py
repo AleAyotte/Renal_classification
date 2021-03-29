@@ -24,7 +24,7 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Sequence, Tuple, Union, Dict
+from typing import Dict, Sequence, Tuple, Union
 
 
 NUM_TASK = 2  # Number of task
@@ -38,6 +38,9 @@ class MultiTaskTrainer(Trainer):
     ...
     Attributes
     ----------
+    __cond_prob : Sequence[Sequence[str]]
+        A list of pairs, where the pair A, B represent the name of task from which we want to compute the conditionnal
+        probability P(A|B).
     _classes_weights : str
         The configuration of weights that will be applied on the loss during the training.
         Flat: All classes have the same weight during the training.
@@ -45,10 +48,6 @@ class MultiTaskTrainer(Trainer):
         (Default="balanced")
     _loss : str
         The name of the loss that will be used during the training.
-    __m_loss : torch.nn
-        The loss function of the malignant task.
-    __s_loss : torch.nn
-        The loss function of the subtype task.
     _mixed_precision : bool
         If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
@@ -130,6 +129,12 @@ class MultiTaskTrainer(Trainer):
             for task in list(missing_tasks):
                 num_classes[task] = 1
 
+        # Define the number of classes for the tasks created by the conditionnal probability.
+        for tasks in conditional_prob:
+            task1, task2 = tasks
+            task_name = task1 + "|" + task2
+            num_classes[task_name] = num_classes[task1]
+
         super().__init__(classes_weights=classes_weights,
                          early_stopping=early_stopping,
                          loss=loss,
@@ -143,8 +148,6 @@ class MultiTaskTrainer(Trainer):
                          tol=tol,
                          track_mode=track_mode)
 
-        self.__m_loss = None
-        self.__s_loss = None
         self.__losses = torch.nn.ModuleDict()
         self.__cond_prob = [] if conditional_prob is None else conditional_prob
 
@@ -351,10 +354,17 @@ class MultiTaskTrainer(Trainer):
 
             recall = {}
             acc = {}
+            all_acc = {}
+
             for task, matrix in conf_mat.items():
                 rec = compute_recall(matrix)
                 recall[task] = rec
-                acc[task] = get_mean_accuracy(rec, geometric_mean=True)
+                accuracy = get_mean_accuracy(rec, geometric_mean=True)
+
+                all_acc[task] = accuracy  # Include accuracy on conditionnal probability related task
+                if task in self._task:
+                    acc[task] = accuracy
+
             mean_acc = get_mean_accuracy(list(acc.values()), geometric_mean=True)
 
         if self._track_mode != "none":
@@ -382,6 +392,7 @@ class MultiTaskTrainer(Trainer):
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return also the loss if True.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
         :return: The confusion matrix for each task. If get_loss is True then also return the average loss.
                  Otherwise, the AUC will be return for each task.
         """
@@ -399,11 +410,13 @@ class MultiTaskTrainer(Trainer):
                 masks[task] = torch.where(labels[task] > -1, 1, 0).bool()
                 preds[task] = torch.argmax(outs[task], dim=1).cpu()
 
+            # Compute the confusion matrix and the loss for each task.
             for task in self._tasks:
                 task_labels = labels[task][masks[task]]
                 conf_mat[task] = confusion_matrix(task_labels.numpy(),
                                                   preds[task][masks[task]].numpy())
 
+                # We compute the loss only if asked.
                 if get_loss:
                     if self._loss == "bce":
                         target = to_one_hot(task_labels,
@@ -413,11 +426,41 @@ class MultiTaskTrainer(Trainer):
                         target = task_labels.to(self._device)
                     losses.append(self.__losses[task](outs[task][masks[task]], target))
 
+                # If get_loss is False, then we compute the auc score.
                 else:
                     task_outs = outs[task][masks[task].to(self._device)]
                     fpr, tpr, _ = roc_curve(y_true=task_labels.numpy(),
                                             y_score=task_outs[:, 1].cpu().numpy())
                     auc_score[task] = auc(fpr, tpr)
+
+            # Conditional probability
+            for tasks in self.__cond_prob:
+                task1, task2 = tasks
+                task_name = task1 + "|" + task2
+
+                # Only where
+                mask = torch.where(
+                    torch.logical_and(
+                        masks[task1],
+                        torch.BoolTensor(preds[task2] == labels[task2])),
+                    1, 0
+                ).bool()
+
+                cond_pred = preds[task1][mask]
+                if len(cond_pred) > 0:
+                    cond_conf = confusion_matrix(labels[task1][mask].numpy(),
+                                                 cond_pred.numpy(),
+                                                 labels=range(self._num_classes[task_name]))
+
+                    if not get_loss:
+                        task_outs = outs[task1][mask.to(self._device)]
+                        fpr, tpr, _ = roc_curve(y_true=labels[task1][mask].numpy(),
+                                                y_score=task_outs[:, 1].cpu().numpy())
+                        auc_score[task_name] = auc(fpr, tpr)
+                else:
+                    cond_conf = np.array([[float("nan"), float("nan")],
+                                          [float("nan"), float("nan")]])
+                conf_mat[task_name] = cond_conf
 
             total_loss = self.model.uncertainty_loss(torch.stack(losses)) if get_loss else None
 
