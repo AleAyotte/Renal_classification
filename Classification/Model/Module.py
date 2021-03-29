@@ -118,8 +118,8 @@ class Mixup(torch.nn.Module):
 
         if self.training and self.enable:
             device = x.get_device()
-            lamb = torch.from_numpy(np.array([self.lamb]).astype('float32')).to(device)
-            lamb = torch.autograd.Variable(lamb)
+            lamb = torch.Tensor([self.lamb]).float().to(device)
+            lamb.requires_grad = True
             return lamb*x + (1 - lamb)*x[self.permut.to(device)]
         else:
             return x
