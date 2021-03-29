@@ -27,8 +27,10 @@ def compute_recall(conf_matrix: np.array) -> Sequence[float]:
     recalls = []
 
     for it in range(len(conf_matrix)):
-        recalls.append(conf_matrix[it, it] / conf_matrix[it].sum())
-        
+        if conf_matrix[it].sum() > 0:
+            recalls.append(conf_matrix[it, it] / conf_matrix[it].sum())
+        else:
+            recalls.append(float('nan'))
     return recalls
 
 

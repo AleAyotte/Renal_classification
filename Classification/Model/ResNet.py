@@ -17,7 +17,7 @@ import numpy as np
 from Trainer.Utils import init_weights
 import torch
 import torch.nn as nn
-from typing import Sequence, Tuple, Union
+from typing import Dict, Sequence, Tuple, Union
 
 
 NB_TASK = 2
@@ -441,7 +441,7 @@ class HardSharedResNet(NeuralNet):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         mixup_key_list = list(self.mixup.keys())
 
         out = self.mixup["0"](x) if "0" in mixup_key_list else x
@@ -470,4 +470,4 @@ class HardSharedResNet(NeuralNet):
             mal_pred = self.fc_layer_mal(features[:, 0, :])
             sub_pred = self.fc_layer_sub_1(features[:, 1, :])
 
-        return mal_pred, sub_pred
+        return {"malignancy": mal_pred, "subtype": sub_pred}
