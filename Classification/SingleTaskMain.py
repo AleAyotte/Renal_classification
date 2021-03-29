@@ -21,6 +21,7 @@ from Utils import print_score, print_data_distribution, read_api_key, save_hpara
 CSV_PATH = "save/STL3D_"
 DATA_PATH = "final_dtset/all.hdf5"
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
+TOL = 1.0  # The tolerance factor use by the trainer
 
 
 def argument_parser():
@@ -36,7 +37,7 @@ def argument_parser():
                         help="The device on which the model will be trained.")
     parser.add_argument('--drop_rate', type=float, default=0,
                         help="The drop rate hyperparameter used to configure the dropout layer. See drop_type")
-    parser.add_argument('--drop_type', type=str, default="flat",
+    parser.add_argument('--drop_type', type=str, default="linear",
                         help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
                              "Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer "
                              "from 0 to 'drop_rate'.",
@@ -75,11 +76,8 @@ def argument_parser():
     parser.add_argument('--optim', type=str, default="sgd",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
-    parser.add_argument('--pad_mode', type=str, default="constant",
-                        help="How the image will be pad in the data augmentation.",
-                        choices=["constant", "edge", "reflect", "symmetric"])
-    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
-                        help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
+    parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
+                        help="If true, load the last saved model and continue the training.")
     parser.add_argument('--task', type=str, default="malignancy",
                         help="The task on which the model will be train.",
                         choices=["malignancy", "subtype", "grade", "SSIGN"])
@@ -146,9 +144,9 @@ if __name__ == "__main__":
     trainer = Trainer(early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
                       loss=args.loss,
-                      tol=0.2,
+                      tol=TOL,
                       num_workers=args.worker,
-                      pin_memory=args.pin_memory,
+                      pin_memory=False,
                       classes_weights=args.weights,
                       task=args.task,
                       track_mode=args.track_mode,
@@ -171,7 +169,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                retrain=False)
+                retrain=args.retrain)
 
     # --------------------------------------------
     #                    SCORE

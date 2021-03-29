@@ -12,11 +12,7 @@
 import argparse
 from comet_ml import Experiment
 from Data_manager.DatasetBuilder import build_datasets
-from Data_manager.DataManager import RenalDataset, split_trainset
 from Model.ResNet_2D import ResNet2D
-from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
-from monai.transforms import RandZoomd, RandAffined, ResizeWithPadOrCropd
-import numpy as np
 import torch
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
@@ -24,6 +20,7 @@ from Utils import print_score, print_data_distribution, read_api_key, save_hpara
 
 CSV_PATH = "save/STL2D_"
 SAVE_PATH = "save/STL2D_NET.pth"  # Save path of the single task learning with ResNet2D experiment
+TOL = 1.0  # The tolerance factor use by the trainer
 
 
 def argument_parser():
@@ -63,11 +60,8 @@ def argument_parser():
     parser.add_argument('--optim', type=str, default="adam",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd"])
-    parser.add_argument('--pad_mode', type=str, default="constant",
-                        help="How the image will be pad in the data augmentation.",
-                        choices=["constant", "edge", "reflect", "symmetric"])
-    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
-                        help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
+    parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
+                        help="If true, load the last saved model and continue the training.")
     parser.add_argument('--task', type=str, default="grade",
                         help="The task on which the model will be train.",
                         choices=["malignant", "subtype", "grade"]),
@@ -130,11 +124,11 @@ if __name__ == "__main__":
     #                   TRAINER
     # --------------------------------------------
     trainer = Trainer(early_stopping=args.early_stopping,
-                      save_path="Check_moi_ca2.pth",
+                      save_path=SAVE_PATH,
                       loss=args.loss,
-                      tol=3.00,
+                      tol=TOL,
                       num_workers=args.worker,
-                      pin_memory=args.pin_memory,
+                      pin_memory=False,
                       classes_weights=args.weights,
                       task=args.task,
                       track_mode=args.track_mode,
@@ -156,7 +150,8 @@ if __name__ == "__main__":
                 device=args.device,
                 optim=args.optim,
                 num_epoch=args.num_epoch,
-                t_0=args.num_epoch)
+                t_0=args.num_epoch,
+                retrain=args.retrain)
 
     # --------------------------------------------
     #                    SCORE
@@ -169,8 +164,7 @@ if __name__ == "__main__":
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False,
-                                auto_output_logging=False)
+                                log_code=False)
 
         experiment.set_name("ResNet2D" + "_" + args.task)
         experiment.log_code("MultiTaskMain.py")

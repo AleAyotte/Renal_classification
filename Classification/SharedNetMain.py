@@ -24,6 +24,7 @@ FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of
 LOAD_PATH = "save/14_Fev_2020/"
 SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
 TASK_LIST = ["malignant", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
+TOL = 1.0  # The tolerance factor use by the trainer
 
 
 def argument_parser():
@@ -61,15 +62,12 @@ def argument_parser():
     parser.add_argument('--optim', type=str, default="sgd",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
-    parser.add_argument('--pad_mode', type=str, default="constant",
-                        help="How the image will be pad in the data augmentation.",
-                        choices=["constant", "edge", "reflect", "symmetric"])
-    parser.add_argument('--pin_memory', type=bool, default=False, nargs='?', const=True,
-                        help="The pin_memory parameter of the dataloader. If true, the data will be pinned in the gpu.")
     parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
                         help="If True, then the SharedNet will be create with two subnet that has been pretrained on "
                              "their corresponding task. Also, the shared_lr will be equal to lr * 100 and "
                              "shared_eta_min will be equal to eta_min * 100.")
+    parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
+                        help="If true, load the last saved model and continue the training.")
     parser.add_argument('--share_unit', type=str, default="sluice",
                         help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
                              "information transfer between multiple subnets",
@@ -152,7 +150,7 @@ if __name__ == "__main__":
     print_data_distribution("Validation Set",
                             TASK_LIST,
                             validset.labels_bincount())
-    print_data_distribution("{} Set".format(args.testset.capitalize()),
+    print_data_distribution(f"{args.testset.capitalize()} Set",
                             TASK_LIST,
                             testset.labels_bincount())
     print("\n")
@@ -160,10 +158,13 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(early_stopping=args.early_stopping,
+    trainer = Trainer(tasks=TASK_LIST,
+                      num_classes={"malignancy": 2, "subtype": 2},
+                      conditional_prob=[["subtype", "malignancy"]],
+                      early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
                       loss=args.loss,
-                      tol=1.00,
+                      tol=TOL,
                       num_workers=args.worker,
                       pin_memory=args.pin_memory,
                       classes_weights=args.weights,
@@ -191,7 +192,7 @@ if __name__ == "__main__":
                 num_epoch=args.num_epoch,
                 t_0=max(args.num_epoch, 1),
                 l2=0.009,
-                retrain=False)
+                retrain=args.retrain)
 
     # --------------------------------------------
     #                    SCORE
