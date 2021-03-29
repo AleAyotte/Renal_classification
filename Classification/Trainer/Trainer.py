@@ -503,7 +503,7 @@ class Trainer(ABC):
             features = None
 
             if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
+                features = data["features"].to(self._device)
 
             with torch.no_grad():
                 out = self.model(images) if features is None else self.model(images, features)

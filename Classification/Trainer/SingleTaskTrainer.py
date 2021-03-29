@@ -160,11 +160,10 @@ class SingleTaskTrainer(Trainer):
         for it, data in enumerate(train_loader, 0):
             # Extract the data
             images, labels = data["sample"].to(self._device), data["labels"][self._tasks[0]].to(self._device)
-            images, labels = Variable(images), Variable(labels)
             features = None
 
             if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
+                features = data["features"].to(self._device)
 
             for optimizer in optimizers:
                 optimizer.zero_grad()
@@ -241,11 +240,10 @@ class SingleTaskTrainer(Trainer):
         for it, data in enumerate(train_loader, 0):
             # Extract the data
             images, labels = data["sample"].to(self._device), data["labels"][self._tasks[0]].to(self._device)
-            images, labels = Variable(images), Variable(labels)
             features = None
 
             if "features" in list(data.keys()):
-                features = Variable(data["features"].to(self._device))
+                features = data["features"].to(self._device)
 
             for optimizer in optimizers:
                 optimizer.zero_grad()
