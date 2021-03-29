@@ -382,11 +382,11 @@ class Trainer(ABC):
         """
         self.__cumulate_counter += 1
 
-        # Mixed precision enabled
-        if self._mixed_precision:
-            scaler.scale(loss).backward()
+        scaler.scale(loss).backward() if self._mixed_precision else loss.backward()
 
-            if self.__cumulate_counter % self.__num_cumulated_batch == 0:
+        if self.__cumulate_counter % self.__num_cumulated_batch == 0:
+            # Mixed precision enabled
+            if self._mixed_precision:
                 for optimizer in optimizers:
                     scaler.unscale_(optimizer)
 
@@ -397,11 +397,8 @@ class Trainer(ABC):
                     scaler.step(optimizer)
                 scaler.update()
 
-        # Mixed precision disabled
-        else:
-            loss.backward()
-
-            if self.__cumulate_counter % self.__num_cumulated_batch == 0:
+            # Mixed precision disabled
+            else:
                 if grad_clip > 0:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=grad_clip)
 
