@@ -109,8 +109,6 @@ def save_hparam_on_comet(experiment: Experiment,
     """
 
     del args_dict["device"]
-    del args_dict["pin_memory"]
     del args_dict["track_mode"]
     del args_dict["worker"]
-    del args_dict["early_stopping"]
     experiment.log_parameters(args_dict)
