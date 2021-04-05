@@ -105,8 +105,9 @@ class MultiTaskTrainer(Trainer):
                                 Balanced: The weights are inversionaly proportional to the number of data of each 
                                           classes in the training set.
                                 (Default="balanced")
-        :param shared_net: If true, the model to train will be a SharedNet. In this we need to optimizer, one for the
-                           subnets and one for the sharing units and the Uncertainty loss parameters. (Default=False)
+        :param shared_net: If true, the model to train will be a SharedNet. In this case we need two optimizer, one for
+                           the subnets and one for the sharing units and the Uncertainty loss parameters.
+                           (Default=False)
         :param save_path: Indicate where the weights of the network and the result will be saved.
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
@@ -129,7 +130,8 @@ class MultiTaskTrainer(Trainer):
                 num_classes[task] = 1
 
         # Define the number of classes for the tasks created by the conditionnal probability.
-        for tasks in conditional_prob:
+        self.__cond_prob = [] if conditional_prob is None else conditional_prob
+        for tasks in self.__cond_prob:
             task1, task2 = tasks
             task_name = task1 + "|" + task2
             num_classes[task_name] = num_classes[task1]
@@ -148,7 +150,6 @@ class MultiTaskTrainer(Trainer):
                          track_mode=track_mode)
 
         self.__losses = torch.nn.ModuleDict()
-        self.__cond_prob = [] if conditional_prob is None else conditional_prob
 
     def _init_loss(self, gamma: float) -> None:
         """
@@ -396,7 +397,10 @@ class MultiTaskTrainer(Trainer):
                  Otherwise, the AUC will be return for each task.
         """
         outs, labels = self._predict(dt_loader=dt_loader)
-        self._save_prediction(outs, labels, save_path) if save_path else None
+
+        if save_path:
+            patient_id = dt_loader.dataset.get_patient_id()
+            self._save_prediction(outs, labels, patient_id, save_path)
 
         losses = []
         conf_mat = {}

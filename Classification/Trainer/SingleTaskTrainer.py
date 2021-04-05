@@ -317,7 +317,10 @@ class SingleTaskTrainer(Trainer):
         """
 
         outs, labels = self._predict(dt_loader=dt_loader)
-        self._save_prediction(outs, labels, save_path) if save_path else None
+
+        if save_path:
+            patient_id = dt_loader.dataset.get_patient_id()
+            self._save_prediction(outs, labels, patient_id, save_path)
 
         with torch.no_grad():
             outs = outs[self._tasks[0]]
