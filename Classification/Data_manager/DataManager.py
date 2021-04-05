@@ -16,10 +16,11 @@ import random
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import Dataset
-from typing import Sequence, Tuple, Union
+from typing import Dict, Sequence, Tuple, Union
 
 
 STRATITFIED_KEY = ["malignancy", "subtype", "grade", "ssign", "institution"]
+# STRATITFIED_KEY = ["malignancy", "subtype", "institution"]
 
 
 class RenalDataset(Dataset):
@@ -265,12 +266,7 @@ class RenalDataset(Dataset):
         :param sample_size: Proportion of the current set that will be used to create the new stratified set.
         :return: A tuple that contain the data (images), the labels, the encoding_keys and the clinical data.
         """
-        group_by = {}
-        for i, key in enumerate(self.__encoding_keys):
-            if key not in list(group_by.keys()):
-                group_by[key] = [i]
-            else:
-                group_by[key].append(i)
+        group_by = self.__stratified_stats()
 
         # Create a stratified group
         new_set = []
@@ -284,6 +280,33 @@ class RenalDataset(Dataset):
                     new_set.extend(value)
 
         return self.extract_data(idx=new_set, pop=pop)
+
+    def __stratified_stats(self) -> Dict[str, Sequence[int]]:
+        """
+        Group the data index by encoding key.
+
+        :return: A dictionary of index list where the keys are the encoding key.
+        """
+        group_by = {}
+        for i, key in enumerate(self.__encoding_keys):
+            if key not in list(group_by.keys()):
+                group_by[key] = [i]
+            else:
+                group_by[key].append(i)
+        return group_by
+
+    def stratified_stats(self) -> Dict[str, int]:
+        """
+        Calculate the number of data per encoding key.
+
+        :return: A dictionary of int where the keys are the encoding key.
+        """
+        group_by = self.__stratified_stats()
+        new_group_by = {}
+        for key, value in group_by.items():
+            new_group_by[key] = len(value)
+
+        return new_group_by
 
     def __len__(self) -> int:
         return len(self.__data)
