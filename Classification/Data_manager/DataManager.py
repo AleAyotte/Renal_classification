@@ -145,7 +145,7 @@ class RenalDataset(Dataset):
             self.__data = self.__data[mask]
             self.__encoding_keys = self.__encoding_keys[mask]
             self.__labels = self.__labels[mask]
-            self.__patient_id = self.__patiend_id[mask]
+            self.__patient_id = self.__patient_id[mask]
             self.__clinical_data = self.__clinical_data[mask] if self.__with_clinical else None
 
         return data, labels, encoding_keys, patient_id, clin
@@ -223,9 +223,9 @@ class RenalDataset(Dataset):
         self.__labels = []
         self.__clinical_data = []
         self.__encoding_keys = []
-        self.__patiend_id = np.array(list(dtset.keys()))
+        self.__patient_id = np.array(list(dtset.keys()))
 
-        for key in self.__patiend_id:
+        for key in self.__patient_id:
             imgs = {}
             for img_key in list(self.__imgs_keys):
                 imgs[img_key] = dtset[key][img_key][:]
