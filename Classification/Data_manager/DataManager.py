@@ -85,6 +85,7 @@ class RenalDataset(Dataset):
         self.__clinical_data = None
         self.__labels = np.array([])
         self.__encoding_keys = np.array([])
+        self.__patient_id = np.array([])
 
         if clinical_features is not None:
             self.__clinical_data = np.empty(shape=(0, len(clinical_features)))
@@ -99,6 +100,7 @@ class RenalDataset(Dataset):
                  data: Sequence[dict],
                  encoding_keys: Sequence[str],
                  label: Union[Sequence[dict], Sequence[int]],
+                 patient_id: Sequence[str],
                  clinical_data: Sequence[Sequence[int]] = None) -> None:
         """
         Add data to the dataset.
@@ -106,11 +108,13 @@ class RenalDataset(Dataset):
         :param data: A sequence of dictionary that contain the images.
         :param encoding_keys: ADD DESCRIPTION
         :param label: A sequence of dictionary or a sequence of int that contain the labels.
+        :param patient_id: The patient id of each data that we want to add in the dataset.
         :param clinical_data: A sequence of sequence of int that contain the clinical data.
         """
         self.__data = np.append(self.__data, data, 0)
         self.__labels = np.append(self.__labels, label, 0)
         self.__encoding_keys = np.append(self.__encoding_keys, encoding_keys, 0)
+        self.__patient_id = np.append(self.__patient_id, patient_id, 0)
         if clinical_data is not None:
             self.__clinical_data = np.append(self.__clinical_data, clinical_data, 0)
 
@@ -118,6 +122,7 @@ class RenalDataset(Dataset):
                      idx: Sequence[int],
                      pop: bool = True) -> Tuple[Sequence[dict],
                                                 Union[Sequence[dict], Sequence[int]],
+                                                Sequence[str],
                                                 Sequence[str],
                                                 Sequence[Sequence[int]]]:
         """
@@ -133,15 +138,25 @@ class RenalDataset(Dataset):
         data = self.__data[~mask]
         labels = self.__labels[~mask]
         encoding_keys = self.__encoding_keys[~mask]
+        patient_id = self.__patient_id[~mask]
         clin = self.__clinical_data[~mask] if self.__with_clinical else None
 
         if pop:
             self.__data = self.__data[mask]
-            self.__labels = self.__labels[mask]
             self.__encoding_keys = self.__encoding_keys[mask]
+            self.__labels = self.__labels[mask]
+            self.__patient_id = self.__patiend_id[mask]
             self.__clinical_data = self.__clinical_data[mask] if self.__with_clinical else None
 
-        return data, labels, encoding_keys, clin
+        return data, labels, encoding_keys, patient_id, clin
+
+    def get_patient_id(self) -> Sequence[str]:
+        """
+        Return a list of patient id.
+
+        :return: A numpy array of string that correspond to the list of patient id.
+        """
+        return self.__patient_id
 
     def labels_bincount(self) -> dict:
         """
@@ -208,8 +223,9 @@ class RenalDataset(Dataset):
         self.__labels = []
         self.__clinical_data = []
         self.__encoding_keys = []
+        self.__patiend_id = np.array(list(dtset.keys()))
 
-        for key in list(dtset.keys()):
+        for key in self.__patiend_id:
             imgs = {}
             for img_key in list(self.__imgs_keys):
                 imgs[img_key] = dtset[key][img_key][:]
@@ -249,13 +265,14 @@ class RenalDataset(Dataset):
 
             if unlabeled_task == num_tasks:
                 unlabeled_idx.append(i)
-        _, _, _, _ = self.extract_data(idx=unlabeled_idx, pop=True)
+        _, _, _, _, _ = self.extract_data(idx=unlabeled_idx, pop=True)
 
     def stratified_split(self,
                          pop: bool = True,
                          random_seed: int = 0,
                          sample_size: float = 0.1) -> Tuple[Sequence[dict],
                                                             Union[Sequence[dict], Sequence[int]],
+                                                            Sequence[str],
                                                             Sequence[str],
                                                             Sequence[Sequence[int]]]:
         """
@@ -264,7 +281,8 @@ class RenalDataset(Dataset):
         :param pop: If True, the extracted data are removed from the dataset. (Default: True)
         :param random_seed: The seed that will be used to split the data.
         :param sample_size: Proportion of the current set that will be used to create the new stratified set.
-        :return: A tuple that contain the data (images), the labels, the encoding_keys and the clinical data.
+        :return: A tuple that contain the data (images), the labels, the encoding_keys, the patients id
+                and the clinical data.
         """
         group_by = self.__stratified_stats()
 
@@ -362,9 +380,9 @@ def split_trainset(trainset: RenalDataset,
     :return: Two RenalDataset that will represent the trainset and the validation set respectively
     """
 
-    data, label, enconding_keys, clin = trainset.stratified_split(pop=True,
-                                                                  sample_size=validation_split,
-                                                                  random_seed=random_seed)
-    validset.add_data(data, enconding_keys, label, clin)
+    data, label, enconding_keys, patient_id, clin = trainset.stratified_split(pop=True,
+                                                                              sample_size=validation_split,
+                                                                              random_seed=random_seed)
+    validset.add_data(data, enconding_keys, label, patient_id, clin)
 
     return trainset, validset
