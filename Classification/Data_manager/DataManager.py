@@ -41,6 +41,10 @@ class RenalDataset(Dataset):
         (Exemple: "t1").
     __labels : np.array
         A numpy array that contain the labels of each data for each task.
+    __patient_id : np.array
+        A list of string that indicate the patient id of each data in the dataset.
+    __stratum_keys : np.array
+        A list of string that indicate to which stratum the data is associated.
     __tasks : Sequence[string]
         A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
     __with_clinical: bool
@@ -78,14 +82,15 @@ class RenalDataset(Dataset):
         """
         assert split in ['train', 'test', None]
         self.transform = transform
+        self.__imgs_keys = imgs_keys
         self.__tasks = tasks
         self.__with_clinical = clinical_features is not None
-        self.__imgs_keys = imgs_keys
+
         self.__data = np.array([])
-        self.__clinical_data = None
         self.__labels = np.array([])
-        self.__encoding_keys = np.array([])
         self.__patient_id = np.array([])
+        self.__stratum_keys = np.array([])
+        self.__clinical_data = None
 
         if clinical_features is not None:
             self.__clinical_data = np.empty(shape=(0, len(clinical_features)))
@@ -98,23 +103,23 @@ class RenalDataset(Dataset):
 
     def add_data(self,
                  data: Sequence[dict],
-                 encoding_keys: Sequence[str],
                  label: Union[Sequence[dict], Sequence[int]],
                  patient_id: Sequence[str],
+                 stratum_keys: Sequence[str],
                  clinical_data: Sequence[Sequence[int]] = None) -> None:
         """
         Add data to the dataset.
 
         :param data: A sequence of dictionary that contain the images.
-        :param encoding_keys: ADD DESCRIPTION
         :param label: A sequence of dictionary or a sequence of int that contain the labels.
         :param patient_id: The patient id of each data that we want to add in the dataset.
+        :param stratum_keys: A list of string that indicate to which stratum the data is associated.
         :param clinical_data: A sequence of sequence of int that contain the clinical data.
         """
         self.__data = np.append(self.__data, data, 0)
         self.__labels = np.append(self.__labels, label, 0)
-        self.__encoding_keys = np.append(self.__encoding_keys, encoding_keys, 0)
         self.__patient_id = np.append(self.__patient_id, patient_id, 0)
+        self.__stratum_keys = np.append(self.__stratum_keys, stratum_keys, 0)
         if clinical_data is not None:
             self.__clinical_data = np.append(self.__clinical_data, clinical_data, 0)
 
@@ -130,25 +135,25 @@ class RenalDataset(Dataset):
 
         :param idx: The index of the data to extract.
         :param pop: If True, the extracted data are removed from the dataset. (Default: True)
-        :return: A tuple that contain the data (images), the labels, the encoding_keys and the clinical data.
+        :return: A tuple that contain the data (images), the labels, the stratum_keys and the clinical data.
         """
         mask = np.ones(len(self.__data), dtype=bool)
         mask[idx] = False
 
         data = self.__data[~mask]
         labels = self.__labels[~mask]
-        encoding_keys = self.__encoding_keys[~mask]
         patient_id = self.__patient_id[~mask]
+        stratum_keys = self.__stratum_keys[~mask]
         clin = self.__clinical_data[~mask] if self.__with_clinical else None
 
         if pop:
             self.__data = self.__data[mask]
-            self.__encoding_keys = self.__encoding_keys[mask]
             self.__labels = self.__labels[mask]
             self.__patient_id = self.__patient_id[mask]
+            self.__stratum_keys = self.__stratum_keys[mask]
             self.__clinical_data = self.__clinical_data[mask] if self.__with_clinical else None
 
-        return data, labels, encoding_keys, patient_id, clin
+        return data, labels, patient_id, stratum_keys, clin
 
     def get_patient_id(self) -> Sequence[str]:
         """
@@ -222,7 +227,7 @@ class RenalDataset(Dataset):
         self.__data = []
         self.__labels = []
         self.__clinical_data = []
-        self.__encoding_keys = []
+        self.__stratum_keys = []
         self.__patient_id = np.array(list(dtset.keys()))
 
         for key in self.__patient_id:
@@ -240,7 +245,7 @@ class RenalDataset(Dataset):
             encoding_key = ""
             for strat_key in STRATITFIED_KEY:
                 encoding_key += '_' + str(dtset[key].attrs[strat_key])
-            self.__encoding_keys.append(encoding_key)
+            self.__stratum_keys.append(encoding_key)
 
             if self.__with_clinical:
                 attrs = dtset[key].attrs
@@ -248,7 +253,7 @@ class RenalDataset(Dataset):
 
         self.__data = np.array(self.__data)
         self.__labels = np.array(self.__labels)
-        self.__encoding_keys = np.array(self.__encoding_keys)
+        self.__stratum_keys = np.array(self.__stratum_keys)
         self.__clinical_data = np.array(self.__clinical_data)
         f.close()
 
@@ -306,7 +311,7 @@ class RenalDataset(Dataset):
         :return: A dictionary of index list where the keys are the encoding key.
         """
         group_by = {}
-        for i, key in enumerate(self.__encoding_keys):
+        for i, key in enumerate(self.__stratum_keys):
             if key not in list(group_by.keys()):
                 group_by[key] = [i]
             else:
@@ -380,9 +385,9 @@ def split_trainset(trainset: RenalDataset,
     :return: Two RenalDataset that will represent the trainset and the validation set respectively
     """
 
-    data, label, enconding_keys, patient_id, clin = trainset.stratified_split(pop=True,
-                                                                              sample_size=validation_split,
-                                                                              random_seed=random_seed)
-    validset.add_data(data, enconding_keys, label, patient_id, clin)
+    data, label, patient_id, stratum_keys, clin = trainset.stratified_split(pop=True,
+                                                                            sample_size=validation_split,
+                                                                            random_seed=random_seed)
+    validset.add_data(data, label, patient_id, stratum_keys, clin)
 
     return trainset, validset
