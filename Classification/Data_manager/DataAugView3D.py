@@ -16,7 +16,7 @@ from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWit
 
 
 if __name__ == "__main__":
-    DATA_PATH = "final_dtset/Option1_without_N4/malignant.hdf5"
+    DATA_PATH = "final_dtset/all.hdf5"
 
     # --------------------------------------------
     #              DATA AUGMENTATION
@@ -41,8 +41,8 @@ if __name__ == "__main__":
         ToTensord(keys=["t1", "t2", "roi"])
     ])
 
-    trainset = RenalDataset(DATA_PATH, transform=transform, imgs_keys=["t1", "t2", "roi"])
-    testset = RenalDataset(DATA_PATH, transform=test_transform, imgs_keys=["t1", "t2", "roi"])
+    trainset = RenalDataset(DATA_PATH, transform=transform, imgs_keys=["t1", "t2", "roi"], tasks=["malignancy"])
+    testset = RenalDataset(DATA_PATH, transform=test_transform, imgs_keys=["t1", "t2", "roi"], tasks=["malignancy"])
 
     for i in range(len(trainset)):
         trans_images = trainset[i]["sample"][:, :, :, :].numpy()
