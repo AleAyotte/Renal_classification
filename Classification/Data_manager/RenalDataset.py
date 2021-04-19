@@ -16,11 +16,7 @@ import random
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import Dataset
-from typing import Dict, Sequence, Tuple, Union
-
-
-STRATITFIED_KEY = ["malignancy", "subtype", "grade", "ssign", "institution"]
-# STRATITFIED_KEY = ["malignancy", "subtype", "institution"]
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 
 class RenalDataset(Dataset):
@@ -67,8 +63,9 @@ class RenalDataset(Dataset):
                  tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
                  clinical_features: Union[Sequence[str], str] = None,
-                 split: Union[str, None] = "train",
-                 transform: Union[Compose, None] = None):
+                 split: Optional[str] = "train",
+                 stratification_keys: Optional[List[str]] = None,
+                 transform: Optional[Compose] = None):
         """
         Create a dataset by loading the renal image at the given path.
 
@@ -78,6 +75,7 @@ class RenalDataset(Dataset):
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
         :param split: A string that indicate which subset will be load. (Option: train, test, test2). (Default="train")
+        :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
         assert split in ['train', 'test', None]
@@ -99,7 +97,8 @@ class RenalDataset(Dataset):
             if self.__with_clinical and type(clinical_features) is not list:
                 clinical_features = [clinical_features]
 
-            self.__read_hdf5(hdf5_filepath, split, clinical_features)
+            stratification_keys = [] if stratification_keys is None else stratification_keys
+            self.__read_hdf5(hdf5_filepath, split, stratification_keys, clinical_features)
 
     def add_data(self,
                  data: Sequence[dict],
@@ -213,12 +212,14 @@ class RenalDataset(Dataset):
     def __read_hdf5(self,
                     filepath: str,
                     split: str,
+                    stratification_keys: List[str],
                     features_names: Sequence[str]) -> None:
         """
         Read the images and ROI from a given hdf5 filepath and store it in memory
 
         :param filepath: The filepath of the hdf5 file where the data has been stored.
         :param split: A string that indicate which subset will be load. (Option: train, test, test2).
+        :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
         :param features_names: A list of string that indicate which clinical features will be used
                                to train the model.
         """
@@ -243,7 +244,7 @@ class RenalDataset(Dataset):
             self.__labels.append(outcomes)
 
             encoding_key = ""
-            for strat_key in STRATITFIED_KEY:
+            for strat_key in stratification_keys:
                 encoding_key += '_' + str(dtset[key].attrs[strat_key])
             self.__stratum_keys.append(encoding_key)
 
@@ -369,25 +370,3 @@ class RenalDataset(Dataset):
 
         else:
             return {"sample": sample, "labels": labels}
-
-
-def split_trainset(trainset: RenalDataset,
-                   validset: RenalDataset,
-                   validation_split: float = 0.2,
-                   random_seed: int = 0) -> Tuple[RenalDataset, RenalDataset]:
-    """
-    Transfer a part of the trainset into the validation set.
-
-    :param trainset: A RenalDataset that contain the training and the validation data.
-    :param validset: A empty RenalDataset with split = None that will be used to stock the validation data.
-    :param validation_split: Proportion of the training set that will be used to create the validation set.
-    :param random_seed: The random seed that will be used shuffle and split the data.
-    :return: Two RenalDataset that will represent the trainset and the validation set respectively
-    """
-
-    data, label, patient_id, stratum_keys, clin = trainset.stratified_split(pop=True,
-                                                                            sample_size=validation_split,
-                                                                            random_seed=random_seed)
-    validset.add_data(data, label, patient_id, stratum_keys, clin)
-
-    return trainset, validset

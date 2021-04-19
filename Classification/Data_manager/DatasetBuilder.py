@@ -19,6 +19,7 @@ from typing import Sequence, Tuple, Union
 DATA_PATH_2D = "dataset_2D/Data_with_N4"
 DATA_PATH_3D = "final_dtset/all.hdf5"
 PAD_MODE = "constant"  # choices=["constant", "edge", "reflect", "symmetric"]
+STRATIFICATION_KEYS = ["malignancy", "subtype", "grade"]
 
 
 def get_data_augmentation(num_dimension: int = 3) -> Tuple[Compose, Compose]:
@@ -93,19 +94,22 @@ def build_datasets(tasks: Sequence[str],
                             transform=transform,
                             imgs_keys=imgs_keys,
                             clinical_features=clin_features,
-                            tasks=tasks)
+                            tasks=tasks,
+                            stratification_keys=STRATIFICATION_KEYS)
     validset = RenalDataset(data_path,
                             transform=test_transform,
                             imgs_keys=imgs_keys,
                             clinical_features=clin_features,
                             tasks=tasks,
-                            split=None)
+                            split=None,
+                            stratification_keys=STRATIFICATION_KEYS)
     testset = RenalDataset(data_path,
                            transform=test_transform,
                            imgs_keys=imgs_keys,
                            clinical_features=clin_features,
                            tasks=tasks,
-                           split=None if testset_name == "test" else testset_name)
+                           split=None if testset_name == "test" else testset_name,
+                           stratification_keys=STRATIFICATION_KEYS)
 
     seed = randint(0, 10000)
     if testset_name == "test":
