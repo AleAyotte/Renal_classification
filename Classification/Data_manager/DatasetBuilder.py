@@ -9,7 +9,7 @@
                         and 3D datasets.
 """
 
-from Data_manager.DataManager import RenalDataset
+from Data_manager.RenalDataset import RenalDataset
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 from random import randint

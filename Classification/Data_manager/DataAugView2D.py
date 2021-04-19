@@ -9,7 +9,7 @@
                         DataAugmentation hyperparameter that should be used during the training.
 """
 
-from DataManager import RenalDataset
+from RenalDataset import RenalDataset
 from matplotlib import pyplot as plt
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand2DElasticd
