@@ -9,7 +9,7 @@
                         and 3D datasets.
 """
 
-from Data_manager.DataManager import RenalDataset, split_trainset
+from Data_manager.DataManager import RenalDataset
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 from random import randint
@@ -107,10 +107,10 @@ def build_datasets(tasks: Sequence[str],
                            tasks=tasks,
                            split=None if testset_name == "test" else testset_name)
 
-    if testset_name == "test":
-        trainset, testset = split_trainset(trainset, testset, validation_split=0.2)
-
     seed = randint(0, 10000)
+    if testset_name == "test":
+        trainset, testset = split_trainset(trainset, testset, validation_split=0.2, random_seed=0)
+
     trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed)
 
     # --------------------------------------------
@@ -129,3 +129,25 @@ def build_datasets(tasks: Sequence[str],
     testset.remove_unlabeled_data()
 
     return trainset, validset, testset
+
+
+def split_trainset(trainset: RenalDataset,
+                   validset: RenalDataset,
+                   validation_split: float = 0.2,
+                   random_seed: int = 0) -> Tuple[RenalDataset, RenalDataset]:
+    """
+    Transfer a part of the trainset into the validation set.
+
+    :param trainset: A RenalDataset that contain the training and the validation data.
+    :param validset: A empty RenalDataset with split = None that will be used to stock the validation data.
+    :param validation_split: Proportion of the training set that will be used to create the validation set.
+    :param random_seed: The random seed that will be used shuffle and split the data.
+    :return: Two RenalDataset that will represent the trainset and the validation set respectively
+    """
+
+    data, label, patient_id, stratum_keys, clin = trainset.stratified_split(pop=True,
+                                                                            sample_size=validation_split,
+                                                                            random_seed=random_seed)
+    validset.add_data(data, label, patient_id, stratum_keys, clin)
+
+    return trainset, validset
