@@ -16,7 +16,7 @@ import random
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import Dataset
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 
 class RenalDataset(Dataset):
@@ -62,7 +62,8 @@ class RenalDataset(Dataset):
                  hdf5_filepath: str,
                  tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
-                 clinical_features: Union[Sequence[str], str] = None,
+                 clinical_features: Optional[Union[List[str], str]] = None,
+                 exclude_list: Optional[List[str]] = None,
                  split: Optional[str] = "train",
                  stratification_keys: Optional[List[str]] = None,
                  transform: Optional[Compose] = None):
@@ -74,6 +75,7 @@ class RenalDataset(Dataset):
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
+        :param exclude_list: A list of patient_id to exclude in this dataset.
         :param split: A string that indicate which subset will be load. (Option: train, test, test2). (Default="train")
         :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
         :param transform: A function/transform that will be applied on the images and the ROI.
@@ -93,12 +95,13 @@ class RenalDataset(Dataset):
         if clinical_features is not None:
             self.__clinical_data = np.empty(shape=(0, len(clinical_features)))
 
+        to_exclude = set() if exclude_list is None else set(exclude_list)  # set because we do not care about order
         if split is not None:
             if self.__with_clinical and type(clinical_features) is not list:
                 clinical_features = [clinical_features]
 
             stratification_keys = [] if stratification_keys is None else stratification_keys
-            self.__read_hdf5(hdf5_filepath, split, stratification_keys, clinical_features)
+            self.__read_hdf5(to_exclude, clinical_features, hdf5_filepath, split, stratification_keys)
 
     def add_data(self,
                  data: Sequence[dict],
@@ -210,18 +213,21 @@ class RenalDataset(Dataset):
             return mean, std
 
     def __read_hdf5(self,
+                    to_exclude: Set[str],
+                    features_names: Sequence[str],
                     filepath: str,
                     split: str,
-                    stratification_keys: List[str],
-                    features_names: Sequence[str]) -> None:
+                    stratification_keys: List[str]) -> None:
         """
         Read the images and ROI from a given hdf5 filepath and store it in memory
 
+        :param to_exclude: A list of patient_id that will not be load in the dataset.
+        :param features_names: A list of string that indicate which clinical features will be used
+                               to train the model.
         :param filepath: The filepath of the hdf5 file where the data has been stored.
         :param split: A string that indicate which subset will be load. (Option: train, test, test2).
         :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
-        :param features_names: A list of string that indicate which clinical features will be used
-                               to train the model.
+
         """
         f = h5py.File(filepath, 'r')
         dtset = f[split]
@@ -229,7 +235,7 @@ class RenalDataset(Dataset):
         self.__labels = []
         self.__clinical_data = []
         self.__stratum_keys = []
-        self.__patient_id = np.array(list(dtset.keys()))
+        self.__patient_id = np.array([key for key in list(dtset.keys()) if key not in to_exclude])
 
         for key in self.__patient_id:
             imgs = {}
