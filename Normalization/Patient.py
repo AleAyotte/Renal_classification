@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     10/2020
-    @Last modification: 01//2021
+    @Last modification: 04/2021
 
     @Description:       Contain the Patient class, that create two MRIimages objects (image t1 and t2) and handle
                         reading, transformation and normalization of those images by considering both ROI. Also,
