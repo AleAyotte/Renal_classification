@@ -208,7 +208,7 @@ class Patient:
         slices_t2 = [slice_t2 if x == ind else slice(None) for x in range(3)]
 
         slices_list = [slices_t1, slices_t1, slices_t2, slices_t2]
-        titles = ["Image T1C", "ROI T1C", "Image T2WI", "ROI T2WI"]
+        titles = [f"Image T1C at {slice_t1}", "ROI T1C", f"Image T2WI at {slice_t2}", "ROI T2WI"]
         imgs = [self.__t1.get_img(),
                 self.__t1.get_roi(),
                 self.__t2.get_img(),
