@@ -20,6 +20,7 @@ from Utils import print_score, print_data_distribution, read_api_key, save_hpara
 
 CSV_PATH = "save/STL3D_"
 DATA_PATH = "final_dtset/all.hdf5"
+MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
 TOL = 1.0  # The tolerance factor use by the trainer
 
@@ -174,7 +175,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                    SCORE
     # --------------------------------------------
-    if args.num_epoch > 75:
+    if args.num_epoch >= MIN_NUM_EPOCH:
         experiment = Experiment(api_key=read_api_key(),
                                 project_name="renal-classification",
                                 workspace="aleayotte",
@@ -190,19 +191,25 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/SingleTaskTrainer.py")
         experiment.log_code("Model/ResNet.py")
 
-        csv_path = CSV_PATH + args.task + "_" + args.testset + ".csv"
+        test_csv_path = CSV_PATH + args.task + "_" + args.testset + ".csv"
+        valid_csv_path = CSV_PATH + args.task + "_" + "validation" + ".csv"
+        train_csv_path = CSV_PATH + args.task + "_" + "train" + ".csv"
     else:
         experiment = None
-        csv_path = ""
+        test_csv_path = ""
+        valid_csv_path = ""
+        train_csv_path = ""
 
-    conf, auc = trainer.score(validset)
+    _, _ = trainer.score(trainset, save_path=train_csv_path)
+
+    conf, auc = trainer.score(validset, save_path=valid_csv_path)
     print_score(dataset_name="VALIDATION",
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
 
-    conf, auc = trainer.score(testset, save_path=csv_path)
+    conf, auc = trainer.score(testset, save_path=test_csv_path)
     print_score(dataset_name=f"{args.testset.upper()}",
                 task_list=[args.task],
                 conf_mat_list=[conf],
