@@ -333,23 +333,19 @@ class Patient:
         self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
                            reorient=True)
 
-        if register and register_mode.lower() == "always":
-            self.register(is_t1_axial)
-
         self.__read_measure()
         distance = np.linalg.norm(self.__measure["roi_distance"])
 
-        # If the distance between the center of mass is too high, then we register the images and the ROI.
-        if distance > threshold:
-            if register is True and register_mode == "threshold":
-                self.register(is_t1_axial)
+        # If the image need to be register.
+        if register is True and (distance > threshold or register_mode.lower() == "always"):
+            self.register(is_t1_axial)
+            self.__read_measure()
+            distance = np.linalg.norm(self.__measure["roi_distance"])
+
+            if distance > threshold:
+                self.register(is_t1_axial, focus_mask=True)
                 self.__read_measure()
                 distance = np.linalg.norm(self.__measure["roi_distance"])
-
-                if distance > threshold:
-                    self.register(is_t1_axial, focus_mask=True)
-                    self.__read_measure()
-                    distance = np.linalg.norm(self.__measure["roi_distance"])
 
             if distance > threshold:
                 raise Exception("The distance between the two center of mass is too high.".format(distance))
