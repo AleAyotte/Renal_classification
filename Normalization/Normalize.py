@@ -42,7 +42,8 @@ for i in range(len(institution)):
                                   register=False,
                                   ponderate_center=False,
                                   save_path=SAVE_PATH)
-            pat.apply_znorm(save=True, save_path=SAVE_PATH)
+            pat.apply_znorm(save=False, save_path=SAVE_PATH)
+            pat.save_images(save_path=SAVE_PATH, with_roi=True)
 
         except Exception as e:
             print(f"Problem with : {patient_id}. {e}")
