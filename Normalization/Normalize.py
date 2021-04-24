@@ -3,69 +3,53 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     10/2020
-    @Last modification: 01//2021
+    @Last modification: 04/2021
 
     @Description:       This script has been use has a pipeline to normalize a set of 3D images by using the Patient
                         class. Take note that the images were then saved in hdf5 with Transfer_in_hdf5.py.
 """
+import os
 from Patient import Patient
 from tqdm import trange
+from Utils import get_temporary_files
 
 
-_path = "E:/WORKSPACE_RadiomicsComputation/Kidney/Corrected"
-temp_path = "n4_temp"
-exclude = ["Kidney-Penn-238", "Kidney-Penn-254", "Kidney-Penn-337", "Kidney-Penn-357", 'Kidney-Penn-086',
-           'Kidney-Penn-115', 'Kidney-Penn-125', 'Kidney-Penn-169', 'Kidney-Penn-329', 'Kidney-Penn-556',
-           'Kidney-Penn-587', 'Kidney-Penn-722', 'Kidney-Penn-745', 'Kidney-Penn-753', 'Kidney-Penn-765',
-           'Kidney-Penn-774', 'Kidney-Penn-788', 'Kidney-Penn-797', 'Kidney-TCGA-048', 'Kidney-TCGA-054']
+PATH = "/home/alex/Data/Corrected/"
 institution = ["Kidney-XY2", "Kidney-Penn", "Kidney-CH", "Kidney-TCGA", "Kidney-Mayo", "Kidney-HP"]
-nb_patient = [25, 833, 112, 56, 118, 50]
+NB_PATIENT = [25, 833, 112, 56, 118, 50]
 
-voxel_size = [1.1, 1.1, 5.0]
-crop_shape = [[96, 96, 32], [96, 96, 32]]
-read_path = [temp_path, temp_path, _path, _path]
-save_path = ["Option1_with_N4", "Option1_without_N4"]
+VOXEL_SIZE = [1.03, 1.00, 2.90]
+CROP_SHAPE = [96, 96, 32]
+SAVE_PATH = "temp_images"
 
-# *************************************************
-#              Apply n4 bias on image
-# *************************************************
-for i in range(len(institution)):
-    for j in trange(1, nb_patient[i] + 1):
-        if j < 10:
-            _nb = "00" + str(j)
-        elif j < 100:
-            _nb = "0" + str(j)
-        else:
-            _nb = str(j)
-
-        patient_id = institution[i] + "-" + _nb
-
-        if patient_id not in exclude:
-            pat = Patient(patient_id, _path)
-            pat.apply_n4(save=True, save_path=temp_path)
-
+tempfiles = set(get_temporary_files(folder_path="/tmp"))
 
 # *************************************************
 #        Resample, crop and normalize image
 # *************************************************
-for k in range(4):
-    for i in range(len(institution)):
-        for j in trange(1, nb_patient[i]+1):
-            if j < 10:
-                _nb = "00" + str(j)
-            elif j < 100:
-                _nb = "0" + str(j)
-            else:
-                _nb = str(j)
 
-            patient_id = institution[i] + "-" + _nb
+for i in range(len(institution)):
+    for j in trange(1, NB_PATIENT[i]+1):
+        patient_id = f"{institution[i]}-{j:03d}"
+        try:
+            pat = Patient(patient_id, PATH)
 
-            if patient_id not in exclude:
-                pat = Patient(patient_id, read_path[k])
+            pat.resample_and_crop(resample_params=VOXEL_SIZE,
+                                  crop_shape=CROP_SHAPE,
+                                  interp_type=0,
+                                  threshold=100,
+                                  save=False,
+                                  register=False,
+                                  ponderate_center=False,
+                                  save_path=SAVE_PATH)
+            pat.apply_znorm(save=True, save_path=SAVE_PATH)
 
-                pat.resample_and_crop(resample_params=voxel_size,
-                                      crop_shape=crop_shape[k],
-                                      interp_type=0,
-                                      save=False,
-                                      save_path=save_path[k])
-                pat.apply_znorm(save=True, save_path=save_path[k])
+        except Exception as e:
+            print(f"Problem with : {patient_id}. {e}")
+
+# *************************************************
+#                 Delete temp files
+# *************************************************
+new_tempfiles = set(get_temporary_files(folder_path="/tmp"))
+for tempfile in list(new_tempfiles.difference(tempfiles)):
+    os.remove(tempfile)
