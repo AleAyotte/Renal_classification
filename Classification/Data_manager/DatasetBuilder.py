@@ -17,8 +17,10 @@ from typing import Sequence, Tuple, Union
 
 
 DATA_PATH_2D = "dataset_2D/Data_with_N4"
-DATA_PATH_3D = "final_dtset/all.hdf5"
+DATA_PATH_3D = "final_dtset/dataset_3D.hdf5"
+# DATA_PATH_3D = "final_dtset/dataset_3_channel.hdf5"
 PAD_MODE = "constant"  # choices=["constant", "edge", "reflect", "symmetric"]
+REJECT_FILE = "Data_manager/reject_list.txt"
 STRATIFICATION_KEYS = ["malignancy", "subtype", "grade"]
 
 
@@ -38,6 +40,27 @@ def get_data_augmentation(num_dimension: int = 3) -> Tuple[Compose, Compose]:
             ToTensord(keys=["t1", "t2", "roi"])
         ])
         """
+        """
+        # 4 CHANNELS
+        transform = Compose([
+            AddChanneld(keys=["t1", "t2", "roi_t1", "roi_t2"]),
+            RandFlipd(keys=["t1", "t2", "roi_t1", "roi_t2"], spatial_axis=[0], prob=0.5),
+            RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
+            RandAffined(keys=["t1", "t2", "roi_t1", "roi_t2"], prob=0.5, shear_range=[0.4, 0.4, 0],
+                        rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
+            # RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
+            RandSpatialCropd(keys=["t1", "t2", "roi_t1", "roi_t2"], roi_size=[64, 64, 24], random_center=False),
+            RandZoomd(keys=["t1", "t2", "roi_t1", "roi_t2"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
+                      keep_size=False, mode="trilinear", align_corners=True),
+            ResizeWithPadOrCropd(keys=["t1", "t2", "roi_t1", "roi_t2"], spatial_size=[96, 96, 32], mode=PAD_MODE),
+            ToTensord(keys=["t1", "t2", "roi_t1", "roi_t2"])
+        ])
+        test_transform = Compose([
+            AddChanneld(keys=["t1", "t2", "roi_t1", "roi_t2"]),
+            ToTensord(keys=["t1", "t2", "roi_t1", "roi_t2"])
+        ])
+        """
+        # 3 CHANNELS
         transform = Compose([
             AddChanneld(keys=["t1", "t2", "roi"]),
             RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
@@ -55,7 +78,6 @@ def get_data_augmentation(num_dimension: int = 3) -> Tuple[Compose, Compose]:
             AddChanneld(keys=["t1", "t2", "roi"]),
             ToTensord(keys=["t1", "t2", "roi"])
         ])
-
     else:
         transform = Compose([
             RandFlipd(keys=["t1", "t2"], spatial_axis=[0], prob=0.5),
@@ -84,17 +106,22 @@ def build_datasets(tasks: Sequence[str],
     #              DATA AUGMENTATION
     # --------------------------------------------
     transform, test_transform = get_data_augmentation(num_dimension=num_dimension)
+    # imgs_keys = ["t1", "roi_t1", "t2", "roi_t2"] if num_dimension == 3 else ["t1", "t2"]
     imgs_keys = ["t1", "t2", "roi"] if num_dimension == 3 else ["t1", "t2"]
     data_path = DATA_PATH_3D if num_dimension == 3 else DATA_PATH_2D
 
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
+    with open(REJECT_FILE, 'r') as f:
+        exclude_list = [line.strip() for line in f]
+
     trainset = RenalDataset(data_path,
                             transform=transform,
                             imgs_keys=imgs_keys,
                             clinical_features=clin_features,
                             tasks=tasks,
+                            exclude_list=exclude_list,
                             stratification_keys=STRATIFICATION_KEYS)
     validset = RenalDataset(data_path,
                             transform=test_transform,

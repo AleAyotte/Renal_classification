@@ -19,8 +19,9 @@ from Utils import print_score, print_data_distribution, read_api_key, save_hpara
 
 
 CSV_PATH = "save/STL3D_"
-DATA_PATH = "final_dtset/all.hdf5"
 MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
+# PROJECT_NAME = "renal-classification"
+PROJECT_NAME = "april-2021-channels"
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
 TOL = 1.0  # The tolerance factor use by the trainer
 
@@ -53,6 +54,7 @@ def argument_parser():
     parser.add_argument('--grad_clip', type=float, default=1.25,
                         help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
                              "the training.")
+    parser.add_argument('--groups', type=int, default=1)
     parser.add_argument('--in_channels', type=int, default=16,
                         help="Number of channels after the first convolution.")
     parser.add_argument('--loss', type=str, default="ce",
@@ -81,7 +83,7 @@ def argument_parser():
                         help="If true, load the last saved model and continue the training.")
     parser.add_argument('--task', type=str, default="malignancy",
                         help="The task on which the model will be train.",
-                        choices=["malignancy", "subtype", "grade", "SSIGN"])
+                        choices=["malignancy", "subtype", "grade"])
     parser.add_argument('--testset', type=str, default="test",
                         help="The name of the testset. If testset=='test' then a random stratified testset will be "
                              "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
@@ -116,6 +118,7 @@ if __name__ == "__main__":
     in_shape = tuple(testset[0]["sample"].size()[1:])
     net = ResNet(mixup=args.mixup,
                  depth=args.depth,
+                 groups=args.groups,
                  in_shape=in_shape,
                  first_channels=args.in_channels,
                  drop_rate=args.drop_rate,
@@ -123,7 +126,7 @@ if __name__ == "__main__":
                  act=args.activation,
                  pre_act=True).to(args.device)
 
-    summary(net, (3, 96, 96, 32))
+    summary(net, (4, 96, 96, 32))
 
     # --------------------------------------------
     #                SANITY CHECK
@@ -177,13 +180,13 @@ if __name__ == "__main__":
     # --------------------------------------------
     if args.num_epoch >= MIN_NUM_EPOCH:
         experiment = Experiment(api_key=read_api_key(),
-                                project_name="renal-classification",
+                                project_name=PROJECT_NAME,
                                 workspace="aleayotte",
                                 log_env_details=False,
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False)
+                                log_code=False,)
 
         experiment.set_name("ResNet3D" + "_" + args.task)
         experiment.log_code("SingleTaskMain.py")
