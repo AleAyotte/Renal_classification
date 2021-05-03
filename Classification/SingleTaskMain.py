@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 03/2021
+    @Last modification: 04/2021
 
     @Description:       Contain the main function to train a 3D ResNet on one of the three tasks
                         (malignancy, subtype and grade prediction).
@@ -19,7 +19,9 @@ from Utils import print_score, print_data_distribution, read_api_key, save_hpara
 
 
 CSV_PATH = "save/STL3D_"
-DATA_PATH = "final_dtset/all.hdf5"
+MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
+# PROJECT_NAME = "renal-classification"
+PROJECT_NAME = "april-2021-swa"
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
 TOL = 1.0  # The tolerance factor use by the trainer
 
@@ -52,6 +54,7 @@ def argument_parser():
     parser.add_argument('--grad_clip', type=float, default=1.25,
                         help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
                              "the training.")
+    parser.add_argument('--groups', type=int, default=1)
     parser.add_argument('--in_channels', type=int, default=16,
                         help="Number of channels after the first convolution.")
     parser.add_argument('--loss', type=str, default="ce",
@@ -69,10 +72,12 @@ def argument_parser():
     parser.add_argument('--mode', type=str, default="Mixup",
                         help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
                         choices=["standard", "Mixup"])
-    parser.add_argument('--num_epoch', type=int, default=100,
-                        help="The number of training epoch.")
+    parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                        help="The number of channels of the input images.")
     parser.add_argument('--num_cumu_batch', type=int, default=1,
                         help="The number of batch that will be cumulated before updating the weight of the model.")
+    parser.add_argument('--num_epoch', type=int, default=100,
+                        help="The number of training epoch.")
     parser.add_argument('--optim', type=str, default="sgd",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
@@ -80,7 +85,7 @@ def argument_parser():
                         help="If true, load the last saved model and continue the training.")
     parser.add_argument('--task', type=str, default="malignancy",
                         help="The task on which the model will be train.",
-                        choices=["malignancy", "subtype", "grade", "SSIGN"])
+                        choices=["malignancy", "subtype", "grade"])
     parser.add_argument('--testset', type=str, default="test",
                         help="The name of the testset. If testset=='test' then a random stratified testset will be "
                              "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
@@ -107,7 +112,9 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=[args.task], testset_name=args.testset)
+    trainset, validset, testset = build_datasets(tasks=[args.task],
+                                                 testset_name=args.testset,
+                                                 num_chan=args.num_chan_data)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -115,6 +122,7 @@ if __name__ == "__main__":
     in_shape = tuple(testset[0]["sample"].size()[1:])
     net = ResNet(mixup=args.mixup,
                  depth=args.depth,
+                 groups=args.groups,
                  in_shape=in_shape,
                  first_channels=args.in_channels,
                  drop_rate=args.drop_rate,
@@ -122,7 +130,7 @@ if __name__ == "__main__":
                  act=args.activation,
                  pre_act=True).to(args.device)
 
-    summary(net, (3, 96, 96, 32))
+    summary(net, (4, 96, 96, 32))
 
     # --------------------------------------------
     #                SANITY CHECK
@@ -174,15 +182,15 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                    SCORE
     # --------------------------------------------
-    if args.num_epoch > 75:
+    if args.num_epoch >= MIN_NUM_EPOCH:
         experiment = Experiment(api_key=read_api_key(),
-                                project_name="renal-classification",
+                                project_name=PROJECT_NAME,
                                 workspace="aleayotte",
                                 log_env_details=False,
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False)
+                                log_code=False,)
 
         experiment.set_name("ResNet3D" + "_" + args.task)
         experiment.log_code("SingleTaskMain.py")
@@ -190,19 +198,25 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/SingleTaskTrainer.py")
         experiment.log_code("Model/ResNet.py")
 
-        csv_path = CSV_PATH + args.task + "_" + args.testset + ".csv"
+        test_csv_path = CSV_PATH + args.task + "_" + args.testset + ".csv"
+        valid_csv_path = CSV_PATH + args.task + "_" + "validation" + ".csv"
+        train_csv_path = CSV_PATH + args.task + "_" + "train" + ".csv"
     else:
         experiment = None
-        csv_path = ""
+        test_csv_path = ""
+        valid_csv_path = ""
+        train_csv_path = ""
 
-    conf, auc = trainer.score(validset)
+    _, _ = trainer.score(trainset, save_path=train_csv_path)
+
+    conf, auc = trainer.score(validset, save_path=valid_csv_path)
     print_score(dataset_name="VALIDATION",
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
 
-    conf, auc = trainer.score(testset, save_path=csv_path)
+    conf, auc = trainer.score(testset, save_path=test_csv_path)
     print_score(dataset_name=f"{args.testset.upper()}",
                 task_list=[args.task],
                 conf_mat_list=[conf],

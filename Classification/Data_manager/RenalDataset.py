@@ -16,10 +16,7 @@ import random
 from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import Dataset
-from typing import Sequence, Tuple, Union
-
-
-STRATITFIED_KEY = ["malignancy", "subtype", "grade", "ssign", "institution"]
+from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 
 class RenalDataset(Dataset):
@@ -40,6 +37,10 @@ class RenalDataset(Dataset):
         (Exemple: "t1").
     __labels : np.array
         A numpy array that contain the labels of each data for each task.
+    __patient_id : np.array
+        A list of string that indicate the patient id of each data in the dataset.
+    __stratum_keys : np.array
+        A list of string that indicate to which stratum the data is associated.
     __tasks : Sequence[string]
         A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
     __with_clinical: bool
@@ -61,9 +62,11 @@ class RenalDataset(Dataset):
                  hdf5_filepath: str,
                  tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
-                 clinical_features: Union[Sequence[str], str] = None,
-                 split: Union[str, None] = "train",
-                 transform: Union[Compose, None] = None):
+                 clinical_features: Optional[Union[List[str], str]] = None,
+                 exclude_list: Optional[List[str]] = None,
+                 split: Optional[str] = "train",
+                 stratification_keys: Optional[List[str]] = None,
+                 transform: Optional[Compose] = None):
         """
         Create a dataset by loading the renal image at the given path.
 
@@ -72,44 +75,53 @@ class RenalDataset(Dataset):
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
+        :param exclude_list: A list of patient_id to exclude in this dataset.
         :param split: A string that indicate which subset will be load. (Option: train, test, test2). (Default="train")
+        :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
         assert split in ['train', 'test', None]
         self.transform = transform
+        self.__imgs_keys = imgs_keys
         self.__tasks = tasks
         self.__with_clinical = clinical_features is not None
-        self.__imgs_keys = imgs_keys
+
         self.__data = np.array([])
-        self.__clinical_data = None
         self.__labels = np.array([])
-        self.__encoding_keys = np.array([])
+        self.__patient_id = np.array([])
+        self.__stratum_keys = np.array([])
+        self.__clinical_data = None
 
         if clinical_features is not None:
             self.__clinical_data = np.empty(shape=(0, len(clinical_features)))
 
+        to_exclude = set() if exclude_list is None else set(exclude_list)  # set because we do not care about order
         if split is not None:
             if self.__with_clinical and type(clinical_features) is not list:
                 clinical_features = [clinical_features]
 
-            self.__read_hdf5(hdf5_filepath, split, clinical_features)
+            stratification_keys = [] if stratification_keys is None else stratification_keys
+            self.__read_hdf5(to_exclude, clinical_features, hdf5_filepath, split, stratification_keys)
 
     def add_data(self,
                  data: Sequence[dict],
-                 encoding_keys: Sequence[str],
                  label: Union[Sequence[dict], Sequence[int]],
+                 patient_id: Sequence[str],
+                 stratum_keys: Sequence[str],
                  clinical_data: Sequence[Sequence[int]] = None) -> None:
         """
         Add data to the dataset.
 
         :param data: A sequence of dictionary that contain the images.
-        :param encoding_keys: ADD DESCRIPTION
         :param label: A sequence of dictionary or a sequence of int that contain the labels.
+        :param patient_id: The patient id of each data that we want to add in the dataset.
+        :param stratum_keys: A list of string that indicate to which stratum the data is associated.
         :param clinical_data: A sequence of sequence of int that contain the clinical data.
         """
         self.__data = np.append(self.__data, data, 0)
         self.__labels = np.append(self.__labels, label, 0)
-        self.__encoding_keys = np.append(self.__encoding_keys, encoding_keys, 0)
+        self.__patient_id = np.append(self.__patient_id, patient_id, 0)
+        self.__stratum_keys = np.append(self.__stratum_keys, stratum_keys, 0)
         if clinical_data is not None:
             self.__clinical_data = np.append(self.__clinical_data, clinical_data, 0)
 
@@ -118,29 +130,40 @@ class RenalDataset(Dataset):
                      pop: bool = True) -> Tuple[Sequence[dict],
                                                 Union[Sequence[dict], Sequence[int]],
                                                 Sequence[str],
+                                                Sequence[str],
                                                 Sequence[Sequence[int]]]:
         """
         Extract data without applying transformation on the images.
 
         :param idx: The index of the data to extract.
         :param pop: If True, the extracted data are removed from the dataset. (Default: True)
-        :return: A tuple that contain the data (images), the labels, the encoding_keys and the clinical data.
+        :return: A tuple that contain the data (images), the labels, the stratum_keys and the clinical data.
         """
         mask = np.ones(len(self.__data), dtype=bool)
         mask[idx] = False
 
         data = self.__data[~mask]
         labels = self.__labels[~mask]
-        encoding_keys = self.__encoding_keys[~mask]
+        patient_id = self.__patient_id[~mask]
+        stratum_keys = self.__stratum_keys[~mask]
         clin = self.__clinical_data[~mask] if self.__with_clinical else None
 
         if pop:
             self.__data = self.__data[mask]
             self.__labels = self.__labels[mask]
-            self.__encoding_keys = self.__encoding_keys[mask]
+            self.__patient_id = self.__patient_id[mask]
+            self.__stratum_keys = self.__stratum_keys[mask]
             self.__clinical_data = self.__clinical_data[mask] if self.__with_clinical else None
 
-        return data, labels, encoding_keys, clin
+        return data, labels, patient_id, stratum_keys, clin
+
+    def get_patient_id(self) -> Sequence[str]:
+        """
+        Return a list of patient id.
+
+        :return: A numpy array of string that correspond to the list of patient id.
+        """
+        return self.__patient_id
 
     def labels_bincount(self) -> dict:
         """
@@ -190,25 +213,31 @@ class RenalDataset(Dataset):
             return mean, std
 
     def __read_hdf5(self,
+                    to_exclude: Set[str],
+                    features_names: Sequence[str],
                     filepath: str,
                     split: str,
-                    features_names: Sequence[str]) -> None:
+                    stratification_keys: List[str]) -> None:
         """
         Read the images and ROI from a given hdf5 filepath and store it in memory
 
-        :param filepath: The filepath of the hdf5 file where the data has been stored.
-        :param split: A string that indicate which subset will be load. (Option: train, test, test2).
+        :param to_exclude: A list of patient_id that will not be load in the dataset.
         :param features_names: A list of string that indicate which clinical features will be used
                                to train the model.
+        :param filepath: The filepath of the hdf5 file where the data has been stored.
+        :param split: A string that indicate which subset will be load. (Option: train, test, test2).
+        :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
+
         """
         f = h5py.File(filepath, 'r')
         dtset = f[split]
         self.__data = []
         self.__labels = []
         self.__clinical_data = []
-        self.__encoding_keys = []
+        self.__stratum_keys = []
+        self.__patient_id = np.array([key for key in list(dtset.keys()) if key not in to_exclude])
 
-        for key in list(dtset.keys()):
+        for key in self.__patient_id:
             imgs = {}
             for img_key in list(self.__imgs_keys):
                 imgs[img_key] = dtset[key][img_key][:]
@@ -221,9 +250,9 @@ class RenalDataset(Dataset):
             self.__labels.append(outcomes)
 
             encoding_key = ""
-            for strat_key in STRATITFIED_KEY:
+            for strat_key in stratification_keys:
                 encoding_key += '_' + str(dtset[key].attrs[strat_key])
-            self.__encoding_keys.append(encoding_key)
+            self.__stratum_keys.append(encoding_key)
 
             if self.__with_clinical:
                 attrs = dtset[key].attrs
@@ -231,7 +260,7 @@ class RenalDataset(Dataset):
 
         self.__data = np.array(self.__data)
         self.__labels = np.array(self.__labels)
-        self.__encoding_keys = np.array(self.__encoding_keys)
+        self.__stratum_keys = np.array(self.__stratum_keys)
         self.__clinical_data = np.array(self.__clinical_data)
         f.close()
 
@@ -248,13 +277,14 @@ class RenalDataset(Dataset):
 
             if unlabeled_task == num_tasks:
                 unlabeled_idx.append(i)
-        _, _, _, _ = self.extract_data(idx=unlabeled_idx, pop=True)
+        _, _, _, _, _ = self.extract_data(idx=unlabeled_idx, pop=True)
 
     def stratified_split(self,
                          pop: bool = True,
                          random_seed: int = 0,
                          sample_size: float = 0.1) -> Tuple[Sequence[dict],
                                                             Union[Sequence[dict], Sequence[int]],
+                                                            Sequence[str],
                                                             Sequence[str],
                                                             Sequence[Sequence[int]]]:
         """
@@ -263,14 +293,10 @@ class RenalDataset(Dataset):
         :param pop: If True, the extracted data are removed from the dataset. (Default: True)
         :param random_seed: The seed that will be used to split the data.
         :param sample_size: Proportion of the current set that will be used to create the new stratified set.
-        :return: A tuple that contain the data (images), the labels, the encoding_keys and the clinical data.
+        :return: A tuple that contain the data (images), the labels, the encoding_keys, the patients id
+                and the clinical data.
         """
-        group_by = {}
-        for i, key in enumerate(self.__encoding_keys):
-            if key not in list(group_by.keys()):
-                group_by[key] = [i]
-            else:
-                group_by[key].append(i)
+        group_by = self.__stratified_stats()
 
         # Create a stratified group
         new_set = []
@@ -284,6 +310,33 @@ class RenalDataset(Dataset):
                     new_set.extend(value)
 
         return self.extract_data(idx=new_set, pop=pop)
+
+    def __stratified_stats(self) -> Dict[str, Sequence[int]]:
+        """
+        Group the data index by encoding key.
+
+        :return: A dictionary of index list where the keys are the encoding key.
+        """
+        group_by = {}
+        for i, key in enumerate(self.__stratum_keys):
+            if key not in list(group_by.keys()):
+                group_by[key] = [i]
+            else:
+                group_by[key].append(i)
+        return group_by
+
+    def stratified_stats(self) -> Dict[str, int]:
+        """
+        Calculate the number of data per encoding key.
+
+        :return: A dictionary of int where the keys are the encoding key.
+        """
+        group_by = self.__stratified_stats()
+        new_group_by = {}
+        for key, value in group_by.items():
+            new_group_by[key] = len(value)
+
+        return new_group_by
 
     def __len__(self) -> int:
         return len(self.__data)
@@ -323,25 +376,3 @@ class RenalDataset(Dataset):
 
         else:
             return {"sample": sample, "labels": labels}
-
-
-def split_trainset(trainset: RenalDataset,
-                   validset: RenalDataset,
-                   validation_split: float = 0.2,
-                   random_seed: int = 0) -> Tuple[RenalDataset, RenalDataset]:
-    """
-    Transfer a part of the trainset into the validation set.
-
-    :param trainset: A RenalDataset that contain the training and the validation data.
-    :param validset: A empty RenalDataset with split = None that will be used to stock the validation data.
-    :param validation_split: Proportion of the training set that will be used to create the validation set.
-    :param random_seed: The random seed that will be used shuffle and split the data.
-    :return: Two RenalDataset that will represent the trainset and the validation set respectively
-    """
-
-    data, label, enconding_keys, clin = trainset.stratified_split(pop=True,
-                                                                  sample_size=validation_split,
-                                                                  random_seed=random_seed)
-    validset.add_data(data, enconding_keys, label, clin)
-
-    return trainset, validset

@@ -9,14 +9,14 @@
                         DataAugmentation hyperparameter that should be used during the training.
 """
 
-from DataManager import RenalDataset
+from RenalDataset import RenalDataset
 from matplotlib import pyplot as plt
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand2DElasticd
 
 
 if __name__ == "__main__":
-    DATA_PATH = "dataset_2D/Data_without_N4/grade.hdf5"
+    DATA_PATH = "dataset_2D/Data_with_N4/grade.hdf5"
     # --------------------------------------------
     #              DATA AUGMENTATION
     # --------------------------------------------
@@ -38,8 +38,8 @@ if __name__ == "__main__":
         ToTensord(keys=["t1", "t2"])
     ])
 
-    trainset = RenalDataset(DATA_PATH, transform=transform, imgs_keys=["t1", "t2"])
-    testset = RenalDataset(DATA_PATH, transform=test_transform, imgs_keys=["t1", "t2"])
+    trainset = RenalDataset(DATA_PATH, transform=transform, imgs_keys=["t1", "t2"], tasks=["outcome"])
+    testset = RenalDataset(DATA_PATH, transform=test_transform, imgs_keys=["t1", "t2"], tasks=["outcome"])
 
     for i in range(len(trainset)):
         fig = plt.figure(figsize=(24, 30))

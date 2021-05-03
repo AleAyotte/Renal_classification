@@ -30,6 +30,7 @@ from typing import Sequence, Tuple, Union, Dict
 DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
 MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
 VALIDATION_BATCH_SIZE = 2  # Batch size used to create the validation dataloader and the test dataloader
+TEST_BATCH_SIZE = 1  # Batch size used to create the validation dataloader and the test dataloader
 
 
 class Trainer(ABC):
@@ -537,13 +538,15 @@ class Trainer(ABC):
     def _save_prediction(self,
                          outs: Dict[str, torch.Tensor],
                          labels: dict,
-                         save_path: str = "") -> None:
+                         patient_id: Sequence[str],
+                         save_path: str) -> None:
         """
         Save the prediction made by the model on a given dataset.
 
         :param outs: A dictionnary of torch.tensor that represent the output of the model for each task.
         :param labels: A dictionnary of torch.tensor that represent the labels and where the keys are the name
                        of each task.
+        :param patient_id: A list that contain the patient id in the same order has the labels and the outputs.
         :param save_path: The filepath of the csv that will be used to save the prediction.
         """
 
@@ -554,13 +557,13 @@ class Trainer(ABC):
 
         with open(save_path, mode="w") as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=',')
+            first_row = ["patient_id"]
+            first_row.extend([f"{task} {word}" for task in self._tasks for word in ["labels", "prediction"]])
 
-            first_row = [task if i == 0 else "" for task in self._tasks for i in range(2)]
             csv_writer.writerow(first_row)
-            csv_writer.writerow([title for _ in self._tasks for title in ["labels", "prediction"]])
 
             for i in range(len(labels[self._tasks[0]])):
-                row = []
+                row = [patient_id[i]]
                 for task in self._tasks:
                     label = labels[task][i].item()
                     pred = preds[task][i] if self._num_classes[task] == 1 else preds[task][i][-1]
@@ -581,7 +584,7 @@ class Trainer(ABC):
         :return: The accuracy of the model.
         """
         test_loader = torch.utils.data.DataLoader(testset,
-                                                  VALIDATION_BATCH_SIZE,
+                                                  TEST_BATCH_SIZE,
                                                   shuffle=False)
 
         self.model.eval()

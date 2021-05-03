@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     10/2020
-    @Last modification: 01//2021
+    @Last modification: 04/2021
 
     @Description:       Contain the Patient class, that create two MRIimages objects (image t1 and t2) and handle
                         reading, transformation and normalization of those images by considering both ROI. Also,
@@ -208,7 +208,7 @@ class Patient:
         slices_t2 = [slice_t2 if x == ind else slice(None) for x in range(3)]
 
         slices_list = [slices_t1, slices_t1, slices_t2, slices_t2]
-        titles = ["Image T1C", "ROI T1C", "Image T2WI", "ROI T2WI"]
+        titles = [f"Image T1C at {slice_t1}", "ROI T1C", f"Image T2WI at {slice_t2}", "ROI T2WI"]
         imgs = [self.__t1.get_img(),
                 self.__t1.get_roi(),
                 self.__t2.get_img(),
@@ -333,23 +333,19 @@ class Patient:
         self.__t2.resample(resample_params=resample_params, interp_type=interp_type, save=False, save_path=save_path,
                            reorient=True)
 
-        if register and register_mode.lower() == "always":
-            self.register(is_t1_axial)
-
         self.__read_measure()
         distance = np.linalg.norm(self.__measure["roi_distance"])
 
-        # If the distance between the center of mass is too high, then we register the images and the ROI.
-        if distance > threshold:
-            if register is True and register_mode == "threshold":
-                self.register(is_t1_axial)
+        # If the image need to be register.
+        if register is True and (distance > threshold or register_mode.lower() == "always"):
+            self.register(is_t1_axial)
+            self.__read_measure()
+            distance = np.linalg.norm(self.__measure["roi_distance"])
+
+            if distance > threshold:
+                self.register(is_t1_axial, focus_mask=True)
                 self.__read_measure()
                 distance = np.linalg.norm(self.__measure["roi_distance"])
-
-                if distance > threshold:
-                    self.register(is_t1_axial, focus_mask=True)
-                    self.__read_measure()
-                    distance = np.linalg.norm(self.__measure["roi_distance"])
 
             if distance > threshold:
                 raise Exception("The distance between the two center of mass is too high.".format(distance))

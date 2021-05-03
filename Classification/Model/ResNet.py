@@ -64,6 +64,7 @@ class ResNet(NeuralNet):
     def __init__(self,
                  depth: int = 18,
                  first_channels: int = 16,
+                 groups: int = 1,
                  num_classes: int = 2,
                  in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  first_kernel: Union[Sequence[int], int] = 3,
@@ -140,10 +141,12 @@ class ResNet(NeuralNet):
         # --------------------------------------------
         self.__in_channels = first_channels
         self.conv = Convolution(dimensions=3,
-                                in_channels=3,
+                                # in_channels=3,
+                                in_channels=4,
                                 out_channels=self.__in_channels,
                                 kernel_size=first_kernel,
                                 act=act,
+                                groups=groups,
                                 conv_only=pre_act)
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],

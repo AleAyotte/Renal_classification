@@ -14,10 +14,10 @@ import numpy as np
 import torch
 from torch import nn
 from torch.autograd import Variable
-from typing import Sequence, Union
+from typing import List, Sequence, Union
 
 
-def compute_recall(conf_matrix: np.array) -> Sequence[float]:
+def compute_recall(conf_matrix: np.array) -> List[float]:
     """
     Compute the recall of each class.
 
@@ -46,7 +46,7 @@ def get_mean_accuracy(recalls: Sequence[float],
     if geometric_mean:
         return np.prod(recalls) ** (1 / len(recalls))
     else:
-        return np.mean(recalls)
+        return float(np.mean(recalls))
 
 
 def init_weights(m) -> None:
