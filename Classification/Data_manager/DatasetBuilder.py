@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 03/2021
+    @Last modification: 04/2021
 
     @Description:       This file contain a function that build the training, validation and testing set for both 2D
                         and 3D datasets.
@@ -13,18 +13,27 @@ from Data_manager.RenalDataset import RenalDataset
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 from random import randint
-from typing import Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 
 DATA_PATH_2D = "dataset_2D/Data_with_N4"
-DATA_PATH_3D = "final_dtset/dataset_3D.hdf5"
-# DATA_PATH_3D = "final_dtset/dataset_3_channel.hdf5"
+DATA_PATH_3D_4CHAN = "final_dtset/dataset_3D.hdf5"
+DATA_PATH_3D_3CHAN = "final_dtset/dataset_3_channel.hdf5"
 PAD_MODE = "constant"  # choices=["constant", "edge", "reflect", "symmetric"]
 REJECT_FILE = "Data_manager/reject_list.txt"
 STRATIFICATION_KEYS = ["malignancy", "subtype", "grade"]
 
 
-def get_data_augmentation(num_dimension: int = 3) -> Tuple[Compose, Compose]:
+def get_data_augmentation(num_chan: int = 4,
+                          num_dimension: int = 3) -> Tuple[Compose, Compose]:
+    """
+    Create the Compose objects that will be use by the training set, the validation set and the test set.
+    The compose object is a list of transformation function that will be use on the data.
+
+    :param num_chan: The number of channels of the output tensor.
+    :param num_dimension: The number of dimension of the images in the dataset.
+    :return: A tuple of Compose object that list the transformation that will be applied on the images.
+    """
     if num_dimension == 3:
         """
         transform = Compose([
@@ -40,44 +49,47 @@ def get_data_augmentation(num_dimension: int = 3) -> Tuple[Compose, Compose]:
             ToTensord(keys=["t1", "t2", "roi"])
         ])
         """
-        """
+
         # 4 CHANNELS
-        transform = Compose([
-            AddChanneld(keys=["t1", "t2", "roi_t1", "roi_t2"]),
-            RandFlipd(keys=["t1", "t2", "roi_t1", "roi_t2"], spatial_axis=[0], prob=0.5),
-            RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-            RandAffined(keys=["t1", "t2", "roi_t1", "roi_t2"], prob=0.5, shear_range=[0.4, 0.4, 0],
-                        rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
-            # RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-            RandSpatialCropd(keys=["t1", "t2", "roi_t1", "roi_t2"], roi_size=[64, 64, 24], random_center=False),
-            RandZoomd(keys=["t1", "t2", "roi_t1", "roi_t2"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
-                      keep_size=False, mode="trilinear", align_corners=True),
-            ResizeWithPadOrCropd(keys=["t1", "t2", "roi_t1", "roi_t2"], spatial_size=[96, 96, 32], mode=PAD_MODE),
-            ToTensord(keys=["t1", "t2", "roi_t1", "roi_t2"])
-        ])
-        test_transform = Compose([
-            AddChanneld(keys=["t1", "t2", "roi_t1", "roi_t2"]),
-            ToTensord(keys=["t1", "t2", "roi_t1", "roi_t2"])
-        ])
-        """
+        if num_chan == 4:
+            transform = Compose([
+                AddChanneld(keys=["t1", "t2", "roi_t1", "roi_t2"]),
+                RandFlipd(keys=["t1", "t2", "roi_t1", "roi_t2"], spatial_axis=[0], prob=0.5),
+                RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
+                RandAffined(keys=["t1", "t2", "roi_t1", "roi_t2"], prob=0.5, shear_range=[0.4, 0.4, 0],
+                            rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
+                # RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
+                RandSpatialCropd(keys=["t1", "t2", "roi_t1", "roi_t2"], roi_size=[64, 64, 24], random_center=False),
+                RandZoomd(keys=["t1", "t2", "roi_t1", "roi_t2"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
+                          keep_size=False, mode="trilinear", align_corners=True),
+                ResizeWithPadOrCropd(keys=["t1", "t2", "roi_t1", "roi_t2"], spatial_size=[96, 96, 32], mode=PAD_MODE),
+                ToTensord(keys=["t1", "t2", "roi_t1", "roi_t2"])
+            ])
+            test_transform = Compose([
+                AddChanneld(keys=["t1", "t2", "roi_t1", "roi_t2"]),
+                ToTensord(keys=["t1", "t2", "roi_t1", "roi_t2"])
+            ])
+
         # 3 CHANNELS
-        transform = Compose([
-            AddChanneld(keys=["t1", "t2", "roi"]),
-            RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-            RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
-            RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
-                        rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
-            # RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-            RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 24], random_center=False),
-            RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
-                      keep_size=False, mode="trilinear", align_corners=True),
-            ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=PAD_MODE),
-            ToTensord(keys=["t1", "t2", "roi"])
-        ])
-        test_transform = Compose([
-            AddChanneld(keys=["t1", "t2", "roi"]),
-            ToTensord(keys=["t1", "t2", "roi"])
-        ])
+        else:
+            transform = Compose([
+                AddChanneld(keys=["t1", "t2", "roi"]),
+                RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
+                RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
+                RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
+                            rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
+                # RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
+                RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 24], random_center=False),
+                RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
+                          keep_size=False, mode="trilinear", align_corners=True),
+                ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=PAD_MODE),
+                ToTensord(keys=["t1", "t2", "roi"])
+            ])
+            test_transform = Compose([
+                AddChanneld(keys=["t1", "t2", "roi"]),
+                ToTensord(keys=["t1", "t2", "roi"])
+            ])
+    # 2 Dimensions
     else:
         transform = Compose([
             RandFlipd(keys=["t1", "t2"], spatial_axis=[0], prob=0.5),
@@ -100,15 +112,36 @@ def get_data_augmentation(num_dimension: int = 3) -> Tuple[Compose, Compose]:
 
 def build_datasets(tasks: Sequence[str],
                    clin_features: Union[Sequence[str], None] = None,
+                   num_chan: int = 4,
                    num_dimension: int = 3,
+                   testseed: Optional[int] = None,
                    testset_name: str = "test") -> Tuple[RenalDataset, RenalDataset, RenalDataset]:
+    """
+
+    :param tasks: A list of attribute that will be use to labeled the data.
+    :param clin_features: A list of clinical features that will be used as input in the model.
+    :param num_chan: The number images channels. Only use if num_dimension == 3.
+    :param num_dimension: The number of dimension of the images in the dataset.
+    :param testset_name: Determine the data that will be used in the testset. If testset == 'test' then the testset
+                         will be sampled in the train set. Else, it will load the corresponding testset.
+    :param testseed: The seed that should be use to sample the testset in the training set.
+    :return: 3 RenalDataset: Training set, validation set and testset
+    """
     # --------------------------------------------
     #              DATA AUGMENTATION
     # --------------------------------------------
-    transform, test_transform = get_data_augmentation(num_dimension=num_dimension)
-    # imgs_keys = ["t1", "roi_t1", "t2", "roi_t2"] if num_dimension == 3 else ["t1", "t2"]
-    imgs_keys = ["t1", "t2", "roi"] if num_dimension == 3 else ["t1", "t2"]
-    data_path = DATA_PATH_3D if num_dimension == 3 else DATA_PATH_2D
+    transform, test_transform = get_data_augmentation(num_dimension=num_dimension, num_chan=num_chan)
+    if num_dimension == 3:
+        assert num_chan in [3, 4], "num_chan should be equal to 3 or 4 if num_dimension == 3."
+        if num_chan == 4:
+            data_path = DATA_PATH_3D_4CHAN
+            imgs_keys = ["t1", "roi_t1", "t2", "roi_t2"]
+        else:
+            data_path = DATA_PATH_3D_3CHAN
+            imgs_keys = ["t1", "t2", "roi"]
+    else:
+        data_path = DATA_PATH_2D
+        imgs_keys = ["t1", "t2"]
 
     # --------------------------------------------
     #               CREATE DATASET
@@ -138,11 +171,12 @@ def build_datasets(tasks: Sequence[str],
                            split=None if testset_name == "test" else testset_name,
                            stratification_keys=STRATIFICATION_KEYS)
 
-    seed = randint(0, 10000)
+    seed_valid = randint(0, 10000)
+    seed_test = randint(0, 10000) if testseed is None else testseed
     if testset_name == "test":
-        trainset, testset = split_trainset(trainset, testset, validation_split=0.2, random_seed=0)
+        trainset, testset = split_trainset(trainset, testset, validation_split=0.2, random_seed=seed_test)
 
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed)
+    trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed_valid)
 
     # --------------------------------------------
     #             NORMALIZE THE DATA
