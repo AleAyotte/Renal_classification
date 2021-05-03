@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 03/2021
+    @Last modification: 04/2021
 
     @Description:       Contain the main function to train a SharedMet for multitask learning.
 """
@@ -20,10 +20,10 @@ from Utils import print_score, print_data_distribution, read_api_key, save_hpara
 
 CSV_PATH = "save/SharedNet_"
 DATA_PATH = "final_dtset/all.hdf5"
-FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
-LOAD_PATH = "save/14_Fev_2020/"
+FINAL_TASK_LIST = ["grade", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
+LOAD_PATH = "save/"
 SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
-TASK_LIST = ["malignancy", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
+TASK_LIST = ["ssign", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
 TOL = 1.0  # The tolerance factor use by the trainer
 
 
@@ -55,10 +55,12 @@ def argument_parser():
     parser.add_argument('--mode', type=str, default="standard",
                         help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
                         choices=["standard", "Mixup"])
-    parser.add_argument('--num_epoch', type=int, default=100,
-                        help="The number of training epoch.")
+    parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                        help="The number of channels of the input images.")
     parser.add_argument('--num_cumu_batch', type=int, default=1,
                         help="The number of batch that will be cumulated before updating the weight of the model.")
+    parser.add_argument('--num_epoch', type=int, default=100,
+                        help="The number of training epoch.")
     parser.add_argument('--optim', type=str, default="adam",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
@@ -100,36 +102,38 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=TASK_LIST, testset_name=args.testset)
+    trainset, validset, testset = build_datasets(tasks=TASK_LIST,
+                                                 testset_name=args.testset,
+                                                 num_chan=args.num_chan_data)
 
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     mal_net = ResNet(mixup=args.mixup,
-                     depth=34,
+                     depth=18,
                      first_channels=32,
                      in_shape=in_shape,
-                     drop_rate=0.1,
+                     drop_rate=0.3,
                      drop_type="linear",
                      act="LeakyReLU",
                      pre_act=True).to(args.device)
 
     sub_net = ResNet(mixup=args.mixup,
-                     depth=34,
+                     depth=18,
                      first_channels=32,
                      in_shape=in_shape,
-                     drop_rate=0.1,
+                     drop_rate=0.3,
                      drop_type="linear",
                      act="LeakyReLU",
                      pre_act=True).to(args.device)
 
     if args.pretrained:
-        mal_net.restore(LOAD_PATH + "malignant.pth")
-        sub_net.restore(LOAD_PATH + "subtype.pth")
+        mal_net.restore(LOAD_PATH + "STL3D_NET.pth")
+        sub_net.restore(LOAD_PATH + "STL3D_NET.pth")
 
     sub_nets = torch.nn.ModuleDict()
-    sub_nets["malignancy"] = mal_net
+    sub_nets["ssign"] = mal_net
     sub_nets["subtype"] = sub_net
 
     net = SharedNet(sub_nets=sub_nets,
@@ -162,8 +166,8 @@ if __name__ == "__main__":
     #                   TRAINER
     # --------------------------------------------
     trainer = Trainer(tasks=TASK_LIST,
-                      num_classes={"malignancy": 2, "subtype": 2},
-                      conditional_prob=[["subtype", "malignancy"]],
+                      num_classes={"ssign": 2, "subtype": 2},
+                      # conditional_prob=[["subtype", "malignancy"]],
                       early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
                       loss=args.loss,
@@ -171,7 +175,7 @@ if __name__ == "__main__":
                       num_workers=args.worker,
                       pin_memory=False,
                       classes_weights=args.weights,
-                      shared_net=False,
+                      shared_net=args.pretrained,
                       track_mode=args.track_mode,
                       mixed_precision=True)
 

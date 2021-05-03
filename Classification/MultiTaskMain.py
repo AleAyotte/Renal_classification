@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 03/2021
+    @Last modification: 04/2021
 
     @Description:       Contain the main function to train a MultiLevel 3D ResNet for multitask learning.
 """
@@ -66,10 +66,12 @@ def argument_parser():
     parser.add_argument('--mode', type=str, default="standard",
                         help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
                         choices=["standard", "Mixup"])
-    parser.add_argument('--num_epoch', type=int, default=100,
-                        help="The number of training epoch.")
+    parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                        help="The number of channels of the input images.")
     parser.add_argument('--num_cumu_batch', type=int, default=1,
                         help="The number of batch that will be cumulated before updating the weight of the model.")
+    parser.add_argument('--num_epoch', type=int, default=100,
+                        help="The number of training epoch.")
     parser.add_argument('--optim', type=str, default="adam",
                         help="The optimizer that will be used to train the model.",
                         choices=["adam", "novograd", "sgd"])
@@ -108,7 +110,9 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=TASK_LIST, testset_name=args.testset)
+    trainset, validset, testset = build_datasets(tasks=TASK_LIST,
+                                                 testset_name=args.testset,
+                                                 num_chan=args.num_chan_data)
 
     # --------------------------------------------
     #                NEURAL NETWORK
