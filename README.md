@@ -55,7 +55,12 @@ Morever, the following package are required to execute our code.
   - [x] Conditional probability
   - [x] Cumulate gradient
   - [x] Add hparam tracking with comet.ml
-  - [ ] Look for Adaptive Gradient Clipping
+  - [ ] Add Rotograd
+- [ ] Experiment Phase 1
+  - [x] Grouped Convolution
+  - [ ] Merged Mask
+- [ ] Experiment Phase 2
+  - [ ]  Rotograd
 - [ ] Radiomics
   - [ ] Compute Radiomics
   - [ ] Baseline
