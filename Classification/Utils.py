@@ -12,7 +12,7 @@ from comet_ml import Experiment
 from datetime import datetime
 import numpy as np
 import os
-from Trainer.Utils import compute_recall
+from Trainer.Utils import compute_recall, get_mean_accuracy
 from typing import Optional, Sequence, Union
 
 API_KEY_FILEPATH = "comet_api_key.txt"  # path to the file that contain the API KEY for comet.ml
@@ -96,29 +96,33 @@ def print_score(dataset_name: str,
     """
 
     dataset_label = dataset_name.upper() + " SCORE"
-    line_sep = "+" + "-" * 20 + "+" + "-" * 11 + "+" + "-" * 11 + "+" + "-" * 11 + "+"
+    line_sep = "+" + "-" * 20 + "+" + "-" * 11 + "+" + "-" * 11 + "+" + "-" * 11 + "+" + "-" * 11 + "+"
 
-    print(f"+{'-'*56}+")
-    print(f"|{dataset_label:^56s}|")
+    print(f"+{'-'*68}+")
+    print(f"|{dataset_label:^68s}|")
     print(line_sep)
-    print(f"|{'Task':^20s}|{'AUC':^11s}|{'Recall0':^11s}|{'Recall1':^11s}|")
+    print(f"|{'Task':^20s}|{'AUC':^11s}|{'Recall0':^11s}|{'Recall1':^11s}|{'Mean Recall':^11s}")
     print(line_sep)
 
     for i in range(len(task_list)):
         auc = auc_list[i]
         recall = compute_recall(conf_mat_list[i])
         recall.append(float("nan")) if len(recall) == 1 else None
-
-        print(f"|{task_list[i]:^20s}|{auc:^11.2f}|{recall[0]:^11.2f}|{recall[1]:^11.2f}|")
+        mean_recall = get_mean_accuracy(recall, False)
+        print(f"|{task_list[i]:^20s}|{auc:^11.2f}|{recall[0]:^11.2f}|{recall[1]:^11.2f}|{mean_recall:^11.2f}|")
         print(line_sep)
 
         if experiment is not None:
-            name = dataset_name + " " + task_list[i].capitalize()
+            if len(task_list) > 1:
+                name = dataset_name + " " + task_list[i].capitalize()
+            else:
+                name = dataset_name
             filename = name + ".json"
             experiment.log_confusion_matrix(matrix=conf_mat_list[i], title=name, file_name=filename)
             experiment.log_metric(name=name + " AUC", value=auc)
             experiment.log_metric(name=name + " Recall 0", value=recall[0])
             experiment.log_metric(name=name + " Recall 1", value=recall[1])
+            experiment.log_metric(name=name + " Mean Recall", value=mean_recall)
 
 
 def read_api_key() -> str:
