@@ -384,15 +384,17 @@ class MultiTaskTrainer(Trainer):
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False,
-                         save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
-                                                       Tuple[Sequence[np.array], Sequence[float]],
-                                                       Tuple[np.array, float]]:
+                         save_path: str = "",
+                         use_optimal_threshold: bool = False) -> Union[Tuple[Sequence[np.array], float],
+                                                                       Tuple[Sequence[np.array], Sequence[float]],
+                                                                       Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return also the loss if True.
         :param save_path: The filepath of the csv that will be used to save the prediction.
+        :param use_optimal_threshold: If true, use the optimal threshold to classify the data.
         :return: The confusion matrix for each task. If get_loss is True then also return the average loss.
                  Otherwise, the AUC will be return for each task.
         """
@@ -411,7 +413,10 @@ class MultiTaskTrainer(Trainer):
             # Compute the mask and the prediction
             for task in self._tasks:
                 masks[task] = torch.where(labels[task] > -1, 1, 0).bool()
-                preds[task] = torch.argmax(outs[task], dim=1).cpu()
+
+                threshold = self._optimal_threshold[task] if use_optimal_threshold else 0.5
+                preds[task] = torch.where(outs[task][:, 1] >= threshold, 1, 0)
+                # preds[task] = torch.argmax(outs[task], dim=1).cpu()
 
             # Compute the confusion matrix and the loss for each task.
             for task in self._tasks:

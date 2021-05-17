@@ -304,15 +304,17 @@ class SingleTaskTrainer(Trainer):
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False,
-                         save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
-                                                       Tuple[Sequence[np.array], Sequence[float]],
-                                                       Tuple[np.array, float]]:
+                         save_path: str = "",
+                         use_optimal_threshold: bool = False) -> Union[Tuple[Sequence[np.array], float],
+                                                                       Tuple[Sequence[np.array], Sequence[float]],
+                                                                       Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return the loss instead of the auc score.
         :param save_path: The filepath of the csv that will be used to save the prediction.
+        :param use_optimal_threshold: If true, use the optimal threshold to classify the data.
         :return: The confusion matrix and the average loss if get_loss == True.
         """
 
@@ -323,10 +325,12 @@ class SingleTaskTrainer(Trainer):
             self._save_prediction(outs, labels, patient_id, save_path)
 
         with torch.no_grad():
-            outs = outs[self._tasks[0]]
-            labels = labels[self._tasks[0]]
+            outs = outs[self.__task]
+            labels = labels[self.__task]
 
-            pred = torch.argmax(outs, dim=1)
+            threshold = self._optimal_threshold[self.__task] if use_optimal_threshold else 0.5
+            # pred = torch.argmax(outs, dim=1)
+            pred = torch.where(outs[:, 1] >= threshold, 1, 0)
             loss = self.__loss(outs, labels.to(self._device)) if get_loss else None
 
         conf_mat = confusion_matrix(labels.numpy(), pred.cpu().numpy())
