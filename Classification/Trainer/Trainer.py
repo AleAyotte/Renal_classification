@@ -24,6 +24,7 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+from Trainer.Utils import find_optimal_cutoff
 from typing import Sequence, Tuple, Union, Dict
 
 
@@ -46,6 +47,8 @@ class Trainer(ABC):
         Flat: All classes have the same weight during the training.
         Balanced: The weights are inversionaly proportional to the number of data of each classes in the training set.
         (Default="balanced")
+    _classification_tasks : List[str]
+        A list that contain the name of every classification task on which the model will be train.
     __early_stopping : bool
         If true, the training will be stop after the third of the training if the model did not achieve at least 50%
         validation accuracy for at least one epoch.
@@ -63,6 +66,8 @@ class Trainer(ABC):
         be used for the data augmentation.
     __pin_memory : bool
         The pin_memory option of the DataLoader. If true, the data tensor will copied into the CUDA pinned memory.
+    _regression_tasks : List[str]
+        A list that contain the name of every regression task on which the model will be train.
     __save_path : string
         Indicate where the weights of the network and the result will be saved.
     __shared_net: bool
@@ -106,6 +111,8 @@ class Trainer(ABC):
         The constructor of the trainer class.
 
         :param tasks: A list of tasks on which the model will be train.
+        :param num_classes: A dictionnary that indicate the number of classes of each. For regression task, the number
+                            of classes should be 1.
         :param classes_weights: The configuration of weights that will be applied on the loss during the training.
                                 Flat: All classes have the same weight during the training.
                                 Balanced: The weights are inversionaly proportional to the number of data of each
@@ -141,6 +148,7 @@ class Trainer(ABC):
             "For a regression task num_classes should be equal to 1."
 
         self._classes_weights = classes_weights
+        self._classification_tasks = [task for task in tasks if num_classes[task] > 1]
         self.__cumulate_counter = 0
         self._device = None
         self.__early_stopping = early_stopping
@@ -151,7 +159,9 @@ class Trainer(ABC):
         self._num_classes = num_classes
         self.__num_cumulated_batch = 1
         self.__num_work = num_workers
+        self._optimal_threshold = {}
         self.__pin_memory = pin_memory
+        self._regression_tasks = [task for task in tasks if num_classes[task] == 1]
         self.__save_path = save_path
         self.__shared_net = shared_net
         self._soft = nn.Softmax(dim=-1)
@@ -160,6 +170,9 @@ class Trainer(ABC):
         self._track_mode = track_mode.lower()
         self._weights = {}
         self._writer = None
+
+        for task in self._classification_tasks:
+            self._optimal_threshold[task] = 0.5
 
     def fit(self,
             model: Union[NeuralNet, ResNet2D],
@@ -366,6 +379,22 @@ class Trainer(ABC):
         self._writer.close()
         self.model.restore(self.__save_path)
 
+        # Compute the optimal threshold
+        self.__get_threshold(train_loader)
+
+    def __get_threshold(self, train_loader: DataLoader) -> None:
+        """
+        Get the optimal threhold point based on the training set for all classification task.
+
+        :param train_loader: The train dataloader
+        """
+        self.model.eval()
+        outs, labels = self._predict(train_loader)
+
+        for task in self._classification_tasks:
+            self._optimal_threshold[task] = find_optimal_cutoff(labels[task].numpy(),
+                                                                outs[task][:, 1].cpu().numpy())
+
     def _update_model(self,
                       grad_clip: float,
                       loss: torch.FloatTensor,
@@ -424,15 +453,17 @@ class Trainer(ABC):
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False,
-                         save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
-                                                       Tuple[Sequence[np.array], Sequence[float]],
-                                                       Tuple[np.array, float]]:
+                         save_path: str = "",
+                         use_optimal_threshold: bool = False) -> Union[Tuple[Sequence[np.array], float],
+                                                                      Tuple[Sequence[np.array], Sequence[float]],
+                                                                      Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return also the loss if True.
         :param save_path: The filepath of the csv that will be used to save the prediction.
+        :param use_optimal_threshold
         :return: The confusion matrix for each classes and the average loss if get_loss == True.
         """
         raise NotImplementedError("Must override _get_conf_matrix.")
@@ -489,7 +520,8 @@ class Trainer(ABC):
         Take a data loader and compute the prediction for every data in the dataloader.
 
         :param dt_loader: A torch.Dataloader that use a RenalDataset object.
-        :return:
+        :return: A dictionnary that contain a list of prediction per task and a dictionnary that contain a
+                 list of labels per task.
         """
 
         outs = {}
@@ -589,7 +621,7 @@ class Trainer(ABC):
 
         self.model.eval()
 
-        return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path)
+        return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path, use_optimal_threshold=True)
 
     @abstractmethod
     def _standard_epoch(self,
