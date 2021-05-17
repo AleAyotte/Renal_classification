@@ -10,7 +10,9 @@
                         the weight of the models.
 """
 
+import pandas as pd
 import numpy as np
+from sklearn.metrics import roc_curve
 import torch
 from torch import nn
 from torch.autograd import Variable
@@ -32,6 +34,23 @@ def compute_recall(conf_matrix: np.array) -> List[float]:
         else:
             recalls.append(float('nan'))
     return recalls
+
+
+def find_optimal_cutoff(labels: Sequence[int], prediction: Sequence[float]):
+    """
+    Find the optimal threshold in a binary classification problem.
+    From Manohar Swamynathan @https://stackoverflow.com/questions/28719067/roc-curve-and-cut-off-point-python
+
+    :param labels: A sequence of integer that indicate the labels of each data.
+    :param prediction: A sequence of float that indicate the prediction made by the model.
+    :return: A float that represent the optimal threshold point that maximize the mean recall on the given dataset.
+    """
+    fpr, tpr, threshold = roc_curve(labels, prediction)
+    i = np.arange(len(tpr))
+    roc = pd.DataFrame({'tf': pd.Series(tpr - (1 - fpr), index=i), 'threshold': pd.Series(threshold, index=i)})
+    roc_t = roc.iloc[(roc.tf - 0).abs().argsort()[:1]]
+
+    return list(roc_t['threshold'])[0]
 
 
 def get_mean_accuracy(recalls: Sequence[float], 
