@@ -101,7 +101,7 @@ def print_score(dataset_name: str,
     print(f"+{'-'*68}+")
     print(f"|{dataset_label:^68s}|")
     print(line_sep)
-    print(f"|{'Task':^20s}|{'AUC':^11s}|{'Recall0':^11s}|{'Recall1':^11s}|{'Mean Recall':^11s}")
+    print(f"|{'Task':^20s}|{'AUC':^11s}|{'Recall0':^11s}|{'Recall1':^11s}|{'Mean Recall':^11s}|")
     print(line_sep)
 
     for i in range(len(task_list)):
