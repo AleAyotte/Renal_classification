@@ -9,12 +9,44 @@
 """
 
 from comet_ml import Experiment
+from datetime import datetime
 import numpy as np
+import os
 from Trainer.Utils import compute_recall
-from typing import Sequence, Union
-
+from typing import Optional, Sequence, Union
 
 API_KEY_FILEPATH = "comet_api_key.txt"  # path to the file that contain the API KEY for comet.ml
+CSV_PATH = "save/"
+
+
+def get_predict_csv_path(model_name: str,
+                         project_name: str,
+                         testset_name: str,
+                         task_name: Optional[str]):
+    """
+    Create the filepath that will be used to save the model prediction on each dataset.
+
+    :param model_name: The name of the model that has been train
+    :param project_name: The project name use in comet.ml
+    :param testset_name: The testset that has been used
+    :param task_name: The task name if it was single_task_learning.
+    :return: The filepath of the prediction on the trainset, the valideset and the testset.
+    """
+    project_folder = os.path.join(CSV_PATH, project_name)
+    if not os.path.exists(project_folder):
+        os.makedirs(project_folder)
+
+    if task_name is not None:
+        commun_path = str(os.path.join(project_folder, model_name + "_" + task_name + "_"))
+    else:
+        commun_path = str(os.path.join(project_folder, model_name + "_"))
+
+    time = str(datetime.now())
+    train_path = commun_path + "train_" + time + ".csv"
+    valid_path = commun_path + "validation_" + time + ".csv"
+    test_path = commun_path + testset_name + "_" + time + ".csv"
+
+    return train_path, valid_path, test_path
 
 
 def print_data_distribution(dataset_name: str,

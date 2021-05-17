@@ -15,13 +15,15 @@ from Model.SharedNet import SharedNet
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
-from Utils import print_score, print_data_distribution, read_api_key, save_hparam_on_comet
+from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-CSV_PATH = "save/SharedNet_"
 DATA_PATH = "final_dtset/all.hdf5"
 FINAL_TASK_LIST = ["grade", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
 LOAD_PATH = "save/"
+MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
+MODEL_NAME = "SharedNet"
+PROJECT_NAME = "renal-classification"
 SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
 TASK_LIST = ["ssign", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
 TOL = 1.0  # The tolerance factor use by the trainer
@@ -204,9 +206,9 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                    SCORE
     # --------------------------------------------
-    if args.num_epoch > 75:
+    if args.num_epoch > MIN_NUM_EPOCH:
         experiment = Experiment(api_key=read_api_key(),
-                                project_name="renal-classification",
+                                project_name=PROJECT_NAME,
                                 workspace="aleayotte",
                                 log_env_details=False,
                                 auto_metric_logging=False,
@@ -220,19 +222,22 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/SharedNet.py")
 
-        csv_path = CSV_PATH + "_" + args.testset + ".csv"
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, args.task)
+        train_csv_path, valid_csv_path, test_csv_path = csv_path
     else:
         experiment = None
-        csv_path = ""
+        train_csv_path = valid_csv_path = test_csv_path = ""
 
-    conf, auc = trainer.score(validset)
+    _, _ = trainer.score(trainset, save_path=train_csv_path)
+
+    conf, auc = trainer.score(validset, save_path=valid_csv_path)
     print_score(dataset_name="VALIDATION",
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
                 experiment=experiment)
 
-    conf, auc = trainer.score(testset, save_path=csv_path)
+    conf, auc = trainer.score(testset, save_path=test_csv_path)
     print_score(dataset_name=f"{args.testset.upper()}",
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
