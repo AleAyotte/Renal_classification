@@ -11,7 +11,7 @@
 
 from abc import ABC, abstractmethod
 import csv
-from Data_manager.DataManager import RenalDataset
+from Data_manager.RenalDataset import RenalDataset
 from Model.NeuralNet import NeuralNet
 from Model.ResNet_2D import ResNet2D
 from monai.optimizers import Novograd
