@@ -86,15 +86,19 @@ Morever, the following package are required to execute our code.
 │   ├── Data_manager                # Dataset and data visualisation related files
 │   │   ├── DataAugView2D.py        # Visualisation of the data augmentation on 2D images
 │   │   ├── DataAugView3D.py        # Visualisation of the data augmentation on 3D images
-│   │   └── DataManager.py          # RenalDataset class and split trainset function
+│   │   ├── DatasetBuilder.py       # Build and split the training, validation and testing set
+│   │   └── RenalDataset.py         # RenalDataset class
 │   │
 │   ├── Main_ResNet2D.py            # The main script for the experimentation on the ResNet2D
 │   │
 │   ├── Model                       # Neural network model related files
+│   │   ├── Block.py                # Commun ResNet, PreResNet and CapsNet block
+│   │   ├── HardSharedResNet.py     # HardSharing ResNet3D class
 │   │   ├── Module.py               # Commun module used to build NeuralNetwork
+│   │   ├── MultiLevelResNet.py     # MultiLevel ResNet3D class
 │   │   ├── NeuralNet.py            # Abstract class of all neural network classes (except ResNet2D)
 │   │   ├── ResNet_2D.py            # ResNet2D model class
-│   │   ├── ResNet.py               # ResNet block, ResNet3D and multi level ResNet3D classes
+│   │   ├── ResNet.py               # ResNet ResNet3D classe
 │   │   └── SharedNet.py            # SharedNet model class
 │   │
 │   ├── MultiTaskMain.py            # Main experimentation on the multi level ResNet3D
