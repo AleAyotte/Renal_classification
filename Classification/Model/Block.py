@@ -10,6 +10,7 @@
                         ResBottleneck.
 """
 from monai.networks.blocks.convolutions import ResidualUnit
+from monai.networks.layers import split_args
 from monai.networks.layers.factories import Act, Norm
 import numpy as np
 import torch
@@ -112,6 +113,18 @@ def squash(capsules: torch.Tensor,
     return norm / (1 + norm ** 2) * capsules
 
 
+def tilt(capsules: torch.Tensor,
+         dim: int = -1) -> torch.Tensor:
+    """
+    Based on @"Wasserstein Routed Capsule Networks" that proposed the tilt non-linearity to replace the squash function.
+    :param capsules:
+    :param dim:
+    :return:
+    """
+    rotated_caps = (1+F.softmax(capsules, dim=dim))/2
+    return torch.mul(capsules, rotated_caps)
+
+
 class PreResBlock(nn.Module):
     """
     A 3D version of the preactivation residual bottleneck block as described in Ref 1).
@@ -169,8 +182,14 @@ class PreResBlock(nn.Module):
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
 
+        # We initialize the PReLU with the LeakyReLU default parameter.
+        if activation == "PReLU":
+            _, args = split_args((activation, {"init": 0.01}))
+        else:
+            _, args = split_args(activation)
+
         self.first_normalization = Norm[norm, 3](fmap_in)
-        self.first_activation = Act[activation]()
+        self.first_activation = Act[activation](args)
 
         if type(kernel) == int:
             padding = int((kernel - 1)/2)
@@ -180,9 +199,9 @@ class PreResBlock(nn.Module):
         res_layer = [
             nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides,
                       padding=padding, bias=False,
-                      groups=groups if split_layer is False else 1,),
+                      groups=groups if split_layer is False else 1),
             Norm[norm, 3](fmap_out),
-            Act[activation](),
+            Act[activation](args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1,
                       padding=padding, bias=False,
                       groups=groups)
@@ -272,8 +291,14 @@ class PreResBottleneck(nn.Module):
                                       stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
 
+        # We initialize the PReLU with the LeakyReLU default parameter.
+        if activation == "PReLU":
+            _, args = split_args((activation, {"init": 0.01}))
+        else:
+            _, args = split_args(activation)
+
         self.first_normalization = Norm[norm, 3](fmap_in)
-        self.first_activation = Act[activation]()
+        self.first_activation = Act[activation](args)
 
         if type(kernel) == int:
             padding = int((kernel - 1)/2)
@@ -285,12 +310,12 @@ class PreResBottleneck(nn.Module):
                       stride=1, bias=False,
                       groups=groups if split_layer is False else 1,),
             Norm[norm, 3](fmap_out),
-            Act[activation](),
+            Act[activation](args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
                       stride=strides, padding=padding, bias=False,
                       groups=groups),
             Norm[norm, 3](fmap_out),
-            Act[activation](),
+            Act[activation](args),
             nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
                       stride=1, bias=False,
                       groups=groups),
@@ -410,8 +435,8 @@ class ResBlock(nn.Module):
 
         self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
                                 kernel_size=kernel, strides=strides, dropout=drop_rate,
-                                dropout_dim=3, act=activation, norm=norm,
-                                last_conv_only=False)
+                                dropout_dim=3, norm=norm, last_conv_only=False,
+                                act=activation if activation != "PReLU" else ("prelu", {"init": 0.01}))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.res(x)
@@ -480,17 +505,23 @@ class ResBottleneck(nn.Module):
         else:
             padding = [int((ker - 1)/2) for ker in kernel]
 
+        # We initialize the PReLU with the LeakyReLU default parameter.
+        if activation == "PReLU":
+            _, args = split_args((activation, {"init": 0.01}))
+        else:
+            _, args = split_args(activation)
+
         res_layer = [
             nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
                       stride=1, bias=False,
                       groups=groups if split_layer is False else 1,),
             Norm[norm, 3](fmap_out),
-            Act[activation](),
+            Act[activation](args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
                       stride=strides, padding=padding, bias=False,
                       groups=groups),
             Norm[norm, 3](fmap_out),
-            Act[activation](),
+            Act[activation](args),
             nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
                       stride=1, bias=False,
                       groups=groups),
@@ -501,7 +532,7 @@ class ResBottleneck(nn.Module):
             res_layer.extend([nn.Dropout3d(drop_rate)])
 
         self.residual_layer = nn.Sequential(*res_layer)
-        self.last_activation = Act[activation]()
+        self.last_activation = Act[activation](args)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
