@@ -68,29 +68,6 @@ def get_mean_accuracy(recalls: Sequence[float],
         return float(np.mean(recalls))
 
 
-def init_weights(m) -> None:
-    """
-    Initialize the weights of the fully connected layer and convolutional layer with Xavier normal initialization
-    and Kamming normal initialization respectively.
-
-    :param m: A torch.nn module of the current model. If this module is a layer, then we initialize its weights.
-    """
-    if type(m) == nn.Linear:
-        nn.init.kaiming_normal_(m.weight)
-        if not (m.bias is None):
-            nn.init.zeros_(m.bias)
-
-    elif type(m) == nn.Conv2d or type(m) == nn.Conv3d:
-        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity="relu")
-        if not (m.bias is None):
-            nn.init.zeros_(m.bias)
-
-    elif type(m) == nn.BatchNorm2d or type(m) == nn.BatchNorm3d:
-        nn.init.ones_(m.weight)
-        if not (m.bias is None):
-            nn.init.zeros_(m.bias)
-
-
 def to_one_hot(inp: Union[torch.Tensor, Variable],
                num_classes: int, 
                device: str = "cuda:0") -> Variable:

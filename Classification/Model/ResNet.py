@@ -14,9 +14,8 @@
 from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
 from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
-from Model.NeuralNet import NeuralNet
+from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
-from Trainer.Utils import init_weights
 import torch
 import torch.nn as nn
 from typing import Sequence, Tuple, Union
@@ -70,6 +69,7 @@ class ResNet(NeuralNet):
                  first_kernel: Union[Sequence[int], int] = 3,
                  kernel: Union[Sequence[int], int] = 3,
                  mixup: Sequence[int] = None,
+                 num_in_chan: int = 4,
                  drop_rate: float = 0,
                  drop_type: str = "flat",
                  act: str = "ReLU",
@@ -141,8 +141,7 @@ class ResNet(NeuralNet):
         # --------------------------------------------
         self.__in_channels = first_channels
         self.conv = Convolution(dimensions=3,
-                                # in_channels=3,
-                                in_channels=4,
+                                in_channels=num_in_chan,
                                 out_channels=self.__in_channels,
                                 kernel_size=first_kernel,
                                 act=act,
@@ -181,6 +180,7 @@ class ResNet(NeuralNet):
 
         self.fc_layer = nn.Linear(self.__num_flat_features, num_classes)
 
+        torch.manual_seed(66)
         self.apply(init_weights)
 
     def __make_layer(self,

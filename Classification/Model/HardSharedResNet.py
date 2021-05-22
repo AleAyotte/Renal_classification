@@ -13,9 +13,8 @@
 from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
 from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
-from Model.NeuralNet import NeuralNet
+from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
-from Trainer.Utils import init_weights
 import torch
 import torch.nn as nn
 from typing import Dict, Sequence, Tuple, Union
