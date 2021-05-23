@@ -180,7 +180,6 @@ class ResNet(NeuralNet):
 
         self.fc_layer = nn.Linear(self.__num_flat_features, num_classes)
 
-        torch.manual_seed(66)
         self.apply(init_weights)
 
     def __make_layer(self,
