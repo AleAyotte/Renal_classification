@@ -182,6 +182,11 @@ class PreResBlock(nn.Module):
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
 
+        if type(kernel) == int:
+            padding = int((kernel - 1)/2)
+        else:
+            padding = [int((ker - 1)/2) for ker in kernel]
+
         # We initialize the PReLU with the LeakyReLU default parameter.
         if activation == "PReLU":
             _, args = split_args((activation, {"init": 0.01}))
@@ -189,19 +194,14 @@ class PreResBlock(nn.Module):
             _, args = split_args(activation)
 
         self.first_normalization = Norm[norm, 3](fmap_in)
-        self.first_activation = Act[activation](args)
-
-        if type(kernel) == int:
-            padding = int((kernel - 1)/2)
-        else:
-            padding = [int((ker - 1)/2) for ker in kernel]
+        self.first_activation = Act[activation](**args)
 
         res_layer = [
             nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides,
                       padding=padding, bias=False,
                       groups=groups if split_layer is False else 1),
             Norm[norm, 3](fmap_out),
-            Act[activation](args),
+            Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1,
                       padding=padding, bias=False,
                       groups=groups)
@@ -291,6 +291,11 @@ class PreResBottleneck(nn.Module):
                                       stride=strides, bias=False,
                                       groups=groups if split_layer is False else 1)
 
+        if type(kernel) == int:
+            padding = int((kernel - 1)/2)
+        else:
+            padding = [int((ker - 1)/2) for ker in kernel]
+
         # We initialize the PReLU with the LeakyReLU default parameter.
         if activation == "PReLU":
             _, args = split_args((activation, {"init": 0.01}))
@@ -298,24 +303,19 @@ class PreResBottleneck(nn.Module):
             _, args = split_args(activation)
 
         self.first_normalization = Norm[norm, 3](fmap_in)
-        self.first_activation = Act[activation](args)
-
-        if type(kernel) == int:
-            padding = int((kernel - 1)/2)
-        else:
-            padding = [int((ker - 1)/2) for ker in kernel]
+        self.first_activation = Act[activation](**args)
 
         res_layer = [
             nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
                       stride=1, bias=False,
                       groups=groups if split_layer is False else 1,),
             Norm[norm, 3](fmap_out),
-            Act[activation](args),
+            Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
                       stride=strides, padding=padding, bias=False,
                       groups=groups),
             Norm[norm, 3](fmap_out),
-            Act[activation](args),
+            Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
                       stride=1, bias=False,
                       groups=groups),
@@ -516,12 +516,12 @@ class ResBottleneck(nn.Module):
                       stride=1, bias=False,
                       groups=groups if split_layer is False else 1,),
             Norm[norm, 3](fmap_out),
-            Act[activation](args),
+            Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
                       stride=strides, padding=padding, bias=False,
                       groups=groups),
             Norm[norm, 3](fmap_out),
-            Act[activation](args),
+            Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
                       stride=1, bias=False,
                       groups=groups),
@@ -532,7 +532,7 @@ class ResBottleneck(nn.Module):
             res_layer.extend([nn.Dropout3d(drop_rate)])
 
         self.residual_layer = nn.Sequential(*res_layer)
-        self.last_activation = Act[activation](args)
+        self.last_activation = Act[activation](**args)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
