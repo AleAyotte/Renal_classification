@@ -146,7 +146,8 @@ class ResNet(NeuralNet):
                                 kernel_size=first_kernel,
                                 act=act,
                                 groups=groups,
-                                conv_only=pre_act)
+                                conv_only=pre_act,
+                                norm="batch")
 
         self.layers1 = self.__make_layer(block[depth], layers[depth][0],
                                          first_channels, kernel=kernel,
