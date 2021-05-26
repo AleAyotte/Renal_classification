@@ -150,26 +150,28 @@ class PreResBlock(nn.Module):
     def __init__(self,
                  fmap_in: int,
                  fmap_out: int,
-                 kernel: Union[Sequence[int], int] = 3,
-                 strides: Union[Sequence[int], int] = 1,
-                 groups: int = 1,
-                 split_layer: bool = False,
-                 drop_rate: float = 0,
                  activation: str = "relu",
-                 norm: str = "batch"):
+                 bias: bool = True,
+                 drop_rate: float = 0,
+                 groups: int = 1,
+                 kernel: Union[Sequence[int], int] = 3,
+                 norm: str = "batch",
+                 split_layer: bool = False,
+                 strides: Union[Sequence[int], int] = 1):
         """
         Create a PreActivation Residual Block
 
-        :param fmap_in: Number of input feature maps
-        :param fmap_out: Number of output feature maps
-        :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
-        :param strides: Convolution strides.
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps.
+        :param activation: The activation function that will be used in the model.
+        :param bias: The bias parameter of the convolution.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
         :param groups: Number of group in the convolutions.
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
+        :param norm: The normalization layer name that will be used in the model.
         :param split_layer: If true, then the first convolution and the shortcut
                             will ignore the groups parameter.
-        :param drop_rate: The hyperparameter of the Dropout3D module.
-        :param activation: The activation function that will be used in the model.
-        :param norm: The normalization layer name that will be used in the model.
+        :param strides: Convolution strides.
         """
         super().__init__()
 
@@ -179,7 +181,7 @@ class PreResBlock(nn.Module):
             self.__subsample = False
         else:
             self.__subsample = True
-            self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=False,
+            self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=bias,
                                       groups=groups if split_layer is False else 1)
 
         if type(kernel) == int:
@@ -198,12 +200,12 @@ class PreResBlock(nn.Module):
 
         res_layer = [
             nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides,
-                      padding=padding, bias=False,
+                      padding=padding, bias=bias,
                       groups=groups if split_layer is False else 1),
             Norm[norm, 3](fmap_out),
             Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1,
-                      padding=padding, bias=False,
+                      padding=padding, bias=bias,
                       groups=groups)
         ]
 
@@ -258,26 +260,28 @@ class PreResBottleneck(nn.Module):
     def __init__(self,
                  fmap_in: int,
                  fmap_out: int,
-                 kernel: Union[Sequence[int], int] = 3,
-                 strides: Union[Sequence[int], int] = 1,
-                 groups: int = 1,
-                 split_layer: bool = False,
-                 drop_rate: float = 0,
                  activation: str = "relu",
-                 norm: str = "batch"):
+                 bias: bool = False,
+                 drop_rate: float = 0,
+                 groups: int = 1,
+                 kernel: Union[Sequence[int], int] = 3,
+                 norm: str = "batch",
+                 split_layer: bool = False,
+                 strides: Union[Sequence[int], int] = 1):
         """
         Create a PreActivation Residual Block
 
-        :param fmap_in: Number of input feature maps
-        :param fmap_out: Number of output feature maps
-        :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
-        :param strides: Convolution strides.
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps.
+        :param activation: The activation function that will be used in the model.
+        :param bias: The bias parameter of the convolution.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
         :param groups: Number of group in the convolutions.
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
+        :param norm: The normalization layer name that will be used in the model.
         :param split_layer: If true, then the first convolution and the shortcut
                             will ignore the groups parameter.
-        :param drop_rate: The hyperparameter of the Dropout3D module.
-        :param activation: The activation function that will be used in the model.
-        :param norm: The normalization layer name that will be used in the model.
+        :param strides: Convolution strides.
         """
         super().__init__()
 
@@ -288,7 +292,7 @@ class PreResBottleneck(nn.Module):
         else:
             self.__subsample = True
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out*self.expansion, kernel_size=1,
-                                      stride=strides, bias=False,
+                                      stride=strides, bias=bias,
                                       groups=groups if split_layer is False else 1)
 
         if type(kernel) == int:
@@ -307,17 +311,17 @@ class PreResBottleneck(nn.Module):
 
         res_layer = [
             nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
-                      stride=1, bias=False,
+                      stride=1, bias=bias,
                       groups=groups if split_layer is False else 1,),
             Norm[norm, 3](fmap_out),
             Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
-                      stride=strides, padding=padding, bias=False,
+                      stride=strides, padding=padding, bias=bias,
                       groups=groups),
             Norm[norm, 3](fmap_out),
             Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
-                      stride=1, bias=False,
+                      stride=1, bias=bias,
                       groups=groups),
         ]
 
@@ -415,27 +419,29 @@ class ResBlock(nn.Module):
     def __init__(self,
                  fmap_in: int,
                  fmap_out: int,
-                 kernel: Union[Sequence[int], int] = 3,
-                 strides: Union[Sequence[int], int] = 1,
-                 drop_rate: float = 0,
                  activation: str = "ReLU",
-                 norm: str = "batch"):
+                 bias: bool = True,
+                 drop_rate: float = 0,
+                 kernel: Union[Sequence[int], int] = 3,
+                 norm: str = "batch",
+                 strides: Union[Sequence[int], int] = 1):
         """
-        Create a PreActivation Residual Block using MONAI
+        Create a Residual Block using MONAI
 
-        :param fmap_in: Number of input feature maps
-        :param fmap_out: Number of output feature maps
-        :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
-        :param strides: Convolution strides.
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps.
+        :param activation: The activation function that will be used.
+        :param bias: The bias parameter of the convolution.
         :param drop_rate: The hyperparameter of the Dropout3D module.
-        :param activation: The activation function that will be used
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
         :param norm: The normalization layer name that will be used in the model.
+        :param strides: Convolution strides.
         """
         super().__init__()
 
         self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
                                 kernel_size=kernel, strides=strides, dropout=drop_rate,
-                                dropout_dim=3, norm=norm, last_conv_only=False,
+                                dropout_dim=3, norm=norm, last_conv_only=False, bias=bias,
                                 act=activation if activation != "PReLU" else ("prelu", {"init": 0.01}))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -467,26 +473,28 @@ class ResBottleneck(nn.Module):
     def __init__(self,
                  fmap_in: int,
                  fmap_out: int,
-                 kernel: Union[Sequence[int], int] = 3,
-                 strides: Union[Sequence[int], int] = 1,
-                 groups: int = 1,
-                 split_layer: bool = False,
-                 drop_rate: float = 0,
                  activation: str = "relu",
-                 norm: str = "batch"):
+                 bias: bool = True,
+                 drop_rate: float = 0,
+                 groups: int = 1,
+                 kernel: Union[Sequence[int], int] = 3,
+                 norm: str = "batch",
+                 split_layer: bool = False,
+                 strides: Union[Sequence[int], int] = 1):
         """
         Create a PreActivation Residual Block
 
-        :param fmap_in: Number of input feature maps
-        :param fmap_out: Number of output feature maps
-        :param kernel: Kernel size as integer (Example: 3.  For a 3x3 kernel)
-        :param strides: Convolution strides.
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps.
+        :param activation: The activation function that will be used in the model.
+        :param bias: The bias parameter of the convolution.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
         :param groups: Number of group in the convolutions.
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
+        :param norm: The normalization layer name that will be used in the model.
         :param split_layer: If true, then the first convolution and the shortcut
                             will ignore the groups parameter.
-        :param drop_rate: The hyperparameter of the Dropout3D module.
-        :param activation: The activation function that will be used in the model.
-        :param norm: The normalization layer name that will be used in the model.
+        :param strides: Convolution strides.
         """
         super().__init__()
 
@@ -497,7 +505,7 @@ class ResBottleneck(nn.Module):
         else:
             self.__subsample = True
             self.sub_conv = nn.Conv3d(fmap_in, fmap_out*self.expansion, kernel_size=1,
-                                      stride=strides, bias=False,
+                                      stride=strides, bias=bias,
                                       groups=groups if split_layer is False else 1)
 
         if type(kernel) == int:
@@ -513,17 +521,17 @@ class ResBottleneck(nn.Module):
 
         res_layer = [
             nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
-                      stride=1, bias=False,
+                      stride=1, bias=bias,
                       groups=groups if split_layer is False else 1,),
             Norm[norm, 3](fmap_out),
             Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
-                      stride=strides, padding=padding, bias=False,
+                      stride=strides, padding=padding, bias=bias,
                       groups=groups),
             Norm[norm, 3](fmap_out),
             Act[activation](**args),
             nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
-                      stride=1, bias=False,
+                      stride=1, bias=bias,
                       groups=groups),
             Norm[norm, 3](fmap_out*self.expansion)
         ]

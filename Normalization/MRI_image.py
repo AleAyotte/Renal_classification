@@ -138,18 +138,27 @@ class MRIimage:
             self.save_image(path=save_path)
 
     def apply_znorm(self,
+                    consider_background: bool = True,
                     save: bool = False,
                     save_path="") -> None:
         """
         Apply the z normalization on the image and save it if requested
 
+        :param consider_background: If false, the mean and the std will compute only on non-zero voxel.
         :param save: A boolean that indicate if we need to save the image after this operation.
                      If keep memory is false, than the image will be saved either if save is true or false.
         :param save_path: A string that indicate the path where the images will be save
         """
         self.__img = self.get_nifti()  # Ensure that the image is loaded in memory
         img = self.get_img()
-        img = (img - np.mean(img)) / np.std(img)
+
+        if not consider_background:
+            mask = np.where(img == 0, 1, 0)
+            temp_img = np.ma.masked_array(img, mask)
+        else:
+            temp_img = img
+
+        img = (img - temp_img.mean()) / temp_img.std()
 
         self.__img = nib.Nifti1Image(img, affine=self.__img.affine, header=self.__img.header)
 
