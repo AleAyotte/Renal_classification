@@ -21,7 +21,8 @@ from Utils import get_predict_csv_path, print_score, print_data_distribution, re
 MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
 MODEL_NAME = "STL_3D"
 # PROJECT_NAME = "renal-classification"
-PROJECT_NAME = "april-2021-channels"
+# PROJECT_NAME = "april-2021-master"
+PROJECT_NAME = "may-2021-post-act"
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
 TOL = 1.0  # The tolerance factor use by the trainer
 
@@ -125,12 +126,13 @@ if __name__ == "__main__":
                  groups=args.groups,
                  in_shape=in_shape,
                  first_channels=args.in_channels,
+                 num_in_chan=args.num_chan_data,
                  drop_rate=args.drop_rate,
                  drop_type=args.drop_type,
                  act=args.activation,
-                 pre_act=True).to(args.device)
+                 pre_act=False).to(args.device)
 
-    summary(net, (4, 96, 96, 32))
+    summary(net, (args.num_chan_data, 96, 96, 32))
 
     # --------------------------------------------
     #                SANITY CHECK
@@ -177,6 +179,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
+                l2=0 if args.activation == "PReLU" else 1e-4,
                 retrain=args.retrain)
 
     # --------------------------------------------
@@ -196,7 +199,9 @@ if __name__ == "__main__":
         experiment.log_code("SingleTaskMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/SingleTaskTrainer.py")
+        experiment.log_code("Model/NeuralNet.py")
         experiment.log_code("Model/ResNet.py")
+        experiment.log_code("Model/Block.py")
 
         csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, args.task)
         train_csv_path, valid_csv_path, test_csv_path = csv_path
@@ -207,7 +212,12 @@ if __name__ == "__main__":
         valid_csv_path = ""
         train_csv_path = ""
 
-    _, _ = trainer.score(trainset, save_path=train_csv_path)
+    conf, auc = trainer.score(trainset, save_path=train_csv_path)
+    print_score(dataset_name="TRAIN",
+                task_list=[args.task],
+                conf_mat_list=[conf],
+                auc_list=[auc],
+                experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
     print_score(dataset_name="VALIDATION",
