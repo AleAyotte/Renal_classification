@@ -55,6 +55,7 @@ Morever, the following package are required to execute our code.
   - [x] Conditional probability
   - [x] Cumulate gradient
   - [x] Add hparam tracking with comet.ml
+  - [ ] Add Hybrid ResNet
   - [ ] Add Rotograd
 - [ ] Experiment Phase 1
   - [x] Grouped Convolution
