@@ -64,46 +64,47 @@ class HardSharedResNet(NeuralNet):
         modules will be disable.
     """
     def __init__(self,
-                 tasks: Sequence[str],
                  num_classes: Dict[str, int],
+                 tasks: Sequence[str],
+                 act: str = "ReLU",
                  depth: int = 18,
-                 first_channels: int = 16,
-                 split_level: int = 4,
-                 in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
-                 first_kernel: Union[Sequence[int], int] = 3,
-                 kernel: Union[Sequence[int], int] = 3,
-                 mixup: Sequence[float] = None,
                  drop_rate: float = 0,
                  drop_type: str = "flat",
-                 act: str = "ReLU",
+                 first_channels: int = 16,
+                 first_kernel: Union[Sequence[int], int] = 3,
+                 in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
+                 kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
-                 pre_act: bool = True):
+                 pre_act: bool = True,
+                 split_level: int = 4):
         """
         Create a pre activation or post activation 3D Residual Network for multi-task learning.
 
+        :param num_classes: A dictionnary that indicate the number of class for each task. For regression tasks,
+                            the num_class shoule be equal to one.
         :param tasks: A list of tasks on which the model will be train.
+        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
+        :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
+        :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
+                          Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
+                          from 0 to 'drop_rate'. (Default='Flat')
         :param first_channels: The number of channels at the output of the first convolution layer. (Default=16)
+        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
+        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
+        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
+                      dristribution Beta(alpha, alpha).
+        :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
+                     (Default=batch)
+        :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
+                        ResBottleneck. (Defaut=True)
         :param split_level: At which level the multi level resnet should split into sub net. (Default=4)
                                 1: After the first convolution,
                                 2: After the first residual level,
                                 3: After the second residual level,
                                 4: After the third residual level,
                                 5: After the last residual level so just before the fully connected layers.
-        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
-        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
-        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
-        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
-                      dristribution Beta(alpha, alpha).
-        :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
-        :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
-                          Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
-                          from 0 to 'drop_rate'. (Default='Flat')
-        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
-        :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
-                     (Default=batch)
-        :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
-                        ResBottleneck. (Defaut=True)
         """
         assert len(tasks) > 0, "You should specify the name of each task"
         super().__init__()
@@ -130,16 +131,6 @@ class HardSharedResNet(NeuralNet):
                                                            "but not in tasks {}".format(key_set - tasks_set)
             for task in list(missing_tasks):
                 num_classes[task] = 1
-
-        # --------------------------------------------
-        #                   MIXUP
-        # --------------------------------------------
-        assert mixup is None or len(mixup) == 4, "You should specify the 4 mixup parameters."
-        mixup = [0, 0, 0, 0] if mixup is None else mixup
-
-        for i in range(len(mixup)):
-            if mixup[i] > 0:
-                self.mixup[str(i)] = Mixup(mixup[i])
 
         # --------------------------------------------
         #              UNCERTAINTY LOSS
@@ -262,20 +253,12 @@ class HardSharedResNet(NeuralNet):
         return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-        mixup_key_list = list(self.mixup.keys())
-
-        out = self.mixup["0"](x) if "0" in mixup_key_list else x
-        out = self.conv(out)
+        out = self.conv(x)
         out = self.layers1(out)
-
-        out = self.mixup["1"](out) if "1" in mixup_key_list else out
         out = self.layers2(out)
-
-        out = self.mixup["2"](out) if "2" in mixup_key_list else out
         out = self.layers3(out)
-
-        out = self.mixup["3"](out) if "3" in mixup_key_list else out
         out = self.layers4(out)
+
         out = self.avg_pool(out)
 
         preds = {}
