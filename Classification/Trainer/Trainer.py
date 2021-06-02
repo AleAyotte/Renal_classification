@@ -25,7 +25,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from Trainer.Utils import find_optimal_cutoff
-from typing import Sequence, Tuple, Union, Dict
+from typing import Dict, List, Sequence, Tuple, Union
 
 
 DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
@@ -184,8 +184,8 @@ class Trainer(ABC):
             eta_min: float = 1e-4,
             gamma: float = 2.,
             grad_clip: float = 0,
-            l2: float = 1e-4,
             learning_rate: float = 1e-3,
+            l2: float = 1e-4,
             mode: str = "standard",
             mom: float = 0.9,
             num_cumulated_batch: int = 1,
@@ -194,7 +194,7 @@ class Trainer(ABC):
             retrain: bool = False,
             shared_eta_min: float = 0,
             shared_lr: float = 0,
-            t_0: int = 200,
+            t_0: int = 0,
             transfer_path: str = None,
             verbose: bool = True,
             warm_up_epoch: int = 0) -> None:
@@ -210,8 +210,8 @@ class Trainer(ABC):
         :param eta_min: Minimum value of the learning rate. (Default=1e-4)
         :param gamma: Gamma parameter of the focal loss. (Default=2.0)
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient. (Default=0)
-        :param l2: L2 regularization coefficient. (Default=1e-4)
         :param learning_rate: Start learning rate of the optimizer. (Default=1e-3)
+        :param l2: L2 regularization coefficient. (Default=1e-4)
         :param mode: The training type: Option: Standard training (No mixup) (Default)
                                                 Mixup (Manifold mixup)
         :param mom: The momentum parameter of the SGD Optimizer. (Default=0.9)
@@ -223,7 +223,8 @@ class Trainer(ABC):
                                 will be equal to learning_rate*100. Only used when shared_net is True.
         :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
                           equal to learning_rate*100. Only used when shared_net is True.
-        :param t_0: Number of epoch before the first restart. (Default=200)
+        :param t_0: Number of epoch before the first restart. If equal to 0, then t_0 will be equal to num_epoch.
+                    (Default=0)
         :param transfer_path: If not None, initialize the model with transfer learning by loading the weight of
                               the model at the given path.
         :param verbose: If true, show the progress of the training. (Default=True)
@@ -269,58 +270,18 @@ class Trainer(ABC):
                                   drop_last=True)
 
         # Initialization of the optimizer and the scheduler
-        assert optim.lower() in ["adam", "sgd", "novograd"]
-        lr_list = [learning_rate]
-        eta_list = [eta_min]
-        parameters = [self.model.parameters()]
-
-        if self.__shared_net:
-            lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
-            eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
-
-            parameters = [self.model.nets.parameters(),
-                          list(self.model.sharing_units_dict.parameters()) +
-                          list(self.model.uncertainty_loss.parameters())
-                          ]
-        optimizers = []
-
-        if optim.lower() == "adam":
-            for lr, param in zip(lr_list, parameters):
-                optimizers.append(
-                    torch.optim.Adam(param,
-                                     lr=lr,
-                                     weight_decay=l2,
-                                     eps=eps)
-                )
-        elif optim.lower() == "sgd":
-            for lr, param in zip(lr_list, parameters):
-                optimizers.append(
-                    torch.optim.SGD(param,
-                                    lr=lr,
-                                    weight_decay=l2,
-                                    momentum=mom,
-                                    nesterov=True)
-                )
-        else:
-            for lr, param in zip(lr_list, parameters):
-                optimizers.append(
-                    Novograd(param,
-                             lr=lr,
-                             weight_decay=l2,
-                             eps=eps)
-                )
-
-        n_iters = len(train_loader)
-        schedulers = []
-        for optimizer, eta in zip(optimizers, eta_list):
-            schedulers.append(
-                CosineAnnealingWarmRestarts(optimizer,
-                                            T_0=t_0*n_iters,
-                                            T_mult=1,
-                                            eta_min=eta)
-            )
+        t_0 = t_0 if t_0 <= 0 else num_epoch
+        optimizers, schedulers = self.__prepare_optim_and_schedulers(eta_min=eta_min,
+                                                                     eps=eps,
+                                                                     learning_rate=learning_rate,
+                                                                     l2=l2,
+                                                                     mom=mom,
+                                                                     optim=optim,
+                                                                     shared_eta_min=shared_eta_min,
+                                                                     shared_lr=shared_lr,
+                                                                     t_0=t_0*len(train_loader))
         for scheduler in schedulers:
-            scheduler.step(start_epoch*n_iters)
+            scheduler.step(start_epoch*len(train_loader))
 
         # Go in training mode to activate mixup module
         self.model.train()
@@ -516,6 +477,83 @@ class Trainer(ABC):
 
         for scheduler in schedulers:
             scheduler.step()
+
+    def __prepare_optim_and_schedulers(self,
+                                       eta_min: float,
+                                       eps: float,
+                                       learning_rate: float,
+                                       l2,
+                                       mom: float,
+                                       optim: str,
+                                       shared_eta_min: float,
+                                       shared_lr: float,
+                                       t_0: int) -> Tuple[List[torch.optim.Optimizer],
+                                                          List[torch.optim.lr_scheduler]]:
+        """
+        Initalize all optimizers and schedulers object.
+
+        :param eta_min: Minimum value of the learning rate.
+        :param eps: The epsilon parameter of the Adam Optimizer.
+        :param learning_rate: Start learning rate of the optimizer.
+        :param l2: L2 regularization coefficient.
+        :param mom: The momentum parameter of the SGD Optimizer.
+        :param optim: A string that indicate the optimizer that will be used for training.
+        :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
+                                will be equal to learning_rate*100. Only used when shared_net is True.
+        :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
+                          equal to learning_rate*100. Only used when shared_net is True.
+        :param t_0: Number of epoch before the first restart.
+        :return: A list of optimizers and a list of learning rate schedulers
+        """
+        assert optim.lower() in ["adam", "sgd", "novograd"]
+        lr_list = [learning_rate]
+        eta_list = [eta_min]
+        parameters = [self.model.parameters()]
+
+        if self.__shared_net:
+            lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
+            eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
+
+            parameters = [self.model.nets.parameters(),
+                          list(self.model.sharing_units_dict.parameters()) +
+                          list(self.model.uncertainty_loss.parameters())]
+        optimizers = []
+
+        if optim.lower() == "adam":
+            for lr, param in zip(lr_list, parameters):
+                optimizers.append(
+                    torch.optim.Adam(param,
+                                     lr=lr,
+                                     weight_decay=l2,
+                                     eps=eps)
+                )
+        elif optim.lower() == "sgd":
+            for lr, param in zip(lr_list, parameters):
+                optimizers.append(
+                    torch.optim.SGD(param,
+                                    lr=lr,
+                                    weight_decay=l2,
+                                    momentum=mom,
+                                    nesterov=True)
+                )
+        else:
+            for lr, param in zip(lr_list, parameters):
+                optimizers.append(
+                    Novograd(param,
+                             lr=lr,
+                             weight_decay=l2,
+                             eps=eps)
+                )
+
+        schedulers = []
+        for optimizer, eta in zip(optimizers, eta_list):
+            schedulers.append(
+                CosineAnnealingWarmRestarts(optimizer,
+                                            T_0=t_0,
+                                            T_mult=1,
+                                            eta_min=eta)
+            )
+            return optimizers, schedulers
 
     def __get_threshold(self, train_loader: DataLoader) -> None:
         """
