@@ -383,19 +383,96 @@ class Trainer(ABC):
         self.__get_threshold(train_loader)
         print(self._optimal_threshold)
 
-    def __get_threshold(self, train_loader: DataLoader) -> None:
+    def score(self,
+              testset: RenalDataset,
+              save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
+                                            Tuple[Sequence[np.array], Sequence[float]],
+                                            Tuple[np.array, float]]:
         """
-        Get the optimal threhold point based on the training set for all classification task.
+        Compute the accuracy of the model on a given test dataset.
 
-        :param train_loader: The train dataloader
+        :param testset: A torch dataset which contain our test data points and labels.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
+        :return: The accuracy of the model.
         """
+        test_loader = torch.utils.data.DataLoader(testset,
+                                                  TEST_BATCH_SIZE,
+                                                  shuffle=False)
+
         self.model.eval()
-        outs, labels = self._predict(train_loader)
 
-        for task in self._classification_tasks:
-            mask = torch.where(labels[task] > -1, 1, 0).bool()
-            self._optimal_threshold[task] = find_optimal_cutoff(labels[task][mask].numpy(),
-                                                                outs[task][mask][:, 1].cpu().numpy())
+        return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path, use_optimal_threshold=True)
+
+    def _predict(self,
+                 dt_loader: DataLoader) -> Tuple[Dict[str, torch.Tensor],
+                                                 Dict[str, torch.Tensor]]:
+        """
+        Take a data loader and compute the prediction for every data in the dataloader.
+
+        :param dt_loader: A torch.Dataloader that use a RenalDataset object.
+        :return: A dictionnary that contain a list of prediction per task and a dictionnary that contain a
+                 list of labels per task.
+        """
+
+        outs = {}
+        labels = {}
+        # Two dictionnary that contain a torch.Tensor associated to each task (keys)
+        for task in self._tasks:
+            labels[task] = torch.empty(0).long()
+            outs[task] = torch.empty(0, self._num_classes[task]).to(self._device)
+
+        for data in dt_loader:
+            images, label = data["sample"].to(self._device), data["labels"]
+            features = None
+
+            if "features" in list(data.keys()):
+                features = data["features"].to(self._device)
+
+            with torch.no_grad():
+                out = self.model(images) if features is None else self.model(images, features)
+
+                for task in self._tasks:
+                    labels[task] = torch.cat([labels[task], label[task]])
+                    outs[task] = torch.cat([outs[task],
+                                            out if len(self._tasks) == 1 else out[task]])
+
+        return outs, labels
+
+    def _save_prediction(self,
+                         outs: Dict[str, torch.Tensor],
+                         labels: dict,
+                         patient_id: Sequence[str],
+                         save_path: str) -> None:
+        """
+        Save the prediction made by the model on a given dataset.
+
+        :param outs: A dictionnary of torch.tensor that represent the output of the model for each task.
+        :param labels: A dictionnary of torch.tensor that represent the labels and where the keys are the name
+                       of each task.
+        :param patient_id: A list that contain the patient id in the same order has the labels and the outputs.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
+        """
+
+        preds = {}
+        with torch.no_grad():
+            for task in self._tasks:
+                preds[task] = self._soft(outs[task]) if self._num_classes[task] > 1 else outs[task]
+
+        with open(save_path, mode="w") as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=',')
+            first_row = ["patient_id"]
+            first_row.extend([f"{task} {word}" for task in self._tasks for word in ["labels", "prediction"]])
+
+            csv_writer.writerow(first_row)
+
+            for i in range(len(labels[self._tasks[0]])):
+                row = [patient_id[i]]
+                for task in self._tasks:
+                    label = labels[task][i].item()
+                    pred = preds[task][i] if self._num_classes[task] == 1 else preds[task][i][-1]
+                    row.extend([label, pred.cpu().item()])
+
+                csv_writer.writerow(row)
 
     def _update_model(self,
                       grad_clip: float,
@@ -440,6 +517,20 @@ class Trainer(ABC):
         for scheduler in schedulers:
             scheduler.step()
 
+    def __get_threshold(self, train_loader: DataLoader) -> None:
+        """
+        Get the optimal threhold point based on the training set for all classification task.
+
+        :param train_loader: The train dataloader
+        """
+        self.model.eval()
+        outs, labels = self._predict(train_loader)
+
+        for task in self._classification_tasks:
+            mask = torch.where(labels[task] > -1, 1, 0).bool()
+            self._optimal_threshold[task] = find_optimal_cutoff(labels[task][mask].numpy(),
+                                                                outs[task][mask][:, 1].cpu().numpy())
+
     def __init_weights(self, labels_bincounts: dict) -> None:
         """
         Compute the balanced weight according to a given distribution of data.
@@ -451,14 +542,33 @@ class Trainer(ABC):
         for key, value in labels_bincounts.items():
             self._weights[key] = np.sum(value) / (2 * value)
 
+    def __save_checkpoint(self,
+                          epoch: int,
+                          loss: float,
+                          accuracy: float) -> None:
+        """
+        Save the model and his at a the current state if the self.path is not None.
+
+        :param epoch: Current epoch of the training
+        :param loss: Current loss of the training
+        :param accuracy: Current validation accuracy
+        """
+
+        if self.__save_path is not None:
+            torch.save({"epoch": epoch,
+                        "model_state_dict": self.model.state_dict(),
+                        "loss": loss,
+                        "accuracy": accuracy},
+                       self.__save_path)
+
     @abstractmethod
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False,
                          save_path: str = "",
                          use_optimal_threshold: bool = False) -> Union[Tuple[Sequence[np.array], float],
-                                                                      Tuple[Sequence[np.array], Sequence[float]],
-                                                                      Tuple[np.array, float]]:
+                                                                       Tuple[Sequence[np.array], Sequence[float]],
+                                                                       Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
@@ -514,116 +624,6 @@ class Trainer(ABC):
         :return: The average training loss.
         """
         raise NotImplementedError("Must override _mixup_epoch.")
-
-    def _predict(self,
-                 dt_loader: DataLoader) -> Tuple[Dict[str, torch.Tensor],
-                                                 Dict[str, torch.Tensor]]:
-        """
-        Take a data loader and compute the prediction for every data in the dataloader.
-
-        :param dt_loader: A torch.Dataloader that use a RenalDataset object.
-        :return: A dictionnary that contain a list of prediction per task and a dictionnary that contain a
-                 list of labels per task.
-        """
-
-        outs = {}
-        labels = {}
-        # Two dictionnary that contain a torch.Tensor associated to each task (keys)
-        for task in self._tasks:
-            labels[task] = torch.empty(0).long()
-            outs[task] = torch.empty(0, self._num_classes[task]).to(self._device)
-
-        for data in dt_loader:
-            images, label = data["sample"].to(self._device), data["labels"]
-            features = None
-
-            if "features" in list(data.keys()):
-                features = data["features"].to(self._device)
-
-            with torch.no_grad():
-                out = self.model(images) if features is None else self.model(images, features)
-
-                for task in self._tasks:
-                    labels[task] = torch.cat([labels[task], label[task]])
-                    outs[task] = torch.cat([outs[task],
-                                            out if len(self._tasks) == 1 else out[task]])
-
-        return outs, labels
-
-    def __save_checkpoint(self,
-                          epoch: int,
-                          loss: float,
-                          accuracy: float) -> None:
-        """
-        Save the model and his at a the current state if the self.path is not None.
-
-        :param epoch: Current epoch of the training
-        :param loss: Current loss of the training
-        :param accuracy: Current validation accuracy
-        """
-
-        if self.__save_path is not None:
-            torch.save({"epoch": epoch,
-                        "model_state_dict": self.model.state_dict(),
-                        "loss": loss,
-                        "accuracy": accuracy},
-                       self.__save_path)
-
-    def _save_prediction(self,
-                         outs: Dict[str, torch.Tensor],
-                         labels: dict,
-                         patient_id: Sequence[str],
-                         save_path: str) -> None:
-        """
-        Save the prediction made by the model on a given dataset.
-
-        :param outs: A dictionnary of torch.tensor that represent the output of the model for each task.
-        :param labels: A dictionnary of torch.tensor that represent the labels and where the keys are the name
-                       of each task.
-        :param patient_id: A list that contain the patient id in the same order has the labels and the outputs.
-        :param save_path: The filepath of the csv that will be used to save the prediction.
-        """
-
-        preds = {}
-        with torch.no_grad():
-            for task in self._tasks:
-                preds[task] = self._soft(outs[task]) if self._num_classes[task] > 1 else outs[task]
-
-        with open(save_path, mode="w") as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=',')
-            first_row = ["patient_id"]
-            first_row.extend([f"{task} {word}" for task in self._tasks for word in ["labels", "prediction"]])
-
-            csv_writer.writerow(first_row)
-
-            for i in range(len(labels[self._tasks[0]])):
-                row = [patient_id[i]]
-                for task in self._tasks:
-                    label = labels[task][i].item()
-                    pred = preds[task][i] if self._num_classes[task] == 1 else preds[task][i][-1]
-                    row.extend([label, pred.cpu().item()])
-
-                csv_writer.writerow(row)
-
-    def score(self,
-              testset: RenalDataset,
-              save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
-                                            Tuple[Sequence[np.array], Sequence[float]],
-                                            Tuple[np.array, float]]:
-        """
-        Compute the accuracy of the model on a given test dataset.
-
-        :param testset: A torch dataset which contain our test data points and labels.
-        :param save_path: The filepath of the csv that will be used to save the prediction.
-        :return: The accuracy of the model.
-        """
-        test_loader = torch.utils.data.DataLoader(testset,
-                                                  TEST_BATCH_SIZE,
-                                                  shuffle=False)
-
-        self.model.eval()
-
-        return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path, use_optimal_threshold=True)
 
     @abstractmethod
     def _standard_epoch(self,
