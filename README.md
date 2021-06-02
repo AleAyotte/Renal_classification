@@ -104,7 +104,6 @@ Morever, the following package are required to execute our code.
 │   │   ├── Block.py                # Commun ResNet, PreResNet and CapsNet block
 │   │   ├── HardSharedResNet.py     # HardSharing ResNet3D class
 │   │   ├── Module.py               # Commun module used to build NeuralNetwork
-│   │   ├── MultiLevelResNet.py     # MultiLevel ResNet3D class
 │   │   ├── NeuralNet.py            # Abstract class of all neural network classes (except ResNet2D)
 │   │   ├── ResNet_2D.py            # ResNet2D model class
 │   │   ├── ResNet.py               # ResNet ResNet3D classe
