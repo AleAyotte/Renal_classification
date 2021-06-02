@@ -55,11 +55,14 @@ Morever, the following package are required to execute our code.
   - [x] Conditional probability
   - [x] Cumulate gradient
   - [x] Add hparam tracking with comet.ml
-  - [ ] Add Hybrid ResNet
+  - [x] Add Hybrid ResNet
   - [ ] Add Rotograd
 - [ ] Experiment Phase 1
+  - [x] Block type
+  - [x] Hybrid ResNet
   - [x] Grouped Convolution
-  - [ ] Merged Mask
+  - [x] Merged Mask
+  - [ ] Early stopping optimization
 - [ ] Experiment Phase 2
   - [ ]  Rotograd
 - [ ] Radiomics
