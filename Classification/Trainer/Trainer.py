@@ -381,6 +381,7 @@ class Trainer(ABC):
 
         # Compute the optimal threshold
         self.__get_threshold(train_loader)
+        print(self._optimal_threshold)
 
     def __get_threshold(self, train_loader: DataLoader) -> None:
         """
@@ -392,8 +393,9 @@ class Trainer(ABC):
         outs, labels = self._predict(train_loader)
 
         for task in self._classification_tasks:
-            self._optimal_threshold[task] = find_optimal_cutoff(labels[task].numpy(),
-                                                                outs[task][:, 1].cpu().numpy())
+            mask = torch.where(labels[task] > -1, 1, 0).bool()
+            self._optimal_threshold[task] = find_optimal_cutoff(labels[task][mask].numpy(),
+                                                                outs[task][mask][:, 1].cpu().numpy())
 
     def _update_model(self,
                       grad_clip: float,
