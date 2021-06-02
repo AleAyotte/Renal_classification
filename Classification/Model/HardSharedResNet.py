@@ -43,8 +43,6 @@ class HardSharedResNet(NeuralNet):
         The third series of residual block.
     layers4: nn.Sequential
         The last series of residual block.
-    mixup: nn.ModuleDict
-        A dictionnary that contain all the mixup module.
     __num_flat_features: int
         Number of features at the output of the last convolution.
     __split: int
@@ -67,6 +65,7 @@ class HardSharedResNet(NeuralNet):
                  num_classes: Dict[str, int],
                  tasks: Sequence[str],
                  act: str = "ReLU",
+                 commun_block: Union[Sequence[str], str] = "PreAct",
                  depth: int = 18,
                  drop_rate: float = 0,
                  drop_type: str = "flat",
@@ -75,7 +74,9 @@ class HardSharedResNet(NeuralNet):
                  in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
+                 num_in_chan: int = 4,
                  pre_act: bool = True,
+                 task_block: Union[Dict[str, Union[str, Sequence[str]]], str] = "PreAct",
                  split_level: int = 4):
         """
         Create a pre activation or post activation 3D Residual Network for multi-task learning.
@@ -93,8 +94,6 @@ class HardSharedResNet(NeuralNet):
         :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
         :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
         :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
-        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
-                      dristribution Beta(alpha, alpha).
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
         :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
@@ -138,18 +137,9 @@ class HardSharedResNet(NeuralNet):
         self.uncertainty_loss = UncertaintyLoss(num_task=nb_task)
 
         # --------------------------------------------
-        #                    BLOCK
-        # --------------------------------------------
-        if pre_act:
-            block = {18: PreResBlock, 34: PreResBlock, 50: PreResBottleneck, 101: PreResBottleneck}
-        else:
-            block = {18: ResBlock, 34: ResBlock, 50: ResBottleneck, 101: ResBottleneck}
-
-        layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
-
-        # --------------------------------------------
         #                   DROPOUT
         # --------------------------------------------
+        layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
         num_block = int(np.sum(layers[depth]))
 
         if drop_type.lower() == "flat":
@@ -166,63 +156,103 @@ class HardSharedResNet(NeuralNet):
             dropout.append(temp[first:last])
 
         # --------------------------------------------
+        #                SHARED BLOCKS
+        # --------------------------------------------
+        if type(commun_block) is not list:
+            shared_blocks = [self.__get_block(depth, commun_block) for _ in range(split_level - 1)]
+        else:
+            assert len(commun_block) == split_level - 1, \
+                "The lenght of commun_block do not match with the split_level."
+            shared_blocks = [self.__get_block(depth, block) for block in commun_block]
+
+        # --------------------------------------------
+        #                TASKS BLOCKS
+        # --------------------------------------------
+        if type(task_block) is not dict:
+            task_block = {task: task_block for task in tasks}
+
+        task_block_list = {}
+        for task, blocks in list(task_block.items()):
+            if type(blocks) is not list:
+                task_block_list[task] = [self.__get_block(depth, blocks) for _ in range(5 - split_level)]
+            else:
+                assert len(task_block) == 5 - split_level, \
+                    "The lenght of shared_block do not match with the split_level."
+                task_block_list[task] = [self.__get_block(depth, block) for block in blocks]
+
+        # --------------------------------------------
         #                  CONV LAYERS
         # --------------------------------------------
+        common_layers = []
+        task_specific_layer = {}
+        for task in tasks:
+            task_specific_layer[task] = []
+
         assert 1 <= split_level <= 5, "The split level should be an integer between 1 and 5."
-        self.conv = Convolution(dimensions=3,
-                                in_channels=3,
-                                out_channels=self.__in_channels,
-                                kernel_size=first_kernel,
-                                act=act,
-                                conv_only=pre_act)
+        common_layers.append(Convolution(dimensions=3,
+                                         in_channels=num_in_chan,
+                                         out_channels=self.__in_channels,
+                                         kernel_size=first_kernel,
+                                         act=act,
+                                         conv_only=pre_act))
 
-        self.layers1 = self.__make_layer(block[depth], layers[depth][0],
-                                         first_channels, kernel=kernel,
-                                         strides=[2, 2, 1], norm=norm,
-                                         drop_rate=dropout[0], act=act,
-                                         split_layer=(1 == split_level),
-                                         groups=nb_task if 1 >= split_level else 1)
+        for i in range(4):
+            strides = [2, 2, 1] if i == 0 else [2, 2, 2]
 
-        self.layers2 = self.__make_layer(block[depth], layers[depth][1],
-                                         first_channels * 2, kernel=kernel,
-                                         strides=[2, 2, 2], norm=norm,
-                                         drop_rate=dropout[1], act=act,
-                                         split_layer=(2 == split_level),
-                                         groups=nb_task if 2 >= split_level else 1)
+            if split_level > i + 1:
+                temp_layers = self.__make_layer(shared_blocks[i],
+                                                layers[depth][i],
+                                                first_channels * (2**i),
+                                                kernel=kernel,
+                                                strides=strides, norm=norm,
+                                                drop_rate=dropout[i], act=act)
+                common_layers.append(temp_layers)
 
-        self.layers3 = self.__make_layer(block[depth], layers[depth][2],
-                                         first_channels * 4, kernel=kernel,
-                                         strides=[2, 2, 2], norm=norm,
-                                         drop_rate=dropout[2], act=act,
-                                         split_layer=(3 == split_level),
-                                         groups=nb_task if 3 >= split_level else 1)
-
-        self.layers4 = self.__make_layer(block[depth], layers[depth][3],
-                                         first_channels * 8, kernel=kernel,
-                                         strides=[2, 2, 2], norm=norm,
-                                         drop_rate=dropout[3], act=act,
-                                         split_layer=(4 == split_level),
-                                         groups=nb_task if 4 >= split_level else 1)
-
+            else:
+                in_channels = self.__in_channels
+                for task in tasks:
+                    idx = i - (split_level - 1)
+                    self.__in_channels = in_channels
+                    print()
+                    temp_layers = self.__make_layer(task_block_list[task][idx],
+                                                    layers[depth][i],
+                                                    first_channels * (2**i),
+                                                    kernel=kernel,
+                                                    strides=strides, norm=norm,
+                                                    drop_rate=dropout[i], act=act)
+                    task_specific_layer[task].append(temp_layers)
         # --------------------------------------------
         #                   FC LAYERS
         # --------------------------------------------
         in_shape = list(in_shape)
         out_shape = [int(in_shape[0] / 16), int(in_shape[1] / 16),  int(in_shape[2] / 8)]
 
-        self.avg_pool = nn.AvgPool3d(kernel_size=out_shape)
+        self.__num_flat_features = self.__in_channels
 
-        if self.__split == 5:
-            self.__num_flat_features = self.__in_channels
-        else:
-            self.__num_flat_features = int(self.__in_channels / nb_task)
-
-        self.fc_layer = nn.ModuleDict()
         for task in tasks:
-            self.fc_layer[task] = torch.nn.Linear(self.__num_flat_features,
-                                                  num_classes[task])
+            task_specific_layer[task].extend([nn.AvgPool3d(kernel_size=out_shape),
+                                              nn.Flatten(start_dim=1),
+                                              torch.nn.Linear(self.__num_flat_features, num_classes[task])])
+
+        self.common_layers = nn.Sequential(*common_layers)
+        self.task_layers = nn.ModuleDict({task: nn.Sequential(*task_specific_layer[task]) for task in tasks})
 
         self.apply(init_weights)
+
+    @staticmethod
+    def __get_block(depth: int,
+                    block_type: str):
+        """
+
+        :param depth:
+        :param block_type:
+        :return:
+        """
+        assert block_type.lower() in ["preact", "postact"], "The block type option are 'preact' and 'postact'."
+        if depth <= 34:
+            return PreResBlock if block_type.lower() == "preact" else ResBlock
+        else:
+            return PreResBottleneck if block_type.lower() == "preact" else ResBottleneck
 
     def __make_layer(self,
                      block: Union[PreResBlock, PreResBottleneck, ResBlock, ResBottleneck],
@@ -232,11 +262,8 @@ class HardSharedResNet(NeuralNet):
                      strides: Union[Sequence[int], int] = 1,
                      drop_rate: Sequence[float] = None,
                      act: str = "ReLU",
-                     norm: str = "batch",
-                     groups: int = 1,
-                     split_layer: bool = False) -> nn.Sequential:
+                     norm: str = "batch") -> nn.Sequential:
 
-        fmap_out = fmap_out * groups
         layers = []
         for i in range(num_block):
             layers.append(block(fmap_in=self.__in_channels, fmap_out=fmap_out,
@@ -244,34 +271,12 @@ class HardSharedResNet(NeuralNet):
                                 strides=strides if i == 0 else 1,
                                 drop_rate=drop_rate[i],
                                 activation=act,
-                                norm=norm,
-                                groups=groups,
-                                split_layer=split_layer))
-            split_layer = False
+                                norm=norm))
             self.__in_channels = fmap_out * block.expansion if i == 0 else self.__in_channels
 
         return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-        out = self.conv(x)
-        out = self.layers1(out)
-        out = self.layers2(out)
-        out = self.layers3(out)
-        out = self.layers4(out)
-
-        out = self.avg_pool(out)
-
-        preds = {}
-        if self.__split == 5:
-            features = out.view(-1, self.__num_flat_features)
-
-            for task in self.__tasks:
-                preds[task] = self.fc_layer[task](features)
-
-        else:
-            features = out.view(-1, len(self.__tasks), self.__num_flat_features)
-
-            for count, task in enumerate(self.__tasks):
-                preds[task] = self.fc_layer[task](features[:, count, :])
-
+        out = self.common_layers(x)
+        preds = {task: self.task_layers[task](out) for task in self.__tasks}
         return preds
