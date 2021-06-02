@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 03/2021
+    @Last modification: 06/2021
 
     @Description:       Contain the mother class Trainer from which the SingleTaskTrainer and MultiTaskTrainer will
                         inherit.
