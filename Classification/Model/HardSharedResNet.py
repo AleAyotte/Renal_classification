@@ -17,7 +17,7 @@ from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Type, Union
 
 
 class HardSharedResNet(NeuralNet):
@@ -27,28 +27,25 @@ class HardSharedResNet(NeuralNet):
     ...
     Attributes
     ----------
-    conv: Convolution
-        First block of the network. If pre_act is True then, its only a convolution. Else, its combination of
-        convolution, activation et normalisation.
-    fc_layer : torch.nn.ModuleDict
-        A dictionnary that contain the fully connected of each task.
+    __tasks: List[str]
+        The list of tasks on which the model will be train.
+    __backend_tasks: List[str]
+        The list of tasks on which the shared layers of the model will be train.
     __in_channels: int
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
-    layers1: nn.Sequential
-        The first series of residual block.
-    layers2: nn.Sequential
-        The second series of residual block.
-    layers3: nn.Sequential
-        The third series of residual block.
-    layers4: nn.Sequential
         The last series of residual block.
     __num_flat_features: int
         Number of features at the output of the last convolution.
+    shared_layers: nn.Sequentiel
+        A sequence of neurat network layer that will used for every task.
     __split: int
         Indicate where the network will be split to a multi-task network. Should be an integer between 1 and 5.
         1 indicate that the network will be split before the first series of residual block.
         5 indicate that the network will be split after the last series of residual block.
+    tasks_layers: nn.ModuleDict[str, nn.Sequential]
+        A dictionnary of Sequential module where the key is a task name and the value is a sequence of layer that will
+        be used only for this task.
     Methods
     -------
     forward(x: torch.Tensor) -> torch.Tensor
@@ -65,6 +62,7 @@ class HardSharedResNet(NeuralNet):
                  num_classes: Dict[str, int],
                  tasks: Sequence[str],
                  act: str = "ReLU",
+                 backend_tasks: Optional[str] = None,
                  commun_block: Union[Sequence[str], str] = "PreAct",
                  depth: int = 18,
                  drop_rate: float = 0,
@@ -75,9 +73,8 @@ class HardSharedResNet(NeuralNet):
                  kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
                  num_in_chan: int = 4,
-                 pre_act: bool = True,
                  task_block: Union[Dict[str, Union[str, Sequence[str]]], str] = "PreAct",
-                 split_level: int = 4):
+                 split_level: int = 3):
         """
         Create a pre activation or post activation 3D Residual Network for multi-task learning.
 
@@ -85,6 +82,10 @@ class HardSharedResNet(NeuralNet):
                             the num_class shoule be equal to one.
         :param tasks: A list of tasks on which the model will be train.
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param backend_tasks: The list of tasks on which the shared layers of the model will be train.
+        :param commun_block: A string or a sequence of string that indicate which type of block will be use to
+                             create the shared layers of the network. If it is a list, it should be equal in length to
+                             split_level - 1.
         :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
         :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
         :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
@@ -96,8 +97,16 @@ class HardSharedResNet(NeuralNet):
         :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
-        :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
-                        ResBottleneck. (Defaut=True)
+        :param num_in_chan: An integer that indicate the number of channel of the input images.
+        :param task_block: A dictionary of string, a dictionary of sequence of string or a string that indication which
+                           block type will be used to create the task specifics layers. If a dictionary is used, then
+                           they keys should be the task name. The 3 following example give the same result.
+                           Example 1)
+                            task_block = "preact"
+                           Example 2)
+                            task_block = {"malignancy": "preact", "subtype": "preact"}
+                           Example 3)
+                            task_block = {"malignancy": ["preact", "preact"], "subtype": ["preact", "preact"]}
         :param split_level: At which level the multi level resnet should split into sub net. (Default=4)
                                 1: After the first convolution,
                                 2: After the first residual level,
@@ -110,6 +119,9 @@ class HardSharedResNet(NeuralNet):
         self.__split = split_level
         self.__in_channels = first_channels
         self.__tasks = tasks
+        self.__backend_tasks = self.__tasks if backend_tasks is None else backend_tasks
+
+        assert set(self.__backend_tasks) <= set(self.__tasks), "Every backend tasks should be in tasks."
         nb_task = len(tasks)
 
         # --------------------------------------------
@@ -183,30 +195,33 @@ class HardSharedResNet(NeuralNet):
         # --------------------------------------------
         #                  CONV LAYERS
         # --------------------------------------------
-        common_layers = []
+        shared_layers = []
         task_specific_layer = {}
         for task in tasks:
             task_specific_layer[task] = []
 
         assert 1 <= split_level <= 5, "The split level should be an integer between 1 and 5."
-        common_layers.append(Convolution(dimensions=3,
+        shared_layers.append(Convolution(dimensions=3,
                                          in_channels=num_in_chan,
                                          out_channels=self.__in_channels,
                                          kernel_size=first_kernel,
                                          act=act,
-                                         conv_only=pre_act))
+                                         norm=norm,
+                                         conv_only=shared_blocks[0] in [PreResBlock, PreResBottleneck]))
 
         for i in range(4):
             strides = [2, 2, 1] if i == 0 else [2, 2, 2]
 
             if split_level > i + 1:
                 temp_layers = self.__make_layer(shared_blocks[i],
-                                                layers[depth][i],
-                                                first_channels * (2**i),
+                                                act=act,
+                                                drop_rate=dropout[i],
+                                                fmap_out=first_channels * (2**i),
                                                 kernel=kernel,
-                                                strides=strides, norm=norm,
-                                                drop_rate=dropout[i], act=act)
-                common_layers.append(temp_layers)
+                                                norm=norm,
+                                                num_block=layers[depth][i],
+                                                strides=strides)
+                shared_layers.append(temp_layers)
 
             else:
                 in_channels = self.__in_channels
@@ -215,11 +230,13 @@ class HardSharedResNet(NeuralNet):
                     self.__in_channels = in_channels
                     print()
                     temp_layers = self.__make_layer(task_block_list[task][idx],
-                                                    layers[depth][i],
-                                                    first_channels * (2**i),
+                                                    act=act,
+                                                    drop_rate=dropout[i],
+                                                    fmap_out=first_channels * (2**i),
                                                     kernel=kernel,
-                                                    strides=strides, norm=norm,
-                                                    drop_rate=dropout[i], act=act)
+                                                    norm=norm,
+                                                    num_block=layers[depth][i],
+                                                    strides=strides)
                     task_specific_layer[task].append(temp_layers)
         # --------------------------------------------
         #                   FC LAYERS
@@ -234,19 +251,21 @@ class HardSharedResNet(NeuralNet):
                                               nn.Flatten(start_dim=1),
                                               torch.nn.Linear(self.__num_flat_features, num_classes[task])])
 
-        self.common_layers = nn.Sequential(*common_layers)
-        self.task_layers = nn.ModuleDict({task: nn.Sequential(*task_specific_layer[task]) for task in tasks})
+        self.shared_layers = nn.Sequential(*shared_layers)
+        self.tasks_layers = nn.ModuleDict({task: nn.Sequential(*task_specific_layer[task]) for task in tasks})
 
         self.apply(init_weights)
 
     @staticmethod
     def __get_block(depth: int,
-                    block_type: str):
+                    block_type: str) -> Union[Type[ResBlock], Type[ResBottleneck],
+                                              Type[PreResBlock], Type[PreResBottleneck]]:
         """
+        Return the correct block class according to the depth of the network and the block_type.
 
-        :param depth:
-        :param block_type:
-        :return:
+        :param depth: The depth of the network.
+        :param block_type: The block type that would be used. (Options: ["preact", "postact"])
+        :return: A type class that represent the corresponding block to use.
         """
         assert block_type.lower() in ["preact", "postact"], "The block type option are 'preact' and 'postact'."
         if depth <= 34:
@@ -255,15 +274,28 @@ class HardSharedResNet(NeuralNet):
             return PreResBottleneck if block_type.lower() == "preact" else ResBottleneck
 
     def __make_layer(self,
-                     block: Union[PreResBlock, PreResBottleneck, ResBlock, ResBottleneck],
-                     num_block: int,
+                     block: Union[Type[PreResBlock], Type[PreResBottleneck], Type[ResBlock], Type[ResBottleneck]],
+                     drop_rate: List[float],
                      fmap_out: int,
                      kernel: Union[Sequence[int], int],
-                     strides: Union[Sequence[int], int] = 1,
-                     drop_rate: Sequence[float] = None,
+                     num_block: int,
                      act: str = "ReLU",
+                     strides: Union[Sequence[int], int] = 1,
                      norm: str = "batch") -> nn.Sequential:
+        """
+        Create a sequence of layer of a given class and of lenght num_block.
 
+        :param block: A class type that indicate which block should be create in the sequence.
+        :param drop_rate: A sequence of float that indicate the drop_rate for each block.
+        :param fmap_out: fmap_out*block.expansion equal the number of output feature maps of each block.
+        :param kernel: An integer or a list of integer that indicate the convolution kernel size.
+        :param num_block: An integer that indicate how many block will contain the sequence.
+        :param strides: An integer or a list of integer that indicate the strides of the first convolution of the
+                        first block.
+        :param act: The activation function that will be used in each block.
+        :param norm: The normalization layer that will be used in each block.
+        :return: A nn.Sequential that represent the sequence of layer.
+        """
         layers = []
         for i in range(num_block):
             layers.append(block(fmap_in=self.__in_channels, fmap_out=fmap_out,
@@ -277,6 +309,10 @@ class HardSharedResNet(NeuralNet):
         return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-        out = self.common_layers(x)
-        preds = {task: self.task_layers[task](out) for task in self.__tasks}
+        out = self.shared_layers(x)
+
+        preds = {}
+        for task in self.__tasks:
+            preds[task] = self.tasks_layers[task](out if task in self.__backend_tasks else out.detach())
+
         return preds
