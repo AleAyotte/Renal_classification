@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 03/2021
+    @Last modification: 06/2021
 
     @Description:       Contain the class MultiTaskTrainer which inherit from the class Trainer. This class is used
                         to train the MultiLevelResNet and the SharedNet on the three task (malignancy, subtype and
@@ -415,8 +415,7 @@ class MultiTaskTrainer(Trainer):
                 masks[task] = torch.where(labels[task] > -1, 1, 0).bool()
 
                 threshold = self._optimal_threshold[task] if use_optimal_threshold else 0.5
-                preds[task] = torch.where(outs[task][:, 1] >= threshold, 1, 0)
-                # preds[task] = torch.argmax(outs[task], dim=1).cpu()
+                preds[task] = torch.where(outs[task][:, 1] >= threshold, 1, 0).cpu()
 
             # Compute the confusion matrix and the loss for each task.
             for task in self._tasks:

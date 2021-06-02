@@ -21,8 +21,7 @@ from Utils import get_predict_csv_path, print_score, print_data_distribution, re
 MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
 MODEL_NAME = "STL_3D"
 # PROJECT_NAME = "renal-classification"
-# PROJECT_NAME = "april-2021-master"
-PROJECT_NAME = "may-2021-post-act"
+PROJECT_NAME = "may-2021-hybrid"
 SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
 TOL = 1.0  # The tolerance factor use by the trainer
 
@@ -34,6 +33,7 @@ def argument_parser():
                         choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
     parser.add_argument('--b_size', type=int, default=32,
                         help="The batch size.")
+    parser.add_argument('--config', type=int, default=0, choices=[0, 1, 2, 3, 4])
     parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                         help="The number of layer in the ResNet.")
     parser.add_argument('--device', type=str, default="cuda:0",
@@ -121,6 +121,17 @@ if __name__ == "__main__":
     #                NEURAL NETWORK
     # --------------------------------------------
     in_shape = tuple(testset[0]["sample"].size()[1:])
+    if args.config == 0:
+        pre_act = [True, True, True, True]
+    elif args.config == 1:
+        pre_act = [False, False, False, False]
+    elif args.config == 2:
+        pre_act = [False, False, True, True]
+    elif args.config == 3:
+        pre_act = [True, True, False, False]
+    else:
+        pre_act = [True, True, True, False]
+
     net = ResNet(mixup=args.mixup,
                  depth=args.depth,
                  groups=args.groups,
@@ -130,7 +141,7 @@ if __name__ == "__main__":
                  drop_rate=args.drop_rate,
                  drop_type=args.drop_type,
                  act=args.activation,
-                 pre_act=False).to(args.device)
+                 pre_act=pre_act).to(args.device)
 
     summary(net, (args.num_chan_data, 96, 96, 32))
 

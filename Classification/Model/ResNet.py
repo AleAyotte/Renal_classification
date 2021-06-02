@@ -18,7 +18,7 @@ from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 
 
 class ResNet(NeuralNet):
@@ -74,7 +74,7 @@ class ResNet(NeuralNet):
                  drop_type: str = "flat",
                  act: str = "ReLU",
                  norm: str = "batch",
-                 pre_act: bool = True):
+                 pre_act: Union[bool, List[bool]] = True):
         """
         Create a pre activation or post activation 3D Residual Network.
 
@@ -111,10 +111,18 @@ class ResNet(NeuralNet):
         # --------------------------------------------
         #                    BLOCK
         # --------------------------------------------
-        if pre_act:
-            block = {18: PreResBlock, 34: PreResBlock, 50: PreResBottleneck, 101: PreResBottleneck}
+        if type(pre_act) is not list:
+            pre_act_list = [pre_act, pre_act, pre_act, pre_act]
         else:
-            block = {18: ResBlock, 34: ResBlock, 50: ResBottleneck, 101: ResBottleneck}
+            assert len(pre_act) == 4, "You should specify one or 4 pre_act parameters."
+            pre_act_list = pre_act
+
+        block_list = []
+        for is_pre_act in pre_act_list:
+            if is_pre_act:
+                block_list.append(PreResBlock if depth <= 34 else PreResBottleneck)
+            else:
+                block_list.append(ResBlock if depth <= 34 else ResBottleneck)
 
         layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
 
@@ -149,22 +157,22 @@ class ResNet(NeuralNet):
                                 conv_only=pre_act,
                                 norm="batch")
 
-        self.layers1 = self.__make_layer(block[depth], layers[depth][0],
+        self.layers1 = self.__make_layer(block_list[0], layers[depth][0],
                                          first_channels, kernel=kernel,
                                          strides=[2, 2, 1], norm=norm,
                                          drop_rate=dropout[0], act=act)
 
-        self.layers2 = self.__make_layer(block[depth], layers[depth][1],
+        self.layers2 = self.__make_layer(block_list[1], layers[depth][1],
                                          first_channels * 2, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[1], act=act)
 
-        self.layers3 = self.__make_layer(block[depth], layers[depth][2],
+        self.layers3 = self.__make_layer(block_list[2], layers[depth][2],
                                          first_channels * 4, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[2], act=act)
 
-        self.layers4 = self.__make_layer(block[depth], layers[depth][3],
+        self.layers4 = self.__make_layer(block_list[3], layers[depth][3],
                                          first_channels * 8, kernel=kernel,
                                          strides=[2, 2, 2], norm=norm,
                                          drop_rate=dropout[3], act=act)

@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 04/2021
+    @Last modification: 06/2021
 
     @Description:       Contain the main function to train a MultiLevel 3D ResNet for multitask learning.
 """
@@ -62,9 +62,6 @@ def argument_parser():
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--lr', type=float, default=1e-4,
                         help="The initial learning rate")
-    parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 2],
-                        help="The alpha parameter of each mixup module. Those alpha parameter are used to sample "
-                             "the dristribution Beta(alpha, alpha).")
     parser.add_argument('--mode', type=str, default="standard",
                         help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
                         choices=["standard", "Mixup"])
@@ -98,7 +95,7 @@ def argument_parser():
     parser.add_argument('--weights', type=str, default="balanced",
                         help="The weight that will be applied on each class in the training loss. If balanced, "
                              "The classes weights will be ajusted in the training.",
-                        choices=["flat", "balanced", "focused"])                        
+                        choices=["flat", "balanced"])
     parser.add_argument('--worker', type=int, default=0,
                         help="Number of worker that will be used to preprocess data.")
     return parser.parse_args()
@@ -122,15 +119,16 @@ if __name__ == "__main__":
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     net = HardSharedResNet(tasks=TASK_LIST,
                            num_classes={"malignancy": 2, "subtype": 2},
-                           mixup=args.mixup,
                            depth=args.depth,
                            split_level=args.split_level,
                            in_shape=in_shape,
                            first_channels=args.in_channels,
                            drop_rate=args.drop_rate,
                            drop_type=args.drop_type,
+                           task_block={"malignancy": "preact", "subtype": "postact"},
                            act=args.activation).to(args.device)
-    summary(net, (3, 96, 96, 32))
+
+    summary(net, (args.num_chan_data, 96, 96, 32))
 
     # --------------------------------------------
     #                SANITY CHECK
@@ -202,7 +200,7 @@ if __name__ == "__main__":
         experiment.log_code("Model/HardSharedResNet.py")
         experiment.log_code("Model/MultiLevelResNet.py")
 
-        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, args.task)
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "all")
         train_csv_path, valid_csv_path, test_csv_path = csv_path
     else:
         experiment = None

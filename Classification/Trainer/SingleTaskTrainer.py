@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 03/2021
+    @Last modification: 06/2021
 
     @Description:       Contain the class SingleTaskTrainer which inherit from the class Trainer. This class is used
                         to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
@@ -329,7 +329,7 @@ class SingleTaskTrainer(Trainer):
             labels = labels[self.__task]
 
             threshold = self._optimal_threshold[self.__task] if use_optimal_threshold else 0.5
-            # pred = torch.argmax(outs, dim=1)
+
             pred = torch.where(outs[:, 1] >= threshold, 1, 0)
             loss = self.__loss(outs, labels.to(self._device)) if get_loss else None
 
