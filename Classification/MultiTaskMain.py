@@ -7,32 +7,60 @@
 
     @Description:       Contain the main function to train a MultiLevel 3D ResNet for multitask learning.
 """
-from ArgParser import argument_parser, Experimentation
+from ArgParser import argument_parser, Experimentation, Tasks
 from comet_ml import Experiment
 from Data_manager.DatasetBuilder import build_datasets
 from Model.HardSharedResNet import HardSharedResNet
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
+from typing import Final, List
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-FINAL_TASK_LIST = ["Malignancy", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
-MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
-MODEL_NAME = "HardSharing"
-PROJECT_NAME = "renal-classification"
-SAVE_PATH = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
-TASK_LIST = ["malignancy", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
-TOL = 1.0  # The tolerance factor use by the trainer
+MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
+MODEL_NAME: Final = "HardSharing"
+PROJECT_NAME: Final = "june-2021-mal-sub"
+SAVE_PATH: Final = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
+TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 
 if __name__ == "__main__":
     args = argument_parser(Experimentation.HARD_SHARING)
 
     # --------------------------------------------
+    #                SETUP TASK
+    # --------------------------------------------
+    task_list = []
+    num_classes = {}
+    task_block = {}
+    conditional_prob = []
+
+    if args.malignancy:
+        task_list.append(Tasks.MALIGNANCY)
+        num_classes[Tasks.MALIGNANCY] = 2
+        task_block[Tasks.MALIGNANCY] = "preact"
+
+    if args.subtype:
+        task_list.append(Tasks.SUBTYPE)
+        num_classes[Tasks.SUBTYPE] = 2
+        task_block[Tasks.SUBTYPE] = "postact"
+        if args.malignancy:
+            conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+    if args.grade:
+        task_list.append(Tasks.GRADE)
+        num_classes[Tasks.GRADE] = 2
+        task_block[Tasks.GRADE] = "preact"
+        if args.malignancy:
+            conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
+
+    if len(task_list) < 2:
+        raise Exception("You have to select at least two task.")
+
+    # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=TASK_LIST,
+    trainset, validset, testset = build_datasets(tasks=task_list,
                                                  testset_name=args.testset,
                                                  num_chan=args.num_chan_data)
 
@@ -40,15 +68,15 @@ if __name__ == "__main__":
     #                NEURAL NETWORK
     # --------------------------------------------
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    net = HardSharedResNet(tasks=TASK_LIST,
-                           num_classes={"malignancy": 2, "subtype": 2},
+    net = HardSharedResNet(tasks=task_list,
+                           num_classes=num_classes,
                            depth=args.depth,
                            split_level=args.split_level,
                            in_shape=in_shape,
                            first_channels=args.in_channels,
                            drop_rate=args.drop_rate,
                            drop_type=args.drop_type,
-                           task_block={"malignancy": "preact", "subtype": "postact"},
+                           task_block=task_block,
                            act=args.activation).to(args.device)
 
     summary(net, (args.num_chan_data, 96, 96, 32))
@@ -57,21 +85,21 @@ if __name__ == "__main__":
     #                SANITY CHECK
     # --------------------------------------------
     print_data_distribution("Training Set",
-                            TASK_LIST,
+                            task_list,
                             trainset.labels_bincount())
     print_data_distribution("Validation Set",
-                            TASK_LIST,
+                            task_list,
                             validset.labels_bincount())
     print_data_distribution(f"{args.testset.capitalize()} Set",
-                            TASK_LIST,
+                            task_list,
                             testset.labels_bincount())
     print("\n")
 
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(tasks=TASK_LIST,
-                      num_classes={"malignancy": 2, "subtype": 2},
+    trainer = Trainer(tasks=task_list,
+                      num_classes=num_classes,
                       conditional_prob=[["subtype", "malignancy"]],
                       early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
@@ -115,18 +143,24 @@ if __name__ == "__main__":
                                 log_code=False)
 
         experiment.set_name("ResNet3D" + "_" + "MultiTask")
+        experiment.log_code("ArgParser.py")
         experiment.log_code("MultiTaskMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/HardSharedResNet.py")
 
-        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "all")
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "HardShared_Net")
         train_csv_path, valid_csv_path, test_csv_path = csv_path
     else:
         experiment = None
         train_csv_path = valid_csv_path = test_csv_path = ""
 
-    _, _ = trainer.score(trainset, save_path=train_csv_path)
+    conf, auc = trainer.score(trainset, save_path=train_csv_path)
+    print_score(dataset_name="TRAIN",
+                task_list=list(auc.keys()),
+                conf_mat_list=list(conf.values()),
+                auc_list=list(auc.values()),
+                experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
     print_score(dataset_name="VALIDATION",

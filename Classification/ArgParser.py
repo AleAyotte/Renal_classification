@@ -10,6 +10,7 @@
 
 import argparse
 from enum import Enum, unique
+from typing import Final
 
 
 @unique
@@ -18,6 +19,12 @@ class Experimentation(Enum):
     SINGLE_TASK_3D = 2
     HARD_SHARING = 3
     SOFT_SHARING = 4
+
+
+class Tasks:
+    MALIGNANCY: Final = "malignancy"
+    SUBTYPE: Final = "subtype"
+    GRADE: Final = "grade"
 
 
 def argument_parser(experiment: Experimentation) -> argparse.Namespace:
@@ -146,6 +153,13 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                                  "1: After the first convolution, \n2: After the first residual level, \n"
                                  "3: After the second residual level, \n4: After the third residual level, \n"
                                  "5: After the last residual level so just before the fully connected layers.")
+        parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the malignancy task.")
+        parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the subtype task.")
+        parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the grade task.")
+
     # --------------------------------------------
     #               SOFT SHARING 3D
     # --------------------------------------------
@@ -162,6 +176,13 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
                                  "information transfer between multiple subnets",
                             choices=["sluice", "cross_stitch"])
+        parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the malignancy task.")
+        parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the subtype task.")
+        parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the grade task.")
+
     else:
         raise Exception("This experimentation does not exist.")
 
