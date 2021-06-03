@@ -228,7 +228,6 @@ class HardSharedResNet(NeuralNet):
                 for task in tasks:
                     idx = i - (split_level - 1)
                     self.__in_channels = in_channels
-                    print()
                     temp_layers = self.__make_layer(task_block_list[task][idx],
                                                     act=act,
                                                     drop_rate=dropout[i],
