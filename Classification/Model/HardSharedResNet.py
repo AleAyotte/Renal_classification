@@ -10,6 +10,7 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
 
+from Constant import BlockType, Tasks
 from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
 from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
@@ -17,7 +18,11 @@ from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, List, Optional, Sequence, Tuple, Type, Union
+from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
+
+
+NB_DIMENSIONS: Final = 3
+NB_LEVELS: Final = 4
 
 
 class HardSharedResNet(NeuralNet):
@@ -131,7 +136,7 @@ class HardSharedResNet(NeuralNet):
         if num_classes is None:
             num_classes = {}
             for task in self.__tasks:
-                num_classes[task] = 2
+                num_classes[task] = Tasks.CLASSIFICATION
 
         # If num_classes has been defined for some tasks but not all, we assume that the remaining are regression task
         else:
@@ -141,7 +146,7 @@ class HardSharedResNet(NeuralNet):
             assert missing_tasks == (tasks_set ^ key_set), f"The following tasks are present in num_classes " \
                                                            "but not in tasks {}".format(key_set - tasks_set)
             for task in list(missing_tasks):
-                num_classes[task] = 1
+                num_classes[task] = Tasks.REGRESSION
 
         # --------------------------------------------
         #              UNCERTAINTY LOSS
@@ -162,7 +167,7 @@ class HardSharedResNet(NeuralNet):
             raise NotImplementedError
 
         dropout = []
-        for i in range(4):
+        for i in range(NB_LEVELS):
             first = int(np.sum(layers[depth][0:i]))
             last = int(np.sum(layers[depth][0:i+1]))
             dropout.append(temp[first:last])
@@ -201,7 +206,7 @@ class HardSharedResNet(NeuralNet):
             task_specific_layer[task] = []
 
         assert 1 <= split_level <= 5, "The split level should be an integer between 1 and 5."
-        shared_layers.append(Convolution(dimensions=3,
+        shared_layers.append(Convolution(dimensions=NB_DIMENSIONS,
                                          in_channels=num_in_chan,
                                          out_channels=self.__in_channels,
                                          kernel_size=first_kernel,
@@ -209,7 +214,7 @@ class HardSharedResNet(NeuralNet):
                                          norm=norm,
                                          conv_only=shared_blocks[0] in [PreResBlock, PreResBottleneck]))
 
-        for i in range(4):
+        for i in range(NB_LEVELS):
             strides = [2, 2, 1] if i == 0 else [2, 2, 2]
 
             if split_level > i + 1:
@@ -241,7 +246,9 @@ class HardSharedResNet(NeuralNet):
         #                   FC LAYERS
         # --------------------------------------------
         in_shape = list(in_shape)
-        out_shape = [int(in_shape[0] / 16), int(in_shape[1] / 16),  int(in_shape[2] / 8)]
+        out_shape = [int(in_shape[0] / 2**NB_LEVELS),
+                     int(in_shape[1] / 2**NB_LEVELS),
+                     int(in_shape[2] / 2**(NB_LEVELS - 1))]
 
         self.__num_flat_features = self.__in_channels
 
@@ -266,11 +273,12 @@ class HardSharedResNet(NeuralNet):
         :param block_type: The block type that would be used. (Options: ["preact", "postact"])
         :return: A type class that represent the corresponding block to use.
         """
-        assert block_type.lower() in ["preact", "postact"], "The block type option are 'preact' and 'postact'."
+        assert block_type.lower() in [BlockType.PREACT, BlockType.POSTACT], "The block type option " \
+                                                                            "are 'preact' and 'postact'."
         if depth <= 34:
-            return PreResBlock if block_type.lower() == "preact" else ResBlock
+            return PreResBlock if block_type.lower() == BlockType.PREACT else ResBlock
         else:
-            return PreResBottleneck if block_type.lower() == "preact" else ResBottleneck
+            return PreResBottleneck if block_type.lower() == BlockType.PREACT else ResBottleneck
 
     def __make_layer(self,
                      block: Union[Type[PreResBlock], Type[PreResBottleneck], Type[ResBlock], Type[ResBottleneck]],
