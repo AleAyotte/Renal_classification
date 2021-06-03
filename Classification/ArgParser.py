@@ -1,5 +1,11 @@
 """
+    @file:              ArgParser.py
+    @Author:            Alexandre Ayotte
 
+    @Creation Date:     06/2021
+    @Last modification: 06/2021
+
+    @Description:       Contain the argument parser that will be used by every Main file.
 """
 
 import argparse
@@ -14,7 +20,14 @@ class Experimentation(Enum):
     SOFT_SHARING = 4
 
 
-def argument_parser(experiment):
+def argument_parser(experiment: int) -> argparse.Namespace:
+    """
+    Get a list of argument for a experiment.
+
+    :param experiment: An integer that represent the type of that will be execute.
+    :return: An Namespace that contain the main argument for the experimentation.
+    """
+
     # --------------------------------------------
     #             COMMUN PARAMETERS
     # --------------------------------------------
