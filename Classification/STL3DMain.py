@@ -3,27 +3,28 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 04/2021
+    @Last modification: 06/2021
 
     @Description:       Contain the main function to train a 3D ResNet on one of the three tasks
                         (malignancy, subtype and grade prediction).
 """
-from ArgParser import argument_parser, Experimentation
+from ArgParser import argument_parser
 from comet_ml import Experiment
+from Constant import DatasetName, Experimentation
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 import torch
 from torchsummary import summary
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
+from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
-MODEL_NAME = "STL_3D"
-# PROJECT_NAME = "renal-classification"
-PROJECT_NAME = "may-2021-hybrid"
-SAVE_PATH = "save/STL3D_NET.pth"  # Save path of the single task learning with ResNet3D experiment
-TOL = 1.0  # The tolerance factor use by the trainer
+MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
+MODEL_NAME: Final = "STL3D_"
+PROJECT_NAME: Final = "may-2021-hybrid"
+SAVE_PATH: Final = "save/STL3D_NET"  # Save path of the single task learning with ResNet3D experiment
+TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 
 if __name__ == "__main__":
@@ -67,13 +68,13 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution("Training Set",
+    print_data_distribution(DatasetName.TRAIN,
                             [args.task],
                             trainset.labels_bincount())
-    print_data_distribution("Validation Set",
+    print_data_distribution(DatasetName.VALIDATION,
                             [args.task],
                             validset.labels_bincount())
-    print_data_distribution(f"{args.testset.capitalize()} Set",
+    print_data_distribution(args.testset.upper(),
                             [args.task],
                             testset.labels_bincount())
     print("\n")
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     #                   TRAINER
     # --------------------------------------------
     trainer = Trainer(early_stopping=args.early_stopping,
-                      save_path=SAVE_PATH,
+                      save_path=SAVE_PATH + args.task + ".pth",
                       loss=args.loss,
                       tol=TOL,
                       num_workers=args.worker,
@@ -109,7 +110,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                l2=0 if args.activation == "PReLU" else 1e-4,
+                l2=0 if args.activation == "PReLU" else args.l2,
                 retrain=args.retrain)
 
     # --------------------------------------------
@@ -126,7 +127,8 @@ if __name__ == "__main__":
                                 log_code=False,)
 
         experiment.set_name("ResNet3D" + "_" + args.task)
-        experiment.log_code("SingleTaskMain.py")
+        experiment.log_code("ArgParser.py")
+        experiment.log_code("STL3DMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/SingleTaskTrainer.py")
         experiment.log_code("Model/NeuralNet.py")
@@ -143,21 +145,21 @@ if __name__ == "__main__":
         train_csv_path = ""
 
     conf, auc = trainer.score(trainset, save_path=train_csv_path)
-    print_score(dataset_name="TRAIN",
+    print_score(dataset_name=DatasetName.TRAIN,
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name="VALIDATION",
+    print_score(dataset_name=DatasetName.VALIDATION,
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
 
     conf, auc = trainer.score(testset, save_path=test_csv_path)
-    print_score(dataset_name=f"{args.testset.upper()}",
+    print_score(dataset_name=args.testset.upper(),
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
