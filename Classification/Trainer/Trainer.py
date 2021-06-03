@@ -242,7 +242,7 @@ class Trainer(ABC):
         # Tensorboard writer
         self._writer = SummaryWriter()
 
-        # Initialization of the model.
+        # Initialization of the model and the loss.
         self._device = device
         self.model = model.to(device)
         self.model.set_mixup(batch_size) if mode.lower() == "mixup" else None
@@ -301,7 +301,6 @@ class Trainer(ABC):
 
                 val_acc, val_loss = self._validation_step(dt_loader=valid_loader, 
                                                           epoch=epoch)
-
                 train_acc, train_loss = self._validation_step(dt_loader=train_loader, 
                                                               epoch=epoch,
                                                               dataset_name="Training")
@@ -488,7 +487,7 @@ class Trainer(ABC):
                                        shared_eta_min: float,
                                        shared_lr: float,
                                        t_0: int) -> Tuple[List[torch.optim.Optimizer],
-                                                          List[torch.optim.lr_scheduler]]:
+                                                          List[CosineAnnealingWarmRestarts]]:
         """
         Initalize all optimizers and schedulers object.
 
