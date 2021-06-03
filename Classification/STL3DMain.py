@@ -10,7 +10,7 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import DatasetName, Experimentation
+from Constant import BlockType, DatasetName, Experimentation
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 import torch
@@ -42,15 +42,18 @@ if __name__ == "__main__":
     # --------------------------------------------
     in_shape = tuple(testset[0]["sample"].size()[1:])
     if args.config == 0:
-        pre_act = [True, True, True, True]
+        blocks_type = [BlockType.PREACT for _ in range(4)]
     elif args.config == 1:
-        pre_act = [False, False, False, False]
+        blocks_type = [BlockType.POSTACT for _ in range(4)]
     elif args.config == 2:
-        pre_act = [False, False, True, True]
+        blocks_type = [BlockType.POSTACT, BlockType.POSTACT,
+                       BlockType.PREACT, BlockType.PREACT]
     elif args.config == 3:
-        pre_act = [True, True, False, False]
+        blocks_type = [BlockType.PREACT, BlockType.PREACT,
+                       BlockType.POSTACT, BlockType.POSTACT]
     else:
-        pre_act = [True, True, True, False]
+        blocks_type = [BlockType.PREACT, BlockType.PREACT,
+                       BlockType.PREACT, BlockType.POSTACT]
 
     net = ResNet(mixup=args.mixup,
                  depth=args.depth,
@@ -61,7 +64,7 @@ if __name__ == "__main__":
                  drop_rate=args.drop_rate,
                  drop_type=args.drop_type,
                  act=args.activation,
-                 pre_act=pre_act).to(args.device)
+                 blocks_type=blocks_type).to(args.device)
 
     summary(net, (args.num_chan_data, 96, 96, 32))
 

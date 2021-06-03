@@ -11,6 +11,7 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
 
+from Constant import BlockType
 from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
 from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
@@ -18,7 +19,11 @@ from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import List, Sequence, Tuple, Union
+from typing import Final, List, Sequence, Tuple, Union
+
+
+NB_DIMENSIONS = 3
+NB_LEVELS = 4
 
 
 class ResNet(NeuralNet):
@@ -61,47 +66,59 @@ class ResNet(NeuralNet):
         modules will be disable.
     """
     def __init__(self,
+                 act: str = "ReLU",
+                 blocks_type: Union[str, List[str]] = BlockType.PREACT,
                  depth: int = 18,
-                 first_channels: int = 16,
-                 groups: int = 1,
-                 num_classes: int = 2,
-                 in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
-                 first_kernel: Union[Sequence[int], int] = 3,
-                 kernel: Union[Sequence[int], int] = 3,
-                 mixup: Sequence[int] = None,
-                 num_in_chan: int = 4,
                  drop_rate: float = 0,
                  drop_type: str = "flat",
-                 act: str = "ReLU",
+                 first_channels: int = 16,
+                 first_kernel: Union[Sequence[int], int] = 3,
+                 groups: int = 1,
+                 in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
+                 kernel: Union[Sequence[int], int] = 3,
+                 mixup: Sequence[int] = None,
                  norm: str = "batch",
-                 pre_act: Union[bool, List[bool]] = True):
+                 num_classes: int = 2,
+                 num_in_chan: int = 4):
         """
         Create a pre activation or post activation 3D Residual Network.
 
+        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param blocks_type: A string or a list of string that indicate the type of block that will be used at each
+                            level. If only a string is gived, all blocks in the model will be of the same type.
+                            (Options: ['preact', 'postact]) (Defaut=PreAct). The 3 following example give the same
+                            result.
+                            Example 1)
+                                blocks_type = 'preact'
+                            Example 2)
+                                blocks_type = BlockType.PREACT
+                            Example 3)
+                                blocks_type = [BlockType.PREACT for _ in range(4)]
         :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
-        :param first_channels: The number of channels at the output of the first convolution layer. (Default=16)
-        :param num_classes: The number of features at the output of the neural network. (Default=2)
-        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
-        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
-        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
-        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
-                      dristribution Beta(alpha, alpha).
         :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
         :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
                           Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
                           from 0 to 'drop_rate'. (Default='Flat')
-        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param first_channels: The number of channels at the output of the first convolution layer. (Default=16)
+        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
+        :param groups: An integer that indicate in how many groups the first convolution will be separated.
+                       (Options=[1, 2]) (Default=1)
+        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
+        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
+                      dristribution Beta(alpha, alpha).
+        :param num_classes: The number of features at the output of the neural network. (Default=2)
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
-        :param pre_act: If true, the PreResBlock or the PreResBottleneck will be used instead of ResBlock or
-                        ResBottleneck. (Defaut=True)
+        :param num_classes: A positive integer that represent the number of classes on which the model will be train.
+        :param num_in_chan: A positive integer that represent the number of channels of the input images.
         """
         super().__init__()
 
         # --------------------------------------------
         #                   MIXUP
         # --------------------------------------------
-        assert mixup is None or len(mixup) == 4, "You should specify the 4 mixup parameters."
+        assert mixup is None or len(mixup) == NB_LEVELS, "You should specify the 4 mixup parameters."
         mixup = [0, 0, 0, 0] if mixup is None else mixup
 
         for i in range(len(mixup)):
@@ -111,15 +128,15 @@ class ResNet(NeuralNet):
         # --------------------------------------------
         #                    BLOCK
         # --------------------------------------------
-        if type(pre_act) is not list:
-            pre_act_list = [pre_act, pre_act, pre_act, pre_act]
+        if type(blocks_type) is not list:
+            block_type_list = [blocks_type for _ in range(4)]
         else:
-            assert len(pre_act) == 4, "You should specify one or 4 pre_act parameters."
-            pre_act_list = pre_act
+            assert len(blocks_type) == NB_LEVELS, "You should specify one or 4 pre_act parameters."
+            block_type_list = blocks_type
 
         block_list = []
-        for is_pre_act in pre_act_list:
-            if is_pre_act:
+        for block_type in block_type_list:
+            if block_type == BlockType.PREACT:
                 block_list.append(PreResBlock if depth <= 34 else PreResBottleneck)
             else:
                 block_list.append(ResBlock if depth <= 34 else ResBottleneck)
@@ -139,7 +156,7 @@ class ResNet(NeuralNet):
             raise NotImplementedError
 
         dropout = []
-        for i in range(4):
+        for i in range(NB_LEVELS):
             first = int(np.sum(layers[depth][0:i]))
             last = int(np.sum(layers[depth][0:i+1]))
             dropout.append(temp[first:last])
@@ -148,13 +165,13 @@ class ResNet(NeuralNet):
         #                  CONV LAYERS
         # --------------------------------------------
         self.__in_channels = first_channels
-        self.conv = Convolution(dimensions=3,
+        self.conv = Convolution(dimensions=NB_DIMENSIONS,
                                 in_channels=num_in_chan,
                                 out_channels=self.__in_channels,
                                 kernel_size=first_kernel,
                                 act=act,
                                 groups=groups,
-                                conv_only=pre_act,
+                                conv_only=block_type_list[0] == BlockType.PREACT,
                                 norm="batch")
 
         self.layers1 = self.__make_layer(block_list[0], layers[depth][0],
