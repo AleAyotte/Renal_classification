@@ -202,11 +202,11 @@ class ResNet(NeuralNet):
                      int(in_shape[1] / 2**NB_LEVELS),
                      int(in_shape[2] / 2**(NB_LEVELS - 1))]
 
-        self.avg_pool = nn.AvgPool3d(kernel_size=out_shape)
-
         self.__num_flat_features = self.__in_channels
 
-        self.fc_layer = nn.Linear(self.__num_flat_features, num_classes)
+        self.last_layers = nn.Sequential(nn.AvgPool3d(kernel_size=out_shape),
+                                         nn.Flatten(start_dim=1),
+                                         torch.nn.Linear(self.__num_flat_features, num_classes))
 
         self.apply(init_weights)
 
@@ -247,9 +247,7 @@ class ResNet(NeuralNet):
 
         out = self.mixup["3"](out) if "3" in mixup_key_list else out
         out = self.layers4(out)
-        out = self.avg_pool(out)
 
-        features = out.view(-1, self.__num_flat_features)
-        out = self.fc_layer(features)
+        out = self.last_layers(out)
 
         return out
