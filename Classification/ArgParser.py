@@ -15,16 +15,18 @@ from typing import Final
 
 @unique
 class Experimentation(Enum):
-    SINGLE_TASK_2D = 1
-    SINGLE_TASK_3D = 2
-    HARD_SHARING = 3
-    SOFT_SHARING = 4
+    SINGLE_TASK_2D: Final = 1
+    SINGLE_TASK_3D: Final = 2
+    HARD_SHARING: Final = 3
+    SOFT_SHARING: Final = 4
 
 
 class Tasks:
     MALIGNANCY: Final = "malignancy"
     SUBTYPE: Final = "subtype"
     GRADE: Final = "grade"
+    REGRESSION: Final = 1
+    CLASSIFICATION: Final = 2
 
 
 def argument_parser(experiment: Experimentation) -> argparse.Namespace:
@@ -164,6 +166,16 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
     #               SOFT SHARING 3D
     # --------------------------------------------
     elif experiment == Experimentation.SOFT_SHARING:
+        parser.add_argument('--activation', type=str, default='ReLU',
+                            help="The activation function use in the NeuralNet.",
+                            choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+        parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
+                            help="The number of layer in the ResNet.")
+        parser.add_argument('--drop_type', type=str, default="linear",
+                            help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                                 "Else if, drop_type == 'linear' the drop rate will grow linearly  "
+                                 "at each dropout layer from 0 to 'drop_rate'.",
+                            choices=["flat", "linear"])
         parser.add_argument('--in_channels', type=int, default=16,
                             help="Number of channels after the first convolution.")
         parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
