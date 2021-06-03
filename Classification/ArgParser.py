@@ -20,7 +20,7 @@ class Experimentation(Enum):
     SOFT_SHARING = 4
 
 
-def argument_parser(experiment: int) -> argparse.Namespace:
+def argument_parser(experiment: Experimentation) -> argparse.Namespace:
     """
     Get a list of argument for a experiment.
 
