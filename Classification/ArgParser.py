@@ -29,6 +29,11 @@ class Tasks:
     CLASSIFICATION: Final = 2
 
 
+class BlockType:
+    PREACT = "preact"
+    POSTACT = "postact"
+
+
 def argument_parser(experiment: Experimentation) -> argparse.Namespace:
     """
     Get a list of argument for a experiment.
