@@ -22,8 +22,8 @@ import torch.nn as nn
 from typing import Final, List, Sequence, Tuple, Union
 
 
-NB_DIMENSIONS = 3
-NB_LEVELS = 4
+NB_DIMENSIONS: Final = 3
+NB_LEVELS: Final = 4
 
 
 class ResNet(NeuralNet):
