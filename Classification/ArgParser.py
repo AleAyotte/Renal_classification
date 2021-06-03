@@ -9,29 +9,7 @@
 """
 
 import argparse
-from enum import Enum, unique
-from typing import Final
-
-
-@unique
-class Experimentation(Enum):
-    SINGLE_TASK_2D: Final = 1
-    SINGLE_TASK_3D: Final = 2
-    HARD_SHARING: Final = 3
-    SOFT_SHARING: Final = 4
-
-
-class Tasks:
-    MALIGNANCY: Final = "malignancy"
-    SUBTYPE: Final = "subtype"
-    GRADE: Final = "grade"
-    REGRESSION: Final = 1
-    CLASSIFICATION: Final = 2
-
-
-class BlockType:
-    PREACT = "preact"
-    POSTACT = "postact"
+from Constant import Experimentation
 
 
 def argument_parser(experiment: Experimentation) -> argparse.Namespace:
@@ -68,6 +46,8 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                         choices=["ce", "bce", "focal"])
     parser.add_argument('--lr', type=float, default=1e-3,
                         help="The initial learning rate")
+    parser.add_argument('--l2', type=float, default=1e-4,
+                        help="The l2 regularization parameters.")
     parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True,
                         help="If true, the model will be trained with mixed precision. "
                              "Mixed precision reduce memory consumption on GPU but reduce training speed.")
@@ -84,7 +64,7 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                         help="The name of the testset. If testset=='test' then a random stratified testset will be "
                              "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
                              "be loaded",
-                        choices=["test", "hold_out_set"])
+                        choices=["test", "hold_out"])
     parser.add_argument('--track_mode', type=str, default="all",
                         help="Determine the quantity of training statistics that will be saved with tensorboard. "
                              "If low, the training loss will be saved only at each epoch and not at each iteration.",
@@ -150,9 +130,13 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                                  "Else if, drop_type == 'linear' the drop rate will grow linearly  "
                                  "at each dropout layer from 0 to 'drop_rate'.",
                             choices=["flat", "linear"])
+        parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the grade task.")
         parser.add_argument('--groups', type=int, default=1)
         parser.add_argument('--in_channels', type=int, default=16,
                             help="Number of channels after the first convolution.")
+        parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the malignancy task.")
         parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
                             help="The number of channels of the input images.")
         parser.add_argument('--split_level', type=int, default=4,
@@ -160,12 +144,8 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                                  "1: After the first convolution, \n2: After the first residual level, \n"
                                  "3: After the second residual level, \n4: After the third residual level, \n"
                                  "5: After the last residual level so just before the fully connected layers.")
-        parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
-                            help="Train the model on the malignancy task.")
         parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the subtype task.")
-        parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
-                            help="Train the model on the grade task.")
 
     # --------------------------------------------
     #               SOFT SHARING 3D
@@ -174,6 +154,8 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
         parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+        parser.add_argument('--c', type=float, default=0.85,
+                            help="The conservation parameter of the Cross-Stich Unit")
         parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                             help="The number of layer in the ResNet.")
         parser.add_argument('--drop_type', type=str, default="linear",
@@ -181,8 +163,12 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                                  "Else if, drop_type == 'linear' the drop rate will grow linearly  "
                                  "at each dropout layer from 0 to 'drop_rate'.",
                             choices=["flat", "linear"])
+        parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the grade task.")
         parser.add_argument('--in_channels', type=int, default=16,
                             help="Number of channels after the first convolution.")
+        parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the malignancy task.")
         parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
                             help="The number of channels of the input images.")
         parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
@@ -193,12 +179,10 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
                                  "information transfer between multiple subnets",
                             choices=["sluice", "cross_stitch"])
-        parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
-                            help="Train the model on the malignancy task.")
+        parser.add_argument('--spread', type=float, default=0.10,
+                            help="The spread parameter of the Cross-Stitch Units.")
         parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the subtype task.")
-        parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
-                            help="Train the model on the grade task.")
 
     else:
         raise Exception("This experimentation does not exist.")
