@@ -7,23 +7,26 @@
 
     @Description:       Contain the main function to train a MultiLevel 3D ResNet for multitask learning.
 """
-from ArgParser import argument_parser, Experimentation, Tasks
+from ArgParser import argument_parser
 from comet_ml import Experiment
+from Constant import BlockType, DatasetName, Experimentation, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.HardSharedResNet import HardSharedResNet
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
-from typing import Final, List
+from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
+MIN_NUM_TASKS: Final = 2  # Minimun number of tasks.
+MIXED_PRECISION: Final = True
 MODEL_NAME: Final = "HardSharing"
+PIN_MEMORY: Final = False
 PROJECT_NAME: Final = "june-2021-mal-sub"
 SAVE_PATH: Final = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
-
 
 if __name__ == "__main__":
     args = argument_parser(Experimentation.HARD_SHARING)
@@ -38,23 +41,24 @@ if __name__ == "__main__":
 
     if args.malignancy:
         task_list.append(Tasks.MALIGNANCY)
-        num_classes[Tasks.MALIGNANCY] = 2
-        task_block[Tasks.MALIGNANCY] = "preact"
+        num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
+        task_block[Tasks.MALIGNANCY] = BlockType.PREACT
 
     if args.subtype:
         task_list.append(Tasks.SUBTYPE)
-        num_classes[Tasks.SUBTYPE] = 2
-        task_block[Tasks.SUBTYPE] = "postact"
+        num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
+        task_block[Tasks.SUBTYPE] = BlockType.POSTACT
         if args.malignancy:
             conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+
     if args.grade:
         task_list.append(Tasks.GRADE)
-        num_classes[Tasks.GRADE] = 2
-        task_block[Tasks.GRADE] = "preact"
+        num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
+        task_block[Tasks.GRADE] = BlockType.PREACT
         if args.malignancy:
             conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
 
-    if len(task_list) < 2:
+    if len(task_list) < MIN_NUM_TASKS:
         raise Exception("You have to select at least two task.")
 
     # --------------------------------------------
@@ -79,18 +83,18 @@ if __name__ == "__main__":
                            task_block=task_block,
                            act=args.activation).to(args.device)
 
-    summary(net, (args.num_chan_data, 96, 96, 32))
+    summary(net, tuple(trainset[0]["sample"].size()))
 
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution("Training Set",
+    print_data_distribution(DatasetName.TRAIN,
                             task_list,
                             trainset.labels_bincount())
-    print_data_distribution("Validation Set",
+    print_data_distribution(DatasetName.VALIDATION,
                             task_list,
                             validset.labels_bincount())
-    print_data_distribution(f"{args.testset.capitalize()} Set",
+    print_data_distribution(args.testset.upper(),
                             task_list,
                             testset.labels_bincount())
     print("\n")
@@ -100,16 +104,16 @@ if __name__ == "__main__":
     # --------------------------------------------
     trainer = Trainer(tasks=task_list,
                       num_classes=num_classes,
-                      conditional_prob=[["subtype", "malignancy"]],
+                      conditional_prob=conditional_prob,
                       early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
                       loss=args.loss,
                       tol=TOL,
                       num_workers=args.worker,
-                      pin_memory=False,
+                      pin_memory=PIN_MEMORY,
                       classes_weights=args.weights,
                       track_mode=args.track_mode,
-                      mixed_precision=True)
+                      mixed_precision=MIXED_PRECISION)
 
     torch.backends.cudnn.benchmark = True
 
@@ -126,7 +130,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                l2=0.009,
+                l2=0 if args.activation == "PReLU" else args.l2,
                 retrain=args.retrain)
 
     # --------------------------------------------
@@ -149,28 +153,28 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/HardSharedResNet.py")
 
-        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "HardShared_Net")
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
         train_csv_path, valid_csv_path, test_csv_path = csv_path
     else:
         experiment = None
         train_csv_path = valid_csv_path = test_csv_path = ""
 
     conf, auc = trainer.score(trainset, save_path=train_csv_path)
-    print_score(dataset_name="TRAIN",
+    print_score(dataset_name=DatasetName.TRAIN,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
                 experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name="VALIDATION",
+    print_score(dataset_name=DatasetName.VALIDATION,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
                 experiment=experiment)
 
     conf, auc = trainer.score(testset, save_path=test_csv_path)
-    print_score(dataset_name=f"{args.testset.upper()}",
+    print_score(dataset_name=args.testset.upper(),
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
@@ -179,4 +183,4 @@ if __name__ == "__main__":
     if experiment is not None:
         hparam = vars(args)
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
-        experiment.log_parameter("Task", "Hard_Shared_Net")
+        experiment.log_parameter("Task", "_".join(task_list))
