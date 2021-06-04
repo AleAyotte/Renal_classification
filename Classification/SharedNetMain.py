@@ -3,100 +3,131 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 04/2021
+    @Last modification: 06/2021
 
     @Description:       Contain the main function to train a SharedMet for multitask learning.
 """
-from ArgParser import argument_parser, Experimentation
+from ArgParser import argument_parser
 from comet_ml import Experiment
+from Constant import BlockType, DatasetName, Experimentation, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
+from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-FINAL_TASK_LIST = ["grade", "Subtype", "Subtype|Malignancy"]  # The list of task name on which the model is assess
-LOAD_PATH = "save/"
-MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
-MODEL_NAME = "SharedNet"
-PROJECT_NAME = "renal-classification"
-SAVE_PATH = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
-TASK_LIST = ["ssign", "subtype"]  # The list of attribute in the hdf5 file that will be used has labels.
-TOL = 1.0  # The tolerance factor use by the trainer
+LOAD_PATH: Final = "save/STL3D_"
+MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
+MIN_NUM_TASKS: Final = 2  # Minimum number of tasks
+MODEL_NAME: Final = "SharedNet"
+PROJECT_NAME: Final = "renal-classification"
+SAVE_PATH: Final = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
+TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 
 if __name__ == "__main__":
     args = argument_parser(Experimentation.SOFT_SHARING)
 
     # --------------------------------------------
+    #                SETUP TASK
+    # --------------------------------------------
+    task_list = []
+    num_classes = {}
+    blocks_lists = {}
+    conditional_prob = []
+
+    if args.malignancy:
+        task_list.append(Tasks.MALIGNANCY)
+        num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
+        blocks_lists[Tasks.MALIGNANCY] = BlockType.PREACT
+
+    if args.subtype:
+        task_list.append(Tasks.SUBTYPE)
+        num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
+
+        if args.depth == 34:
+            blocks_lists[Tasks.SUBTYPE] = BlockType.POSTACT
+        else:
+            blocks_lists[Tasks.SUBTYPE] = [BlockType.PREACT, BlockType.PREACT,
+                                           BlockType.POSTACT, BlockType.POSTACT]
+        if args.malignancy:
+            conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+
+    if args.grade:
+        task_list.append(Tasks.GRADE)
+        num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
+        blocks_lists[Tasks.GRADE] = BlockType.PREACT
+        if args.malignancy:
+            conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
+
+    if len(task_list) < MIN_NUM_TASKS:
+        raise Exception("You have to select at least two task.")
+
+    # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=TASK_LIST,
+    trainset, validset, testset = build_datasets(tasks=task_list,
                                                  testset_name=args.testset,
                                                  num_chan=args.num_chan_data)
 
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
-    in_shape = tuple(trainset[0]["sample"].size()[1:])
-    mal_net = ResNet(depth=18,
-                     first_channels=32,
-                     in_shape=in_shape,
-                     drop_rate=0.3,
-                     drop_type="linear",
-                     act="ReLU",
-                     pre_act=True).to(args.device)
-
-    sub_net = ResNet(depth=18,
-                     first_channels=32,
-                     in_shape=in_shape,
-                     drop_rate=0.3,
-                     drop_type="linear",
-                     act="ReLU",
-                     pre_act=[True, True, False, False]).to(args.device)
-
-    if args.pretrained:
-        mal_net.restore(LOAD_PATH + "STL3D_NET.pth")
-        sub_net.restore(LOAD_PATH + "STL3D_NET.pth")
-
     sub_nets = torch.nn.ModuleDict()
-    sub_nets["ssign"] = mal_net
-    sub_nets["subtype"] = sub_net
+    in_shape = tuple(trainset[0]["sample"].size()[1:])
+
+    for task in task_list:
+        sub_nets[task] = ResNet(
+            blocks_type=blocks_lists[task],
+            depth=args.depth,
+            groups=args.groups,
+            in_shape=in_shape,
+            first_channels=args.in_channels,
+            num_in_chan=args.num_chan_data,
+            drop_rate=args.drop_rate,
+            drop_type=args.drop_type,
+            act=args.activation,
+        ).to(args.device)
+
+        if args.pretrained:
+            sub_nets[task].restore(LOAD_PATH + task + ".pth")
 
     net = SharedNet(sub_nets=sub_nets,
-                    num_shared_channels=[32, 64, 128, 256],
+                    num_shared_channels=[(2**i % 8)*args.in_channels for i in range(4)],
                     sharing_unit=args.sharing_unit,
-                    subspace_1=[4, 3],
-                    subspace_2=[8, 6],
-                    subspace_3=[8, 6],
-                    subspace_4=[4, 3],
-                    c=0.85,
-                    spread=0.1).to(args.device)
-    summary(net, (3, 96, 96, 32))
+                    subspace_1={task: 4 for task in task_list},
+                    subspace_2={task: 8 for task in task_list},
+                    subspace_3={task: 8 for task in task_list},
+                    subspace_4={task: 0 for task in task_list},
+                    c=args.c,
+                    spread=args.spread).to(args.device)
+
+    summary(net, tuple(trainset[0]["sample"].size()))
 
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution("Training Set",
-                            TASK_LIST,
+    print_data_distribution(DatasetName.TRAIN,
+                            task_list,
                             trainset.labels_bincount())
-    print_data_distribution("Validation Set",
-                            TASK_LIST,
+    print_data_distribution(DatasetName.VALIDATION,
+                            task_list,
                             validset.labels_bincount())
-    print_data_distribution(f"{args.testset.capitalize()} Set",
-                            TASK_LIST,
+    print_data_distribution(args.testset.upper(),
+                            task_list,
                             testset.labels_bincount())
     print("\n")
 
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(tasks=TASK_LIST,
-                      num_classes={"malignancy": 2, "subtype": 2},
-                      conditional_prob=[["subtype", "malignancy"]],
+    trainer = Trainer(tasks=task_list,
+                      num_classes=num_classes,
+                      conditional_prob=conditional_prob,
                       early_stopping=args.early_stopping,
                       save_path=SAVE_PATH,
                       loss=args.loss,
@@ -125,7 +156,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=max(args.num_epoch, 1),
-                l2=0.009,
+                l2=0 if args.activation == "PReLU" else args.l2,
                 retrain=args.retrain)
 
     # --------------------------------------------
@@ -142,28 +173,34 @@ if __name__ == "__main__":
                                 log_code=False)
 
         experiment.set_name("SharedNet" + "_" + "MultiTask")
+        experiment.log_code("ArgParser.py")
         experiment.log_code("SharedNetMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/SharedNet.py")
 
-        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "all")
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
         train_csv_path, valid_csv_path, test_csv_path = csv_path
     else:
         experiment = None
         train_csv_path = valid_csv_path = test_csv_path = ""
 
-    _, _ = trainer.score(trainset, save_path=train_csv_path)
+    conf, auc = trainer.score(trainset, save_path=train_csv_path)
+    print_score(dataset_name=DatasetName.TRAIN,
+                task_list=list(auc.keys()),
+                conf_mat_list=list(conf.values()),
+                auc_list=list(auc.values()),
+                experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name="VALIDATION",
+    print_score(dataset_name=DatasetName.VALIDATION,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
                 experiment=experiment)
 
     conf, auc = trainer.score(testset, save_path=test_csv_path)
-    print_score(dataset_name=f"{args.testset.upper()}",
+    print_score(dataset_name=args.testset.upper(),
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
@@ -172,4 +209,4 @@ if __name__ == "__main__":
     if experiment is not None:
         hparam = vars(args)
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
-        experiment.log_parameter("Task", "SharedNet")
+        experiment.log_parameter("Task", "_".join(task_list))
