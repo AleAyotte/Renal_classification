@@ -19,7 +19,7 @@ from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Final, List, Sequence, Tuple, Union
+from typing import Final, List, Sequence, Tuple, Type, Union
 
 
 NB_DIMENSIONS: Final = 3
@@ -33,23 +33,23 @@ class ResNet(NeuralNet):
     ...
     Attributes
     ----------
-    conv: Convolution
+    conv : Convolution
         First block of the network. If pre_act is True then, its only a convolution. Else, its combination of
         convolution, activation et normalisation.
-    fc_layer: nn.Linear
-        The last fully connected layer.
-    __in_channels: int
+    __in_channels : int
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
-    layers1: nn.Sequential
+    last_layers : nn.Sequential
+        A sequential that contain the average pooling and the fully connected layer.
+    layers1 : nn.Sequential
         The first series of residual block.
-    layers2: nn.Sequential
+    layers2 : nn.Sequential
         The second series of residual block.
-    layers3: nn.Sequential
+    layers3 : nn.Sequential
         The third series of residual block.
-    layers4: nn.Sequential
+    layers4 : nn.Sequential
         The last series of residual block.
-    mixup: nn.ModuleDict
+    mixup : nn.ModuleDict
         A dictionnary that contain all the mixup module.
     __num_flat_features: int
         Number of features at the output of the last convolution.
@@ -174,25 +174,29 @@ class ResNet(NeuralNet):
                                 conv_only=block_type_list[0] == BlockType.PREACT,
                                 norm="batch")
 
-        self.layers1 = self.__make_layer(block_list[0], layers[depth][0],
-                                         first_channels, kernel=kernel,
+        self.layers1 = self.__make_layer(block_list[0], dropout[0],
+                                         first_channels, kernel,
+                                         num_block=layers[depth][0],
                                          strides=[2, 2, 1], norm=norm,
-                                         drop_rate=dropout[0], act=act)
+                                         act=act)
 
-        self.layers2 = self.__make_layer(block_list[1], layers[depth][1],
-                                         first_channels * 2, kernel=kernel,
+        self.layers2 = self.__make_layer(block_list[1], dropout[1],
+                                         first_channels * 2, kernel,
+                                         num_block=layers[depth][1],
                                          strides=[2, 2, 2], norm=norm,
-                                         drop_rate=dropout[1], act=act)
+                                         act=act)
 
-        self.layers3 = self.__make_layer(block_list[2], layers[depth][2],
-                                         first_channels * 4, kernel=kernel,
+        self.layers3 = self.__make_layer(block_list[2], dropout[2],
+                                         first_channels * 4, kernel,
+                                         num_block=layers[depth][2],
                                          strides=[2, 2, 2], norm=norm,
-                                         drop_rate=dropout[2], act=act)
+                                         act=act)
 
-        self.layers4 = self.__make_layer(block_list[3], layers[depth][3],
-                                         first_channels * 8, kernel=kernel,
+        self.layers4 = self.__make_layer(block_list[3], dropout[3],
+                                         first_channels * 8, kernel,
+                                         num_block=layers[depth][3],
                                          strides=[2, 2, 2], norm=norm,
-                                         drop_rate=dropout[3], act=act)
+                                         act=act)
 
         # --------------------------------------------
         #                   FC LAYERS
@@ -211,14 +215,28 @@ class ResNet(NeuralNet):
         self.apply(init_weights)
 
     def __make_layer(self,
-                     block: Union[PreResBlock, PreResBottleneck, ResBlock, ResBottleneck],
-                     num_block: int,
+                     block: Union[Type[PreResBlock], Type[PreResBottleneck], Type[ResBlock], Type[ResBottleneck]],
+                     drop_rate: List[float],
                      fmap_out: int,
                      kernel: Union[Sequence[int], int],
-                     strides: Union[Sequence[int], int] = 1,
-                     drop_rate: Sequence[float] = None,
+                     num_block: int,
                      act: str = "ReLU",
-                     norm: str = "batch") -> nn.Sequential:
+                     norm: str = "batch",
+                     strides: Union[Sequence[int], int] = 1) -> nn.Sequential:
+        """
+        Create a sequence of layer of a given class and of lenght num_block.
+
+        :param block: A class type that indicate which block should be create in the sequence.
+        :param drop_rate: A list of float that indicate the drop_rate for each block.
+        :param fmap_out: fmap_out*block.expansion equal the number of output feature maps of each block.
+        :param kernel: An integer or a list of integer that indicate the convolution kernel size.
+        :param num_block: An integer that indicate how many block will contain the sequence.
+        :param act: The activation function that will be used in each block.
+        :param norm: The normalization layer that will be used in each block.
+        :param strides: An integer or a list of integer that indicate the strides of the first convolution of the
+                        first block.
+        :return: A nn.Sequential that represent the sequence of layer.
+        """
         layers = []
 
         for i in range(num_block):

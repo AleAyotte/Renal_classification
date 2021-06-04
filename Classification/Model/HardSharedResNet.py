@@ -32,23 +32,23 @@ class HardSharedResNet(NeuralNet):
     ...
     Attributes
     ----------
-    __tasks: List[str]
+    __tasks : List[str]
         The list of tasks on which the model will be train.
-    __backend_tasks: List[str]
+    __backend_tasks : List[str]
         The list of tasks on which the shared layers of the model will be train.
-    __in_channels: int
+    __in_channels : int
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
         The last series of residual block.
-    __num_flat_features: int
+    __num_flat_features : int
         Number of features at the output of the last convolution.
-    shared_layers: nn.Sequentiel
+    shared_layers : nn.Sequentiel
         A sequence of neurat network layer that will used for every task.
-    __split: int
+    __split : int
         Indicate where the network will be split to a multi-task network. Should be an integer between 1 and 5.
         1 indicate that the network will be split before the first series of residual block.
         5 indicate that the network will be split after the last series of residual block.
-    tasks_layers: nn.ModuleDict[str, nn.Sequential]
+    tasks_layers : nn.ModuleDict[str, nn.Sequential]
         A dictionnary of Sequential module where the key is a task name and the value is a sequence of layer that will
         be used only for this task.
     Methods
@@ -176,11 +176,11 @@ class HardSharedResNet(NeuralNet):
         #                SHARED BLOCKS
         # --------------------------------------------
         if type(commun_block) is not list:
-            shared_blocks = [self.__get_block(depth, commun_block) for _ in range(split_level - 1)]
+            shared_blocks = [self.__get_block(commun_block, depth) for _ in range(split_level - 1)]
         else:
             assert len(commun_block) == split_level - 1, \
                 "The lenght of commun_block do not match with the split_level."
-            shared_blocks = [self.__get_block(depth, block) for block in commun_block]
+            shared_blocks = [self.__get_block(block, depth) for block in commun_block]
 
         # --------------------------------------------
         #                TASKS BLOCKS
@@ -191,11 +191,11 @@ class HardSharedResNet(NeuralNet):
         task_block_list = {}
         for task, blocks in list(task_block.items()):
             if type(blocks) is not list:
-                task_block_list[task] = [self.__get_block(depth, blocks) for _ in range(5 - split_level)]
+                task_block_list[task] = [self.__get_block(blocks, depth) for _ in range(5 - split_level)]
             else:
                 assert len(task_block) == 5 - split_level, \
                     "The lenght of shared_block do not match with the split_level."
-                task_block_list[task] = [self.__get_block(depth, block) for block in blocks]
+                task_block_list[task] = [self.__get_block(block, depth) for block in blocks]
 
         # --------------------------------------------
         #                  CONV LAYERS
@@ -263,14 +263,14 @@ class HardSharedResNet(NeuralNet):
         self.apply(init_weights)
 
     @staticmethod
-    def __get_block(depth: int,
-                    block_type: str) -> Union[Type[ResBlock], Type[ResBottleneck],
-                                              Type[PreResBlock], Type[PreResBottleneck]]:
+    def __get_block(block_type: str,
+                    depth: int) -> Union[Type[ResBlock], Type[ResBottleneck],
+                                         Type[PreResBlock], Type[PreResBottleneck]]:
         """
         Return the correct block class according to the depth of the network and the block_type.
 
-        :param depth: The depth of the network.
         :param block_type: The block type that would be used. (Options: ["preact", "postact"])
+        :param depth: The depth of the network.
         :return: A type class that represent the corresponding block to use.
         """
         assert block_type.lower() in [BlockType.PREACT, BlockType.POSTACT], "The block type option " \
@@ -287,8 +287,8 @@ class HardSharedResNet(NeuralNet):
                      kernel: Union[Sequence[int], int],
                      num_block: int,
                      act: str = "ReLU",
-                     strides: Union[Sequence[int], int] = 1,
-                     norm: str = "batch") -> nn.Sequential:
+                     norm: str = "batch",
+                     strides: Union[Sequence[int], int] = 1) -> nn.Sequential:
         """
         Create a sequence of layer of a given class and of lenght num_block.
 
@@ -297,10 +297,10 @@ class HardSharedResNet(NeuralNet):
         :param fmap_out: fmap_out*block.expansion equal the number of output feature maps of each block.
         :param kernel: An integer or a list of integer that indicate the convolution kernel size.
         :param num_block: An integer that indicate how many block will contain the sequence.
-        :param strides: An integer or a list of integer that indicate the strides of the first convolution of the
-                        first block.
         :param act: The activation function that will be used in each block.
         :param norm: The normalization layer that will be used in each block.
+        :param strides: An integer or a list of integer that indicate the strides of the first convolution of the
+                        first block.
         :return: A nn.Sequential that represent the sequence of layer.
         """
         layers = []
