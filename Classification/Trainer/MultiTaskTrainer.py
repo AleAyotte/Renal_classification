@@ -131,8 +131,8 @@ class MultiTaskTrainer(Trainer):
 
         # Define the number of classes for the tasks created by the conditionnal probability.
         self.__cond_prob = [] if conditional_prob is None else conditional_prob
-        for tasks in self.__cond_prob:
-            task1, task2 = tasks
+        for cond_tasks in self.__cond_prob:
+            task1, task2 = cond_tasks
             task_name = task1 + "|" + task2
             num_classes[task_name] = num_classes[task1]
 
