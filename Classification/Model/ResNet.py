@@ -51,7 +51,7 @@ class ResNet(NeuralNet):
         The last series of residual block.
     mixup : nn.ModuleDict
         A dictionnary that contain all the mixup module.
-    __num_flat_features: int
+    __num_flat_features : int
         Number of features at the output of the last convolution.
     Methods
     -------
