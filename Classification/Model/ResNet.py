@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 03/2021
+    @Last modification: 06/2021
 
     @Description:       This file contain the classe ResNet that inherit from the NeuralNet class. This ResNet version
                         can only be use for single task trainer on 3D images.
