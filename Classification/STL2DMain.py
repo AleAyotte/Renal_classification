@@ -3,26 +3,28 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 03/2021
+    @Last modification: 06/2021
 
     @Description:       Contain the main function to train a 2D ResNet on one of the three task
                         (malignancy, subtype and grade prediction).
 """
 
-from ArgParser import argument_parser, Experimentation
+from ArgParser import argument_parser
 from comet_ml import Experiment
+from Constant import DatasetName, Experimentation
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet_2D import ResNet2D
 import torch
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
+from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-MIN_NUM_EPOCH = 75  # Minimum number of epoch to save the experiment with comet.ml
-MODEL_NAME = "STL_2D"
-PROJECT_NAME = "renal-classification"
-SAVE_PATH = "save/STL2D_NET.pth"  # Save path of the single task learning with ResNet2D experiment
-TOL = 1.0  # The tolerance factor use by the trainer
+MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
+MODEL_NAME: Final = "STL_2D"
+PROJECT_NAME: Final = "renal-classification"
+SAVE_PATH: Final = "save/STL2D_NET.pth"  # Save path of the single task learning with ResNet2D experiment
+TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 
 if __name__ == "__main__":
@@ -49,13 +51,13 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution("Training Set",
+    print_data_distribution(DatasetName.TRAIN,
                             [args.task],
                             trainset.labels_bincount())
-    print_data_distribution("Validation Set",
+    print_data_distribution(DatasetName.VALIDATION,
                             [args.task],
                             validset.labels_bincount())
-    print_data_distribution(f"{args.testset.capitalize()} Set",
+    print_data_distribution(args.testset.upper(),
                             [args.task],
                             testset.labels_bincount())
     print("\n")
@@ -79,7 +81,6 @@ if __name__ == "__main__":
     trainer.fit(model=net,
                 trainset=trainset,
                 validset=validset,
-                mode="standard",
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
                 grad_clip=args.grad_clip,
@@ -90,6 +91,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
+                l2=0 if args.activation == "PReLU" else args.l2,
                 retrain=args.retrain)
 
     # --------------------------------------------
@@ -106,7 +108,8 @@ if __name__ == "__main__":
                                 log_code=False)
 
         experiment.set_name("ResNet2D" + "_" + args.task)
-        experiment.log_code("MultiTaskMain.py")
+        experiment.log_code("ArgParser.py")
+        experiment.log_code("STL2DMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/SingleTaskTrainer.py")
         experiment.log_code("Model/ResNet_2D.py")
@@ -120,17 +123,22 @@ if __name__ == "__main__":
         valid_csv_path = ""
         train_csv_path = ""
 
-    _, _ = trainer.score(trainset, save_path=train_csv_path)
+    conf, auc = trainer.score(trainset, save_path=train_csv_path)
+    print_score(dataset_name=DatasetName.TRAIN,
+                task_list=[args.task],
+                conf_mat_list=[conf],
+                auc_list=[auc],
+                experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name="VALIDATION",
+    print_score(dataset_name=DatasetName.VALIDATION,
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
 
     conf, auc = trainer.score(testset, save_path=test_csv_path)
-    print_score(dataset_name=f"{args.testset.upper()}",
+    print_score(dataset_name=args.testset.upper(),
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
@@ -138,5 +146,4 @@ if __name__ == "__main__":
 
     if experiment is not None:
         hparam = vars(args)
-        del hparam["task"]
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)

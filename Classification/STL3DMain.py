@@ -66,7 +66,7 @@ if __name__ == "__main__":
                  act=args.activation,
                  blocks_type=blocks_type).to(args.device)
 
-    summary(net, (args.num_chan_data, 96, 96, 32))
+    summary(net, tuple(trainset[0]["sample"].size()))
 
     # --------------------------------------------
     #                SANITY CHECK
