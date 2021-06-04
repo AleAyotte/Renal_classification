@@ -61,32 +61,32 @@ class SharedNet(NeuralNet):
     disable_mixup(key: int = -1):
         Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
         modules will be disable.
-    shared_forward(x: Sequence[torch.Tensor], sharing_level: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        Reshape the features and compute the forward pass of the shared unit at the sharing level i.
+    shared_forward(sharing_level: int, x: Sequence[torch.Tensor]) -> List[torch.Tensor]:
+        Reshape the features and compute the forward pass of the shared unit at a gived sharing level.
     """
     def __init__(self,
                  sub_nets: nn.ModuleDict,
+                 c: float = 0.9,
+                 num_shared_channels: Optional[Sequence[int]] = None,
                  sharing_unit: str = "sluice",
+                 spread: float = 0.1,
                  subspace_1: Union[Dict[str, int], int] = 0,
                  subspace_2: Union[Dict[str, int], int] = 0,
                  subspace_3: Union[Dict[str, int], int] = 0,
-                 subspace_4: Union[Dict[str, int], int] = 0,
-                 num_shared_channels: Optional[Sequence[int]] = None,
-                 c: float = 0.9,
-                 spread: float = 0.1):
+                 subspace_4: Union[Dict[str, int], int] = 0):
         """
         Create a Shared network with Shared Module like Sluice Unit or Cross-Stitch Unit.
 
         :param sub_nets:
+        :param c: A float that represent the conservation parameter of the sharing units.
+        :param num_shared_channels: A list of int that indicate the number of channels per network before the
+                                    cross-stitch unit. Only used if sharing_unit == "cross_stitch"
         :param sharing_unit: The sharing unit that will be used to shared the information between the 3 network.
+        :param spread: A float that represent the spread parameter of the sharing units.
         :param subspace_1: A list of int that indicate the number of subspace in each network before the sluice unit 1.
         :param subspace_2: A list of int that indicate the number of subspace in each network before the sluice unit 2.
         :param subspace_3: A list of int that indicate the number of subspace in each network before the sluice unit 3.
         :param subspace_4: A list of int that indicate the number of subspace in each network before the sluice unit 4.
-        :param num_shared_channels: A list of int that indicate the number of channels per network before the
-                                    cross-stitch unit. Only used if sharing_unit == "cross_stitch"
-        :param c: A float that represent the conservation parameter of the sharing units.
-        :param spread: A float that represent the spread parameter of the sharing units.
         """
         super().__init__()
 
@@ -138,14 +138,14 @@ class SharedNet(NeuralNet):
                                                                       spread=spread)
 
     def shared_forward(self,
-                       x: List[torch.Tensor],
-                       sharing_level: int) -> List[torch.Tensor]:
+                       sharing_level: int,
+                       x: List[torch.Tensor]) -> List[torch.Tensor]:
         """
         Reshape the features and compute the forward pass of the shared unit at the sharing level i.
 
+        :param sharing_level: An integer that indicate which sharing unit will be used.
         :param x: A list of torch.Tensor that represent the features extract by each sub neural net before the
                   given sharing level.
-        :param sharing_level: An integer that indicate which sharing unit will be used.
         :return: A tuple of torch.Tensor that represent the shared features representation for each sub neural net.
         """
 
@@ -177,7 +177,6 @@ class SharedNet(NeuralNet):
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         mixup_key_list = list(self.mixup.keys())
-        b_size = x.size()[0]
 
         out = self.mixup["0"](x) if "0" in mixup_key_list else x
 
@@ -193,28 +192,28 @@ class SharedNet(NeuralNet):
         # --------------------------------------------
         for count, task in enumerate(self.__tasks):
             outs[count] = self.nets[task].layers1(outs[count])
-        outs = self.shared_forward(outs, 1)
+        outs = self.shared_forward(1, outs)
 
         # --------------------------------------------
         #                   LEVEL 2
         # --------------------------------------------
         for count, task in enumerate(self.__tasks):
             outs[count] = self.nets[task].layers2(outs[count])
-        outs = self.shared_forward(outs, 2)
+        outs = self.shared_forward(2, outs)
 
         # --------------------------------------------
         #                   LEVEL 3
         # --------------------------------------------
         for count, task in enumerate(self.__tasks):
             outs[count] = self.nets[task].layers3(outs[count])
-        outs = self.shared_forward(outs, 3)
+        outs = self.shared_forward(3, outs)
 
         # --------------------------------------------
         #                   LEVEL 4
         # --------------------------------------------
         for count, task in enumerate(self.__tasks):
             outs[count] = self.nets[task].layers4(outs[count])
-        outs = self.shared_forward(outs, 4)
+        outs = self.shared_forward(4, outs)
 
         # --------------------------------------------
         #              POOLING + FC_LAYERS
