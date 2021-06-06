@@ -10,7 +10,7 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
                         2) Capsule Networks with Max-Min Normalization, Zhao et al. arxiv 2019
 """
-from Model.Block import PrimaryCapsule, DynamicHighCapsule
+from Model.CapsuleBlock import PrimaryCapsule, DynamicHighCapsule
 from Model.NeuralNet import NeuralNet
 from monai.networks.layers.factories import Act
 import numpy as np
