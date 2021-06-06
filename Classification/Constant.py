@@ -39,6 +39,12 @@ class Experimentation(Enum):
     SOFT_SHARING: Final = 4
 
 
+@unique
+class SharingUnits(Enum):
+    CROSS_STITCH: Final = 1
+    SLUICE: Final = 2
+
+
 class Tasks:
     MALIGNANCY: Final = "malignancy"
     SUBTYPE: Final = "subtype"

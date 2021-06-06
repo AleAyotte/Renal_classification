@@ -14,6 +14,7 @@
                            Conferenceon Artificial Intelligence, 2019
 """
 
+from Constant import SharingUnits
 from Model.Module import CrossStitchUnit, SluiceUnit, UncertaintyLoss
 from Model.NeuralNet import NeuralNet
 import numpy as np
@@ -41,8 +42,8 @@ class SharedNet(NeuralNet):
         They are referenced by the shortname of their corresponding task. (mal, sub)
     __nb_task : int
         The number of tasks.
-    __sharing_unit : str
-        A string that indicate which type of sharing unit are present in the neural network.
+    __sharing_unit : SharingUnits
+        Indicate which type of sharing unit are present in the neural network.
     sharing_units_dict : nn.ModuleDict
         A dictionnary that contain all the sharing_unit module.
         These sharing unit modules are referenced by their level.
@@ -68,7 +69,7 @@ class SharedNet(NeuralNet):
                  sub_nets: nn.ModuleDict,
                  c: float = 0.9,
                  num_shared_channels: Optional[Sequence[int]] = None,
-                 sharing_unit: str = "sluice",
+                 sharing_unit: SharingUnits = SharingUnits.SLUICE,
                  spread: float = 0.1,
                  subspace_1: Union[Dict[str, int], int] = 0,
                  subspace_2: Union[Dict[str, int], int] = 0,
@@ -105,8 +106,7 @@ class SharedNet(NeuralNet):
         # --------------------------------------------
         #               SHARING UNITS
         # --------------------------------------------
-        assert sharing_unit.lower() in ["sluice", "cross_stitch"], \
-            "The sharing unit can only be a sluice or cross_stitch one."
+        assert type(sharing_unit) is SharingUnits, "The sharing_unit should of type SharingUnits. See Constant.py."
         self.__sharing_unit = sharing_unit
 
         self.__subspace = np.zeros((NB_LEVELS, self.__nb_tasks))
@@ -125,7 +125,7 @@ class SharedNet(NeuralNet):
 
         self.sharing_units_dict = nn.ModuleDict()
         for i in range(1, NB_LEVELS+1):
-            if sharing_unit.lower() == "sluice":
+            if sharing_unit is SharingUnits.SLUICE:
                 if self.__subspace[i - 1].sum() != 0:
                     self.sharing_units_dict[str(i)] = SluiceUnit(self.__subspace[i - 1].sum(),
                                                                  c,
@@ -153,7 +153,7 @@ class SharedNet(NeuralNet):
             num_chan = [tensor.size()[1] for tensor in x]
             b_size, _, depth, width, height = x[0].size()
 
-            if self.__sharing_unit == "sluice":
+            if self.__sharing_unit is SharingUnits.SLUICE:
                 num_sub = self.__subspace[sharing_level - 1]
                 out = torch.cat(
                     [x[i].view(b_size, num_sub[i], int(num_chan[i] / num_sub[i]), depth, width, height)

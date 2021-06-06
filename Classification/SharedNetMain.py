@@ -11,7 +11,7 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, DropType, Experimentation, Tasks
+from Constant import BlockType, DatasetName, DropType, Experimentation, SharingUnits, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     net = SharedNet(sub_nets=sub_nets,
                     num_shared_channels=[(2**i % 8)*args.in_channels for i in range(4)],
-                    sharing_unit=args.sharing_unit,
+                    sharing_unit=SharingUnits[args.sharing_unit.upper()],
                     subspace_1={task: 4 for task in task_list},
                     subspace_2={task: 8 for task in task_list},
                     subspace_3={task: 8 for task in task_list},
