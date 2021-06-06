@@ -14,7 +14,7 @@
                            Conferenceon Artificial Intelligence, 2019
 """
 
-from Model.Module import CrossStitchUnit, Mixup, SluiceUnit, UncertaintyLoss
+from Model.Module import CrossStitchUnit, SluiceUnit, UncertaintyLoss
 from Model.NeuralNet import NeuralNet
 import numpy as np
 import torch

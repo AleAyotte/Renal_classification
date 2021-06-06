@@ -10,7 +10,7 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
 
-from Constant import BlockType, Tasks
+from Constant import BlockType, DropType, Tasks
 from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
 from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
@@ -68,17 +68,20 @@ class HardSharedResNet(NeuralNet):
                  tasks: Sequence[str],
                  act: str = "ReLU",
                  backend_tasks: Optional[str] = None,
-                 commun_block: Union[Sequence[str], str] = "PreAct",
+                 commun_block: Union[BlockType, List[BlockType]] = BlockType.PREACT,
                  depth: int = 18,
                  drop_rate: float = 0,
-                 drop_type: str = "flat",
+                 drop_type: DropType = DropType.FLAT,
                  first_channels: int = 16,
                  first_kernel: Union[Sequence[int], int] = 3,
                  in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
                  num_in_chan: int = 4,
-                 task_block: Union[Dict[str, Union[str, Sequence[str]]], str] = "PreAct",
+                 task_block: Union[
+                     Dict[str, Union[BlockType, List[BlockType]]],
+                     BlockType
+                 ] = BlockType.PREACT,
                  split_level: int = 3):
         """
         Create a pre activation or post activation 3D Residual Network for multi-task learning.
@@ -107,11 +110,12 @@ class HardSharedResNet(NeuralNet):
                            block type will be used to create the task specifics layers. If a dictionary is used, then
                            they keys should be the task name. The 3 following example give the same result.
                            Example 1)
-                            task_block = "preact"
+                            task_block = BlockType.PREACT
                            Example 2)
-                            task_block = {"malignancy": "preact", "subtype": "preact"}
+                            task_block = {"malignancy": BlockType.PREACT, "subtype": BlockType.PREACT}
                            Example 3)
-                            task_block = {"malignancy": ["preact", "preact"], "subtype": ["preact", "preact"]}
+                            task_block = {"malignancy": [BlockType.PREACT, BlockType.PREACT],
+                                          "subtype": [BlockType.PREACT, BlockType.PREACT]}
         :param split_level: At which level the multi level resnet should split into sub net. (Default=4)
                                 1: After the first convolution,
                                 2: After the first residual level,
@@ -159,12 +163,11 @@ class HardSharedResNet(NeuralNet):
         layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
         num_block = int(np.sum(layers[depth]))
 
-        if drop_type.lower() == "flat":
+        assert type(drop_type) is DropType, f"The drop_type should be of type DropType, but get {drop_type}"
+        if drop_type is DropType.FLAT:
             temp = [drop_rate for _ in range(num_block)]
-        elif drop_type.lower() == "linear":
-            temp = [1 - (1 - (drop_rate * i / (num_block - 1))) for i in range(num_block)]
         else:
-            raise NotImplementedError
+            temp = [1 - (1 - (drop_rate * i / (num_block - 1))) for i in range(num_block)]
 
         dropout = []
         for i in range(NB_LEVELS):
@@ -263,7 +266,7 @@ class HardSharedResNet(NeuralNet):
         self.apply(init_weights)
 
     @staticmethod
-    def __get_block(block_type: str,
+    def __get_block(block_type: BlockType,
                     depth: int) -> Union[Type[ResBlock], Type[ResBottleneck],
                                          Type[PreResBlock], Type[PreResBottleneck]]:
         """
@@ -273,12 +276,11 @@ class HardSharedResNet(NeuralNet):
         :param depth: The depth of the network.
         :return: A type class that represent the corresponding block to use.
         """
-        assert block_type.lower() in [BlockType.PREACT, BlockType.POSTACT], "The block type option " \
-                                                                            "are 'preact' and 'postact'."
+        assert type(block_type) is BlockType, f"The block_type should be a BlockType, but get {block_type}."
         if depth <= 34:
-            return PreResBlock if block_type.lower() == BlockType.PREACT else ResBlock
+            return PreResBlock if block_type is BlockType.PREACT else ResBlock
         else:
-            return PreResBottleneck if block_type.lower() == BlockType.PREACT else ResBottleneck
+            return PreResBottleneck if block_type is BlockType.PREACT else ResBottleneck
 
     def __make_layer(self,
                      block: Union[Type[PreResBlock], Type[PreResBottleneck], Type[ResBlock], Type[ResBottleneck]],

@@ -6,10 +6,12 @@
     @Last modification: 06/2021
 
     @Description:       Contain the main function to train a SharedMet for multitask learning.
+
+    @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, Experimentation, Tasks
+from Constant import BlockType, DatasetName, DropType, Experimentation, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
@@ -24,6 +26,7 @@ LOAD_PATH: Final = "save/STL3D_"
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimum number of tasks
 MODEL_NAME: Final = "SharedNet"
+PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
 PROJECT_NAME: Final = "renal-classification"
 SAVE_PATH: Final = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
@@ -89,7 +92,7 @@ if __name__ == "__main__":
             first_channels=args.in_channels,
             num_in_chan=args.num_chan_data,
             drop_rate=args.drop_rate,
-            drop_type=args.drop_type,
+            drop_type=DropType[args.drop_type.upper()],
             act=args.activation,
         ).to(args.device)
 
@@ -156,7 +159,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=max(args.num_epoch, 1),
-                l2=0 if args.activation == "PReLU" else args.l2,
+                l2=PRELU_L2 if args.activation == "PReLU" else args.l2,
                 retrain=args.retrain)
 
     # --------------------------------------------

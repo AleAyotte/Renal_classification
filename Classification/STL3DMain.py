@@ -7,10 +7,12 @@
 
     @Description:       Contain the main function to train a 3D ResNet on one of the three tasks
                         (malignancy, subtype and grade prediction).
+
+    @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, Experimentation
+from Constant import BlockType, DatasetName, DropType, Experimentation
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 import torch
@@ -22,6 +24,7 @@ from Utils import get_predict_csv_path, print_score, print_data_distribution, re
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MODEL_NAME: Final = "STL3D_"
+PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
 PROJECT_NAME: Final = "may-2021-hybrid"
 SAVE_PATH: Final = "save/STL3D_NET"  # Save path of the single task learning with ResNet3D experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
@@ -62,7 +65,7 @@ if __name__ == "__main__":
                  first_channels=args.in_channels,
                  num_in_chan=args.num_chan_data,
                  drop_rate=args.drop_rate,
-                 drop_type=args.drop_type,
+                 drop_type=DropType[args.drop_type.upper()],
                  act=args.activation,
                  blocks_type=blocks_type).to(args.device)
 
@@ -113,7 +116,7 @@ if __name__ == "__main__":
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                l2=0 if args.activation == "PReLU" else args.l2,
+                l2=PRELU_L2 if args.activation == "PReLU" else args.l2,
                 retrain=args.retrain)
 
     # --------------------------------------------

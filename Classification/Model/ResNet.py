@@ -11,7 +11,7 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
 
-from Constant import BlockType
+from Constant import BlockType, DropType
 from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
 from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
@@ -67,10 +67,10 @@ class ResNet(NeuralNet):
     """
     def __init__(self,
                  act: str = "ReLU",
-                 blocks_type: Union[str, List[str]] = BlockType.PREACT,
+                 blocks_type: Union[BlockType, List[BlockType]] = BlockType.PREACT,
                  depth: int = 18,
                  drop_rate: float = 0,
-                 drop_type: str = "flat",
+                 drop_type: DropType = DropType.FLAT,
                  first_channels: int = 16,
                  first_kernel: Union[Sequence[int], int] = 3,
                  groups: int = 1,
@@ -86,13 +86,11 @@ class ResNet(NeuralNet):
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param blocks_type: A string or a list of string that indicate the type of block that will be used at each
                             level. If only a string is gived, all blocks in the model will be of the same type.
-                            (Options: ['preact', 'postact]) (Defaut=PreAct). The 3 following example give the same
-                            result.
+                            (Options: see BlockType in Constant.py) (Defaut=BlockType.PREACT).
+                            The 2 following example give the same result.
                             Example 1)
-                                blocks_type = 'preact'
-                            Example 2)
                                 blocks_type = BlockType.PREACT
-                            Example 3)
+                            Example 2)
                                 blocks_type = [BlockType.PREACT for _ in range(4)]
         :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
         :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
@@ -128,18 +126,22 @@ class ResNet(NeuralNet):
         # --------------------------------------------
         #                    BLOCK
         # --------------------------------------------
-        if type(blocks_type) is not list:
+        if type(blocks_type) is DropType:
             block_type_list = [blocks_type for _ in range(4)]
-        else:
+        elif type(blocks_type) is list:
             assert len(blocks_type) == NB_LEVELS, "You should specify one or 4 pre_act parameters."
             block_type_list = blocks_type
+        else:
+            raise Exception(f"blocks_type should be a BlockType or a list of BlockType. get {blocks_type}")
 
         block_list = []
         for block_type in block_type_list:
             if block_type == BlockType.PREACT:
                 block_list.append(PreResBlock if depth <= 34 else PreResBottleneck)
-            else:
+            elif block_type == BlockType.POSTACT:
                 block_list.append(ResBlock if depth <= 34 else ResBottleneck)
+            else:
+                raise Exception(f"The block_type is not an option: {block_type}, see BlockType Enum in Constant.py.")
 
         layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
 
@@ -148,9 +150,10 @@ class ResNet(NeuralNet):
         # --------------------------------------------
         num_block = int(np.sum(layers[depth]))
 
-        if drop_type.lower() == "flat":
+        assert type(drop_type) is DropType
+        if drop_type is DropType.FLAT:
             temp = [drop_rate for _ in range(num_block)]
-        elif drop_type.lower() == "linear":
+        elif drop_type is DropType.LINEAR:
             temp = [1 - (1 - (drop_rate * i / (num_block - 1))) for i in range(num_block)]
         else:
             raise NotImplementedError
