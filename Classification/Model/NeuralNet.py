@@ -7,7 +7,8 @@
 
     @Description:       This file contain the abstract class NeuralNet from which all 3D NeuralNetwork will inherit.
                         The NeuralNet class has been designed to handle the mixup module usage and to load weight
-                        of a neural network.
+                        of a neural network. If also contain the init_weight function that will be used by all neural
+                        network.
 """
 
 from random import randint
@@ -87,3 +88,26 @@ class NeuralNet(nn.Module):
             checkpoint = torch.load(checkpoint_path)
             self.load_state_dict(checkpoint['model_state_dict'])
             return checkpoint['epoch'], checkpoint['loss'], checkpoint['accuracy']
+
+
+def init_weights(m) -> None:
+    """
+    Initialize the weights of the fully connected layer and convolutional layer with Xavier normal initialization
+    and Kamming normal initialization respectively.
+
+    :param m: A torch.nn module of the current model. If this module is a layer, then we initialize its weights.
+    """
+    if type(m) == nn.Linear:
+        nn.init.kaiming_normal_(m.weight)
+        if not (m.bias is None):
+            nn.init.zeros_(m.bias)
+
+    elif type(m) == nn.Conv2d or type(m) == nn.Conv3d:
+        nn.init.kaiming_normal_(m.weight, mode='fan_out')
+        if not (m.bias is None):
+            nn.init.zeros_(m.bias)
+
+    elif type(m) == nn.BatchNorm2d or type(m) == nn.BatchNorm3d:
+        nn.init.ones_(m.weight)
+        if not (m.bias is None):
+            nn.init.zeros_(m.bias)

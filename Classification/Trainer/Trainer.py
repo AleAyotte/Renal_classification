@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 03/2021
+    @Last modification: 06/2021
 
     @Description:       Contain the mother class Trainer from which the SingleTaskTrainer and MultiTaskTrainer will
                         inherit.
@@ -11,7 +11,7 @@
 
 from abc import ABC, abstractmethod
 import csv
-from Data_manager.DataManager import RenalDataset
+from Data_manager.RenalDataset import RenalDataset
 from Model.NeuralNet import NeuralNet
 from Model.ResNet_2D import ResNet2D
 from monai.optimizers import Novograd
@@ -24,7 +24,8 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-from typing import Sequence, Tuple, Union, Dict
+from Trainer.Utils import find_optimal_cutoff
+from typing import Dict, List, Sequence, Tuple, Union
 
 
 DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
@@ -46,6 +47,8 @@ class Trainer(ABC):
         Flat: All classes have the same weight during the training.
         Balanced: The weights are inversionaly proportional to the number of data of each classes in the training set.
         (Default="balanced")
+    _classification_tasks : List[str]
+        A list that contain the name of every classification task on which the model will be train.
     __early_stopping : bool
         If true, the training will be stop after the third of the training if the model did not achieve at least 50%
         validation accuracy for at least one epoch.
@@ -63,6 +66,8 @@ class Trainer(ABC):
         be used for the data augmentation.
     __pin_memory : bool
         The pin_memory option of the DataLoader. If true, the data tensor will copied into the CUDA pinned memory.
+    _regression_tasks : List[str]
+        A list that contain the name of every regression task on which the model will be train.
     __save_path : string
         Indicate where the weights of the network and the result will be saved.
     __shared_net: bool
@@ -106,6 +111,8 @@ class Trainer(ABC):
         The constructor of the trainer class.
 
         :param tasks: A list of tasks on which the model will be train.
+        :param num_classes: A dictionnary that indicate the number of classes of each. For regression task, the number
+                            of classes should be 1.
         :param classes_weights: The configuration of weights that will be applied on the loss during the training.
                                 Flat: All classes have the same weight during the training.
                                 Balanced: The weights are inversionaly proportional to the number of data of each
@@ -141,6 +148,7 @@ class Trainer(ABC):
             "For a regression task num_classes should be equal to 1."
 
         self._classes_weights = classes_weights
+        self._classification_tasks = [task for task in tasks if num_classes[task] > 1]
         self.__cumulate_counter = 0
         self._device = None
         self.__early_stopping = early_stopping
@@ -151,7 +159,9 @@ class Trainer(ABC):
         self._num_classes = num_classes
         self.__num_cumulated_batch = 1
         self.__num_work = num_workers
+        self._optimal_threshold = {}
         self.__pin_memory = pin_memory
+        self._regression_tasks = [task for task in tasks if num_classes[task] == 1]
         self.__save_path = save_path
         self.__shared_net = shared_net
         self._soft = nn.Softmax(dim=-1)
@@ -160,6 +170,9 @@ class Trainer(ABC):
         self._track_mode = track_mode.lower()
         self._weights = {}
         self._writer = None
+
+        for task in self._classification_tasks:
+            self._optimal_threshold[task] = 0.5
 
     def fit(self,
             model: Union[NeuralNet, ResNet2D],
@@ -171,8 +184,8 @@ class Trainer(ABC):
             eta_min: float = 1e-4,
             gamma: float = 2.,
             grad_clip: float = 0,
-            l2: float = 1e-4,
             learning_rate: float = 1e-3,
+            l2: float = 1e-4,
             mode: str = "standard",
             mom: float = 0.9,
             num_cumulated_batch: int = 1,
@@ -181,7 +194,7 @@ class Trainer(ABC):
             retrain: bool = False,
             shared_eta_min: float = 0,
             shared_lr: float = 0,
-            t_0: int = 200,
+            t_0: int = 0,
             transfer_path: str = None,
             verbose: bool = True,
             warm_up_epoch: int = 0) -> None:
@@ -197,8 +210,8 @@ class Trainer(ABC):
         :param eta_min: Minimum value of the learning rate. (Default=1e-4)
         :param gamma: Gamma parameter of the focal loss. (Default=2.0)
         :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient. (Default=0)
-        :param l2: L2 regularization coefficient. (Default=1e-4)
         :param learning_rate: Start learning rate of the optimizer. (Default=1e-3)
+        :param l2: L2 regularization coefficient. (Default=1e-4)
         :param mode: The training type: Option: Standard training (No mixup) (Default)
                                                 Mixup (Manifold mixup)
         :param mom: The momentum parameter of the SGD Optimizer. (Default=0.9)
@@ -210,7 +223,8 @@ class Trainer(ABC):
                                 will be equal to learning_rate*100. Only used when shared_net is True.
         :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
                           equal to learning_rate*100. Only used when shared_net is True.
-        :param t_0: Number of epoch before the first restart. (Default=200)
+        :param t_0: Number of epoch before the first restart. If equal to 0, then t_0 will be equal to num_epoch.
+                    (Default=0)
         :param transfer_path: If not None, initialize the model with transfer learning by loading the weight of
                               the model at the given path.
         :param verbose: If true, show the progress of the training. (Default=True)
@@ -228,7 +242,7 @@ class Trainer(ABC):
         # Tensorboard writer
         self._writer = SummaryWriter()
 
-        # Initialization of the model.
+        # Initialization of the model and the loss.
         self._device = device
         self.model = model.to(device)
         self.model.set_mixup(batch_size) if mode.lower() == "mixup" else None
@@ -256,58 +270,18 @@ class Trainer(ABC):
                                   drop_last=True)
 
         # Initialization of the optimizer and the scheduler
-        assert optim.lower() in ["adam", "sgd", "novograd"]
-        lr_list = [learning_rate]
-        eta_list = [eta_min]
-        parameters = [self.model.parameters()]
-
-        if self.__shared_net:
-            lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
-            eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
-
-            parameters = [self.model.nets.parameters(),
-                          list(self.model.sharing_units_dict.parameters()) +
-                          list(self.model.uncertainty_loss.parameters())
-                          ]
-        optimizers = []
-
-        if optim.lower() == "adam":
-            for lr, param in zip(lr_list, parameters):
-                optimizers.append(
-                    torch.optim.Adam(param,
-                                     lr=lr,
-                                     weight_decay=l2,
-                                     eps=eps)
-                )
-        elif optim.lower() == "sgd":
-            for lr, param in zip(lr_list, parameters):
-                optimizers.append(
-                    torch.optim.SGD(param,
-                                    lr=lr,
-                                    weight_decay=l2,
-                                    momentum=mom,
-                                    nesterov=True)
-                )
-        else:
-            for lr, param in zip(lr_list, parameters):
-                optimizers.append(
-                    Novograd(param,
-                             lr=lr,
-                             weight_decay=l2,
-                             eps=eps)
-                )
-
-        n_iters = len(train_loader)
-        schedulers = []
-        for optimizer, eta in zip(optimizers, eta_list):
-            schedulers.append(
-                CosineAnnealingWarmRestarts(optimizer,
-                                            T_0=t_0*n_iters,
-                                            T_mult=1,
-                                            eta_min=eta)
-            )
+        t_0 = t_0 if t_0 <= 0 else num_epoch
+        optimizers, schedulers = self.__prepare_optim_and_schedulers(eta_min=eta_min,
+                                                                     eps=eps,
+                                                                     learning_rate=learning_rate,
+                                                                     l2=l2,
+                                                                     mom=mom,
+                                                                     optim=optim,
+                                                                     shared_eta_min=shared_eta_min,
+                                                                     shared_lr=shared_lr,
+                                                                     t_0=t_0*len(train_loader))
         for scheduler in schedulers:
-            scheduler.step(start_epoch*n_iters)
+            scheduler.step(start_epoch*len(train_loader))
 
         # Go in training mode to activate mixup module
         self.model.train()
@@ -327,7 +301,6 @@ class Trainer(ABC):
 
                 val_acc, val_loss = self._validation_step(dt_loader=valid_loader, 
                                                           epoch=epoch)
-
                 train_acc, train_loss = self._validation_step(dt_loader=train_loader, 
                                                               epoch=epoch,
                                                               dataset_name="Training")
@@ -365,6 +338,101 @@ class Trainer(ABC):
 
         self._writer.close()
         self.model.restore(self.__save_path)
+
+        # Compute the optimal threshold
+        self.__get_threshold(train_loader)
+        print(self._optimal_threshold)
+
+    def score(self,
+              testset: RenalDataset,
+              save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
+                                            Tuple[Sequence[np.array], Sequence[float]],
+                                            Tuple[np.array, float]]:
+        """
+        Compute the accuracy of the model on a given test dataset.
+
+        :param testset: A torch dataset which contain our test data points and labels.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
+        :return: The accuracy of the model.
+        """
+        test_loader = torch.utils.data.DataLoader(testset,
+                                                  TEST_BATCH_SIZE,
+                                                  shuffle=False)
+
+        self.model.eval()
+
+        return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path, use_optimal_threshold=True)
+
+    def _predict(self,
+                 dt_loader: DataLoader) -> Tuple[Dict[str, torch.Tensor],
+                                                 Dict[str, torch.Tensor]]:
+        """
+        Take a data loader and compute the prediction for every data in the dataloader.
+
+        :param dt_loader: A torch.Dataloader that use a RenalDataset object.
+        :return: A dictionnary that contain a list of prediction per task and a dictionnary that contain a
+                 list of labels per task.
+        """
+
+        outs = {}
+        labels = {}
+        # Two dictionnary that contain a torch.Tensor associated to each task (keys)
+        for task in self._tasks:
+            labels[task] = torch.empty(0).long()
+            outs[task] = torch.empty(0, self._num_classes[task]).to(self._device)
+
+        for data in dt_loader:
+            images, label = data["sample"].to(self._device), data["labels"]
+            features = None
+
+            if "features" in list(data.keys()):
+                features = data["features"].to(self._device)
+
+            with torch.no_grad():
+                out = self.model(images) if features is None else self.model(images, features)
+
+                for task in self._tasks:
+                    labels[task] = torch.cat([labels[task], label[task]])
+                    outs[task] = torch.cat([outs[task],
+                                            out if len(self._tasks) == 1 else out[task]])
+
+        return outs, labels
+
+    def _save_prediction(self,
+                         outs: Dict[str, torch.Tensor],
+                         labels: dict,
+                         patient_id: Sequence[str],
+                         save_path: str) -> None:
+        """
+        Save the prediction made by the model on a given dataset.
+
+        :param outs: A dictionnary of torch.tensor that represent the output of the model for each task.
+        :param labels: A dictionnary of torch.tensor that represent the labels and where the keys are the name
+                       of each task.
+        :param patient_id: A list that contain the patient id in the same order has the labels and the outputs.
+        :param save_path: The filepath of the csv that will be used to save the prediction.
+        """
+
+        preds = {}
+        with torch.no_grad():
+            for task in self._tasks:
+                preds[task] = self._soft(outs[task]) if self._num_classes[task] > 1 else outs[task]
+
+        with open(save_path, mode="w") as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=',')
+            first_row = ["patient_id"]
+            first_row.extend([f"{task} {word}" for task in self._tasks for word in ["labels", "prediction"]])
+
+            csv_writer.writerow(first_row)
+
+            for i in range(len(labels[self._tasks[0]])):
+                row = [patient_id[i]]
+                for task in self._tasks:
+                    label = labels[task][i].item()
+                    pred = preds[task][i] if self._num_classes[task] == 1 else preds[task][i][-1]
+                    row.extend([label, pred.cpu().item()])
+
+                csv_writer.writerow(row)
 
     def _update_model(self,
                       grad_clip: float,
@@ -409,6 +477,97 @@ class Trainer(ABC):
         for scheduler in schedulers:
             scheduler.step()
 
+    def __prepare_optim_and_schedulers(self,
+                                       eta_min: float,
+                                       eps: float,
+                                       learning_rate: float,
+                                       l2,
+                                       mom: float,
+                                       optim: str,
+                                       shared_eta_min: float,
+                                       shared_lr: float,
+                                       t_0: int) -> Tuple[List[torch.optim.Optimizer],
+                                                          List[CosineAnnealingWarmRestarts]]:
+        """
+        Initalize all optimizers and schedulers object.
+
+        :param eta_min: Minimum value of the learning rate.
+        :param eps: The epsilon parameter of the Adam Optimizer.
+        :param learning_rate: Start learning rate of the optimizer.
+        :param l2: L2 regularization coefficient.
+        :param mom: The momentum parameter of the SGD Optimizer.
+        :param optim: A string that indicate the optimizer that will be used for training.
+        :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
+                                will be equal to learning_rate*100. Only used when shared_net is True.
+        :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
+                          equal to learning_rate*100. Only used when shared_net is True.
+        :param t_0: Number of epoch before the first restart.
+        :return: A list of optimizers and a list of learning rate schedulers
+        """
+        assert optim.lower() in ["adam", "sgd", "novograd"]
+        lr_list = [learning_rate]
+        eta_list = [eta_min]
+        parameters = [self.model.parameters()]
+
+        if self.__shared_net:
+            lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
+            eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
+
+            parameters = [self.model.nets.parameters(),
+                          list(self.model.sharing_units_dict.parameters()) +
+                          list(self.model.uncertainty_loss.parameters())]
+        optimizers = []
+
+        if optim.lower() == "adam":
+            for lr, param in zip(lr_list, parameters):
+                optimizers.append(
+                    torch.optim.Adam(param,
+                                     lr=lr,
+                                     weight_decay=l2,
+                                     eps=eps)
+                )
+        elif optim.lower() == "sgd":
+            for lr, param in zip(lr_list, parameters):
+                optimizers.append(
+                    torch.optim.SGD(param,
+                                    lr=lr,
+                                    weight_decay=l2,
+                                    momentum=mom,
+                                    nesterov=True)
+                )
+        else:
+            for lr, param in zip(lr_list, parameters):
+                optimizers.append(
+                    Novograd(param,
+                             lr=lr,
+                             weight_decay=l2,
+                             eps=eps)
+                )
+
+        schedulers = []
+        for optimizer, eta in zip(optimizers, eta_list):
+            schedulers.append(
+                CosineAnnealingWarmRestarts(optimizer,
+                                            T_0=t_0,
+                                            T_mult=1,
+                                            eta_min=eta)
+            )
+            return optimizers, schedulers
+
+    def __get_threshold(self, train_loader: DataLoader) -> None:
+        """
+        Get the optimal threhold point based on the training set for all classification task.
+
+        :param train_loader: The train dataloader
+        """
+        self.model.eval()
+        outs, labels = self._predict(train_loader)
+
+        for task in self._classification_tasks:
+            mask = torch.where(labels[task] > -1, 1, 0).bool()
+            self._optimal_threshold[task] = find_optimal_cutoff(labels[task][mask].numpy(),
+                                                                outs[task][mask][:, 1].cpu().numpy())
+
     def __init_weights(self, labels_bincounts: dict) -> None:
         """
         Compute the balanced weight according to a given distribution of data.
@@ -420,19 +579,40 @@ class Trainer(ABC):
         for key, value in labels_bincounts.items():
             self._weights[key] = np.sum(value) / (2 * value)
 
+    def __save_checkpoint(self,
+                          epoch: int,
+                          loss: float,
+                          accuracy: float) -> None:
+        """
+        Save the model and his at a the current state if the self.path is not None.
+
+        :param epoch: Current epoch of the training
+        :param loss: Current loss of the training
+        :param accuracy: Current validation accuracy
+        """
+
+        if self.__save_path is not None:
+            torch.save({"epoch": epoch,
+                        "model_state_dict": self.model.state_dict(),
+                        "loss": loss,
+                        "accuracy": accuracy},
+                       self.__save_path)
+
     @abstractmethod
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False,
-                         save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
-                                                       Tuple[Sequence[np.array], Sequence[float]],
-                                                       Tuple[np.array, float]]:
+                         save_path: str = "",
+                         use_optimal_threshold: bool = False) -> Union[Tuple[Sequence[np.array], float],
+                                                                       Tuple[Sequence[np.array], Sequence[float]],
+                                                                       Tuple[np.array, float]]:
         """
         Compute the accuracy of the model on a given data loader
 
         :param dt_loader: A torch data loader that contain test or validation data.
         :param get_loss: Return also the loss if True.
         :param save_path: The filepath of the csv that will be used to save the prediction.
+        :param use_optimal_threshold
         :return: The confusion matrix for each classes and the average loss if get_loss == True.
         """
         raise NotImplementedError("Must override _get_conf_matrix.")
@@ -481,115 +661,6 @@ class Trainer(ABC):
         :return: The average training loss.
         """
         raise NotImplementedError("Must override _mixup_epoch.")
-
-    def _predict(self,
-                 dt_loader: DataLoader) -> Tuple[Dict[str, torch.Tensor],
-                                                 Dict[str, torch.Tensor]]:
-        """
-        Take a data loader and compute the prediction for every data in the dataloader.
-
-        :param dt_loader: A torch.Dataloader that use a RenalDataset object.
-        :return:
-        """
-
-        outs = {}
-        labels = {}
-        # Two dictionnary that contain a torch.Tensor associated to each task (keys)
-        for task in self._tasks:
-            labels[task] = torch.empty(0).long()
-            outs[task] = torch.empty(0, self._num_classes[task]).to(self._device)
-
-        for data in dt_loader:
-            images, label = data["sample"].to(self._device), data["labels"]
-            features = None
-
-            if "features" in list(data.keys()):
-                features = data["features"].to(self._device)
-
-            with torch.no_grad():
-                out = self.model(images) if features is None else self.model(images, features)
-
-                for task in self._tasks:
-                    labels[task] = torch.cat([labels[task], label[task]])
-                    outs[task] = torch.cat([outs[task],
-                                            out if len(self._tasks) == 1 else out[task]])
-
-        return outs, labels
-
-    def __save_checkpoint(self,
-                          epoch: int,
-                          loss: float,
-                          accuracy: float) -> None:
-        """
-        Save the model and his at a the current state if the self.path is not None.
-
-        :param epoch: Current epoch of the training
-        :param loss: Current loss of the training
-        :param accuracy: Current validation accuracy
-        """
-
-        if self.__save_path is not None:
-            torch.save({"epoch": epoch,
-                        "model_state_dict": self.model.state_dict(),
-                        "loss": loss,
-                        "accuracy": accuracy},
-                       self.__save_path)
-
-    def _save_prediction(self,
-                         outs: Dict[str, torch.Tensor],
-                         labels: dict,
-                         patient_id: Sequence[str],
-                         save_path: str) -> None:
-        """
-        Save the prediction made by the model on a given dataset.
-
-        :param outs: A dictionnary of torch.tensor that represent the output of the model for each task.
-        :param labels: A dictionnary of torch.tensor that represent the labels and where the keys are the name
-                       of each task.
-        :param patient_id: A list that contain the patient id in the same order has the labels and the outputs.
-        :param save_path: The filepath of the csv that will be used to save the prediction.
-        """
-
-        preds = {}
-        with torch.no_grad():
-            for task in self._tasks:
-                preds[task] = self._soft(outs[task]) if self._num_classes[task] > 1 else outs[task]
-
-        with open(save_path, mode="w") as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=',')
-            first_row = ["patient_id"]
-            first_row.extend([f"{task} {word}" for task in self._tasks for word in ["labels", "prediction"]])
-
-            csv_writer.writerow(first_row)
-
-            for i in range(len(labels[self._tasks[0]])):
-                row = [patient_id[i]]
-                for task in self._tasks:
-                    label = labels[task][i].item()
-                    pred = preds[task][i] if self._num_classes[task] == 1 else preds[task][i][-1]
-                    row.extend([label, pred.cpu().item()])
-
-                csv_writer.writerow(row)
-
-    def score(self,
-              testset: RenalDataset,
-              save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
-                                            Tuple[Sequence[np.array], Sequence[float]],
-                                            Tuple[np.array, float]]:
-        """
-        Compute the accuracy of the model on a given test dataset.
-
-        :param testset: A torch dataset which contain our test data points and labels.
-        :param save_path: The filepath of the csv that will be used to save the prediction.
-        :return: The accuracy of the model.
-        """
-        test_loader = torch.utils.data.DataLoader(testset,
-                                                  TEST_BATCH_SIZE,
-                                                  shuffle=False)
-
-        self.model.eval()
-
-        return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path)
 
     @abstractmethod
     def _standard_epoch(self,

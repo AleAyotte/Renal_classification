@@ -13,7 +13,6 @@
 
 import torch
 import torch.nn as nn
-from Trainer.Utils import init_weights
 from torchvision import models
 from typing import Tuple
 

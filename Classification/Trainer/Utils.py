@@ -10,7 +10,9 @@
                         the weight of the models.
 """
 
+import pandas as pd
 import numpy as np
+from sklearn.metrics import roc_curve
 import torch
 from torch import nn
 from torch.autograd import Variable
@@ -34,6 +36,23 @@ def compute_recall(conf_matrix: np.array) -> List[float]:
     return recalls
 
 
+def find_optimal_cutoff(labels: Sequence[int], prediction: Sequence[float]):
+    """
+    Find the optimal threshold in a binary classification problem.
+    From Manohar Swamynathan @https://stackoverflow.com/questions/28719067/roc-curve-and-cut-off-point-python
+
+    :param labels: A sequence of integer that indicate the labels of each data.
+    :param prediction: A sequence of float that indicate the prediction made by the model.
+    :return: A float that represent the optimal threshold point that maximize the mean recall on the given dataset.
+    """
+    fpr, tpr, threshold = roc_curve(labels, prediction)
+    i = np.arange(len(tpr))
+    roc = pd.DataFrame({'tf': pd.Series(tpr - (1 - fpr), index=i), 'threshold': pd.Series(threshold, index=i)})
+    roc_t = roc.iloc[(roc.tf - 0).abs().argsort()[:1]]
+
+    return list(roc_t['threshold'])[0]
+
+
 def get_mean_accuracy(recalls: Sequence[float], 
                       geometric_mean: bool = True) -> float:
     """
@@ -47,29 +66,6 @@ def get_mean_accuracy(recalls: Sequence[float],
         return np.prod(recalls) ** (1 / len(recalls))
     else:
         return float(np.mean(recalls))
-
-
-def init_weights(m) -> None:
-    """
-    Initialize the weights of the fully connected layer and convolutional layer with Xavier normal initialization
-    and Kamming normal initialization respectively.
-
-    :param m: A torch.nn module of the current model. If this module is a layer, then we initialize its weights.
-    """
-    if type(m) == nn.Linear:
-        nn.init.kaiming_normal_(m.weight)
-        if not (m.bias is None):
-            nn.init.zeros_(m.bias)
-
-    elif type(m) == nn.Conv2d or type(m) == nn.Conv3d:
-        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity="relu")
-        if not (m.bias is None):
-            nn.init.zeros_(m.bias)
-
-    elif type(m) == nn.BatchNorm2d or type(m) == nn.BatchNorm3d:
-        nn.init.ones_(m.weight)
-        if not (m.bias is None):
-            nn.init.zeros_(m.bias)
 
 
 def to_one_hot(inp: Union[torch.Tensor, Variable],
