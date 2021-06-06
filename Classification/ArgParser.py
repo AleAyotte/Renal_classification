@@ -79,7 +79,7 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
     # --------------------------------------------
     #                SINGLE TASK 2D
     # --------------------------------------------
-    if experiment == Experimentation.SINGLE_TASK_2D:
+    if experiment is Experimentation.SINGLE_TASK_2D:
         parser.add_argument('--task', type=str, default="malignancy",
                             help="The task on which the model will be train.",
                             choices=["malignancy", "subtype", "grade"])
@@ -87,7 +87,7 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
     # --------------------------------------------
     #                SINGLE TASK 3D
     # --------------------------------------------
-    elif experiment == Experimentation.SINGLE_TASK_3D:
+    elif experiment is Experimentation.SINGLE_TASK_3D:
         parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
@@ -119,7 +119,7 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
     # --------------------------------------------
     #               HARD SHARED 3D
     # --------------------------------------------
-    elif experiment == Experimentation.HARD_SHARING:
+    elif experiment is Experimentation.HARD_SHARING:
         parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
@@ -150,7 +150,7 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
     # --------------------------------------------
     #               SOFT SHARING 3D
     # --------------------------------------------
-    elif experiment == Experimentation.SOFT_SHARING:
+    elif experiment is Experimentation.SOFT_SHARING:
         parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
