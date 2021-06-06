@@ -5,16 +5,17 @@
     @Creation Date:     06/2021
     @Last modification: 06/2021
 
-    @Description:       Contain several class that group constant.
+    @Description:       Contain several class that group constant and enum.
 """
 
 from enum import Enum, unique
 from typing import Final
 
 
-class BlockType:
-    PREACT: Final = "preact"
-    POSTACT: Final = "postact"
+@unique
+class BlockType(Enum):
+    PREACT: Final = 1
+    POSTACT: Final = 2
 
 
 class DatasetName:
@@ -22,6 +23,12 @@ class DatasetName:
     VALIDATION: Final = "VALIDATION"
     TEST: Final = "TEST"
     HOLDOUT: Final = "HOLD_OUT"
+
+
+@unique
+class DropType(Enum):
+    FLAT: Final = 1
+    LINEAR: Final = 2
 
 
 @unique
