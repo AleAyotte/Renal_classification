@@ -24,6 +24,7 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+from Trainer.PCGrad import PCGrad
 from Trainer.Utils import find_optimal_cutoff
 from typing import Dict, List, Sequence, Tuple, Union
 
@@ -341,7 +342,6 @@ class Trainer(ABC):
 
         # Compute the optimal threshold
         self.__get_threshold(train_loader)
-        print(self._optimal_threshold)
 
     def score(self,
               testset: RenalDataset,
@@ -437,7 +437,7 @@ class Trainer(ABC):
     def _update_model(self,
                       grad_clip: float,
                       loss: torch.FloatTensor,
-                      optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
+                      optimizers: Sequence[Union[torch.optim.Optimizer, Novograd, PCGrad]],
                       scaler: Union[GradScaler, None],
                       schedulers: Sequence[CosineAnnealingWarmRestarts]) -> None:
         """
@@ -451,7 +451,9 @@ class Trainer(ABC):
         """
         self.__cumulate_counter += 1
 
-        scaler.scale(loss).backward() if self._mixed_precision else loss.backward()
+        # scaler.scale(loss).backward() if self._mixed_precision else loss.backward()
+        for optimizer in optimizers:
+            optimizer.pc_backward(loss)
 
         if self.__cumulate_counter % self.__num_cumulated_batch == 0:
             # Mixed precision enabled
@@ -552,7 +554,8 @@ class Trainer(ABC):
                                             T_mult=1,
                                             eta_min=eta)
             )
-            return optimizers, schedulers
+        return [PCGrad(optimizer) for optimizer in optimizers], schedulers
+        # return optimizers, schedulers
 
     def __get_threshold(self, train_loader: DataLoader) -> None:
         """

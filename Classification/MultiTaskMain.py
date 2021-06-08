@@ -23,11 +23,12 @@ from Utils import get_predict_csv_path, print_score, print_data_distribution, re
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimun number of tasks.
-MIXED_PRECISION: Final = True
+# MIXED_PRECISION: Final = True
+MIXED_PRECISION: Final = False
 MODEL_NAME: Final = "HardSharing"
 PIN_MEMORY: Final = False
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME: Final = "june-2021-multitask"
+PROJECT_NAME: Final = "june-2021-pcgrade"
 SAVE_PATH: Final = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
 

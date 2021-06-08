@@ -226,10 +226,11 @@ class MultiTaskTrainer(Trainer):
                     metrics[task] = loss.item()
 
                 losses = torch.stack(losses)
-                loss = self.model.uncertainty_loss(losses)
+                # loss = losses
+                loss = self.model.uncertainty_loss(losses.detach())
 
-            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
-            sum_loss += loss
+            self._update_model(grad_clip, losses, optimizers, scaler, schedulers)
+            sum_loss += torch.sum(loss)
 
             if self._track_mode == "all":
                 metrics["total"] = loss.item()
@@ -461,6 +462,7 @@ class MultiTaskTrainer(Trainer):
 
                     if not get_loss:
                         task_outs = outs[task1][mask.to(self._device)]
+                        # task_outs = outs[count][mask.to(self._device)]
                         fpr, tpr, _ = roc_curve(y_true=labels[task1][mask].numpy(),
                                                 y_score=task_outs[:, 1].cpu().numpy())
                         auc_score[task_name] = auc(fpr, tpr)
