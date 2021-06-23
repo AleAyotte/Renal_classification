@@ -11,10 +11,10 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, DropType, Experimentation, SharingUnits, Tasks
+from Constant import BlockType, DatasetName, DropType, Experimentation, SharingUnits, SubNetDepth, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
-from Model.SharedNet import SharedNet
+from Model.SharedNet import SharedNet, NB_LEVELS
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
@@ -29,6 +29,7 @@ MODEL_NAME: Final = "SharedNet"
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
 PROJECT_NAME: Final = "renal-classification"
 SAVE_PATH: Final = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
+SUBSPACE: Final = [4, 8, 8, 0]
 TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 
@@ -43,6 +44,14 @@ if __name__ == "__main__":
     blocks_lists = {}
     conditional_prob = []
 
+    # Depth config
+    if args.depth_config == 1:
+        config: Final = SubNetDepth.CONFIG1
+    elif args.depth_config == 2:
+        config: Final = SubNetDepth.CONFIG2
+    else:
+        config: Final = SubNetDepth.CONFIG3
+
     if args.malignancy:
         task_list.append(Tasks.MALIGNANCY)
         num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
@@ -52,7 +61,7 @@ if __name__ == "__main__":
         task_list.append(Tasks.SUBTYPE)
         num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
 
-        if args.depth == 34:
+        if config[Tasks.SUBTYPE] == 34:
             blocks_lists[Tasks.SUBTYPE] = BlockType.POSTACT
         else:
             blocks_lists[Tasks.SUBTYPE] = [BlockType.PREACT, BlockType.PREACT,
@@ -86,7 +95,7 @@ if __name__ == "__main__":
     for task in task_list:
         sub_nets[task] = ResNet(
             blocks_type=blocks_lists[task],
-            depth=args.depth,
+            depth=config[task],
             groups=args.groups,
             in_shape=in_shape,
             first_channels=args.in_channels,
@@ -100,12 +109,12 @@ if __name__ == "__main__":
             sub_nets[task].restore(LOAD_PATH + task + ".pth")
 
     net = SharedNet(sub_nets=sub_nets,
-                    num_shared_channels=[(2**i % 8)*args.in_channels for i in range(4)],
+                    num_shared_channels=[(2**i % 8)*args.in_channels for i in range(NB_LEVELS)],
                     sharing_unit=SharingUnits[args.sharing_unit.upper()],
-                    subspace_1={task: 4 for task in task_list},
-                    subspace_2={task: 8 for task in task_list},
-                    subspace_3={task: 8 for task in task_list},
-                    subspace_4={task: 0 for task in task_list},
+                    subspace_1={task: SUBSPACE[0] for task in task_list},
+                    subspace_2={task: SUBSPACE[1] for task in task_list},
+                    subspace_3={task: SUBSPACE[2] for task in task_list},
+                    subspace_4={task: SUBSPACE[3] for task in task_list},
                     c=args.c,
                     spread=args.spread).to(args.device)
 

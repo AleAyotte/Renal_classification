@@ -45,6 +45,12 @@ class SharingUnits(Enum):
     SLUICE: Final = 2
 
 
+class SubNetDepth:
+    CONFIG1: Final = {"malignancy": 18, "subtype": 18, "grade": 18}
+    CONFIG2: Final = {"malignancy": 34, "subtype": 34, "grade": 34}
+    CONFIG3: Final = {"malignancy": 18, "subtype": 18, "grade": 34}
+
+
 class Tasks:
     MALIGNANCY: Final = "malignancy"
     SUBTYPE: Final = "subtype"

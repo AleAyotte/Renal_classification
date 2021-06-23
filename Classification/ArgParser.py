@@ -156,8 +156,9 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
         parser.add_argument('--c', type=float, default=0.85,
                             help="The conservation parameter of the Cross-Stich Unit")
-        parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
-                            help="The number of layer in the ResNet.")
+        parser.add_argument('--depth_config', type=int, default=3, choices=[1, 2, 3],
+                            help="The config used to determine the depth of each sub-network "
+                                 "(see Constant.py SubNetDepth).")
         parser.add_argument('--drop_type', type=str, default="linear",
                             help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
                                  "Else if, drop_type == 'linear' the drop rate will grow linearly  "
