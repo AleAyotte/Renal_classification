@@ -28,10 +28,10 @@ NB_LEVELS: Final = 4
 
 class SharedNet(NeuralNet):
     """
-    An implemantation of a general shared neural network inpired by Ref 1) and 2) for multi-task learning problem.
+    An implementation of a general shared neural network inspired by Ref 1) and 2) for multi-task learning problem.
     The SharedNet is a alternative of the hard-sharing structure proposed by Caruana (Multi-task learning, 1997).
-    It took 2 sub neural network that can be pretrained on their corresponding task and it connect them with
-    'sharing unit' to allow features sharing between the two network. These 'sharing utit' perform a linear
+    It took 2 or 3 sub neural network that can be pretrained on their corresponding task and it connect them with
+    'sharing unit' to allow features sharing between the two network. These 'sharing unit' perform a linear
     interpolation between different subspace of the sub neural networks.
 
      ...
