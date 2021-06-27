@@ -156,7 +156,7 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
         parser.add_argument('--c', type=float, default=0.85,
                             help="The conservation parameter of the Cross-Stich Unit")
-        parser.add_argument('--depth_config', type=int, default=3, choices=[1, 2, 3],
+        parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                             help="The config used to determine the depth of each sub-network "
                                  "(see Constant.py SubNetDepth).")
         parser.add_argument('--drop_type', type=str, default="linear",
@@ -166,6 +166,7 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=["flat", "linear"])
         parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the grade task.")
+        parser.add_argument('--groups', type=int, default=1)
         parser.add_argument('--in_channels', type=int, default=16,
                             help="Number of channels after the first convolution.")
         parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
