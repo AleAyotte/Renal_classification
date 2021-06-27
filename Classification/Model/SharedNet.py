@@ -109,12 +109,12 @@ class SharedNet(NeuralNet):
         assert type(sharing_unit) is SharingUnits, "The sharing_unit should of type SharingUnits. See Constant.py."
         self.__sharing_unit = sharing_unit
 
-        self.__subspace = np.zeros((NB_LEVELS, self.__nb_tasks))
+        self.__subspace = np.zeros((NB_LEVELS, self.__nb_task))
         for i in range(NB_LEVELS):
             subspace = [subspace_1, subspace_2, subspace_3, subspace_4][i]
 
             if type(subspace) is not dict:
-                self.__subspace[i, :] = np.array([subspace for _ in range(self.__nb_tasks)])
+                self.__subspace[i, :] = np.array([subspace for _ in range(self.__nb_task)])
             else:
                 self.__subspace[i, :] = np.array([subspace[task] for task in self.__tasks])
 
@@ -122,7 +122,6 @@ class SharedNet(NeuralNet):
             assert len(num_shared_channels) == NB_LEVELS, "You must give the number of shared channels PER NETWORK " \
                                                           f"for each shared unit. Only {len(num_shared_channels)} " \
                                                            "were gived"
-
         self.sharing_units_dict = nn.ModuleDict()
         for i in range(1, NB_LEVELS+1):
             if sharing_unit is SharingUnits.SLUICE:
@@ -131,7 +130,7 @@ class SharedNet(NeuralNet):
                                                                  c,
                                                                  spread)
             else:
-                if num_shared_channels != 0:
+                if num_shared_channels[i - 1] != 0:
                     self.sharing_units_dict[str(i)] = CrossStitchUnit(nb_channels=num_shared_channels[i - 1],
                                                                       nb_task=self.__nb_task,
                                                                       c=c,
