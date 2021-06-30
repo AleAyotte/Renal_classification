@@ -109,7 +109,7 @@ if __name__ == "__main__":
         if args.pretrained:
             assert args.seed is not None, "You should specify the split seed to load pretrained model."
             load_path = LOAD_PATH + f"{args.seed}/" + task + ".pth"
-            sub_nets[task].restore(LOAD_PATH + task + ".pth")
+            sub_nets[task].restore(load_path)
 
     net = SharedNet(sub_nets=sub_nets,
                     num_shared_channels=[(2**i % 8)*args.in_channels for i in range(NB_LEVELS)],
