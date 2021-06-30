@@ -22,7 +22,7 @@ from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-LOAD_PATH: Final = "save/STL3D_"
+LOAD_PATH: Final = "save/STL3D_NET/"  # Loading path of the single task model.
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimum number of tasks
 MODEL_NAME: Final = "SharedNet"
@@ -84,7 +84,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     trainset, validset, testset = build_datasets(tasks=task_list,
                                                  testset_name=args.testset,
-                                                 num_chan=args.num_chan_data)
+                                                 num_chan=args.num_chan_data,
+                                                 split_seed=args.seed)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -106,6 +107,8 @@ if __name__ == "__main__":
         ).to(args.device)
 
         if args.pretrained:
+            assert args.seed is not None, "You should specify the split seed to load pretrained model."
+            load_path = LOAD_PATH + f"{args.seed}/" + task + ".pth"
             sub_nets[task].restore(LOAD_PATH + task + ".pth")
 
     net = SharedNet(sub_nets=sub_nets,

@@ -60,6 +60,8 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                         choices=["adam", "novograd", "sgd"])
     parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
                         help="If true, load the last saved model and continue the training.")
+    parser.add_argument('--seed', type=int, default=None,
+                        help="The seed that will be used to split the data.")
     parser.add_argument('--testset', type=str, default="test",
                         help="The name of the testset. If testset=='test' then a random stratified testset will be "
                              "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"

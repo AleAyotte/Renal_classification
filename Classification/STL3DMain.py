@@ -15,6 +15,7 @@ from comet_ml import Experiment
 from Constant import BlockType, DatasetName, DropType, Experimentation
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
+import os
 import torch
 from torchsummary import summary
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
@@ -38,7 +39,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     trainset, validset, testset = build_datasets(tasks=[args.task],
                                                  testset_name=args.testset,
-                                                 num_chan=args.num_chan_data)
+                                                 num_chan=args.num_chan_data,
+                                                 split_seed=args.seed)
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -88,8 +90,16 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
+    if args.seed is not None:
+        dir_path = SAVE_PATH + f"/{args.seed}"
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
+        save_path = dir_path + "/" + args.task + ".pth"
+    else:
+        save_path = SAVE_PATH + "_" + args.task + ".pth"
+
     trainer = Trainer(early_stopping=args.early_stopping,
-                      save_path=SAVE_PATH + args.task + ".pth",
+                      save_path=save_path,
                       loss=args.loss,
                       tol=TOL,
                       num_workers=args.worker,

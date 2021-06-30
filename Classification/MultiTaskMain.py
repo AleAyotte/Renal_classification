@@ -69,7 +69,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     trainset, validset, testset = build_datasets(tasks=task_list,
                                                  testset_name=args.testset,
-                                                 num_chan=args.num_chan_data)
+                                                 num_chan=args.num_chan_data,
+                                                 split_seed=args.seed)
 
     # --------------------------------------------
     #                NEURAL NETWORK
