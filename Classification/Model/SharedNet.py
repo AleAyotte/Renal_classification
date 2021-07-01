@@ -38,8 +38,7 @@ class SharedNet(NeuralNet):
     Attributes
     ----------
     nets : nn.ModuleDict
-        A dictionnary that contain two neural network. One for each task.
-        They are referenced by the shortname of their corresponding task. (mal, sub)
+        A dictionnary that contain several neural network. One for each task.
     __nb_task : int
         The number of tasks.
     __sharing_unit : SharingUnits
@@ -78,7 +77,7 @@ class SharedNet(NeuralNet):
         """
         Create a Shared network with Shared Module like Sluice Unit or Cross-Stitch Unit.
 
-        :param sub_nets:
+        :param sub_nets: A dictionary of neural network where the key are task name associated to the network.
         :param c: A float that represent the conservation parameter of the sharing units.
         :param num_shared_channels: A list of int that indicate the number of channels per network before the
                                     cross-stitch unit. Only used if sharing_unit == "cross_stitch"
