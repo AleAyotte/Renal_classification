@@ -26,9 +26,6 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Dict, Sequence, Tuple, Union
 
 
-NUM_TASK = 2  # Number of task
-
-
 class MultiTaskTrainer(Trainer):
     """
     The MultiTaskTrainer class inherit of the Trainer class. It handle the training and the assess of a given

@@ -28,7 +28,7 @@ from Trainer.Utils import find_optimal_cutoff
 from typing import Dict, List, Sequence, Tuple, Union
 
 
-DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
+DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
 MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
 VALIDATION_BATCH_SIZE = 2  # Batch size used to create the validation dataloader and the test dataloader
 TEST_BATCH_SIZE = 1  # Batch size used to create the validation dataloader and the test dataloader
