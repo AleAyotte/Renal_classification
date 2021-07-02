@@ -244,7 +244,25 @@ class UncertaintyLoss(torch.nn.Module):
         """
         Compute the uncertainty loss
 
-        :param losses: A torch.Tensor that represent the vector of lenght 3 that contain the losses.
+        :param losses: A torch.Tensor that represent the vector of length num_task that contain the losses.
         :return: A torch.Tensor that represent the uncertainty loss (multi-task loss).
         """
         return torch.dot(torch.exp(-self.phi), losses) + torch.sum(self.phi / 2)
+
+
+class UniformLoss(torch.nn.Module):
+    """
+    An implementation of the Uniform loss for multi-task learning. This loss does not scale the different losses, it
+    only sum them.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+
+    def forward(self, losses: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the uniform loss for multi-task learning. It will only sum all losses.
+
+        :param losses: A torch.Tensor that represent the vector of length num_task that contain the losses.
+        :return: A torch.Tensor that represent the uniform loss (multi-task loss).
+        """
+        return torch.sum(losses)
