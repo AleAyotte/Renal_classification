@@ -144,26 +144,6 @@ class SharedNet(NeuralNet):
             self.loss_module = UniformLoss()
         self.loss = self.__define_loss(penalty_coeff)
 
-    def __define_loss(self, penalty_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
-        """
-        Build the method that will be used to compute the loss.
-
-        :param penalty_coeff: The coefficient that will multiply the penalty applied on the shared units.
-        :return: A function that compute the multi-task loss.
-        """
-        if penalty_coeff:
-            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
-                penalty = []
-                for key, mod in self.sharing_units_dict.items():
-                    penalty.append(mod.penalty())
-                penalty = torch.stack(penalty)
-                return self.loss_module(losses) + penalty_coeff * torch.mean(penalty)
-        else:
-            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
-                return self.loss_module(losses)
-
-        return multi_task_loss
-
     def shared_forward(self,
                        sharing_level: int,
                        x: List[torch.Tensor]) -> List[torch.Tensor]:
@@ -250,3 +230,23 @@ class SharedNet(NeuralNet):
             preds[task] = self.nets[task].last_layers(outs[count])
 
         return preds
+
+    def __define_loss(self, penalty_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
+        """
+        Build the method that will be used to compute the loss.
+
+        :param penalty_coeff: The coefficient that will multiply the penalty applied on the shared units.
+        :return: A function that compute the multi-task loss.
+        """
+        if penalty_coeff:
+            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
+                penalty = []
+                for key, mod in self.sharing_units_dict.items():
+                    penalty.append(mod.penalty())
+                penalty = torch.stack(penalty)
+                return self.loss_module(losses) + penalty_coeff * torch.mean(penalty)
+        else:
+            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
+                return self.loss_module(losses)
+
+        return multi_task_loss
