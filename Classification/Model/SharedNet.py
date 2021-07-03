@@ -18,6 +18,7 @@ from Constant import Loss, SharingUnits
 from Model.Module import CrossStitchUnit, SluiceUnit, UncertaintyLoss, UniformLoss
 from Model.NeuralNet import NeuralNet
 import numpy as np
+from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn as nn
 from typing import Callable, Dict, Final, List, Optional, Sequence, Union
@@ -143,6 +144,21 @@ class SharedNet(NeuralNet):
         else:
             self.loss_module = UniformLoss()
         self.loss = self.__define_loss(penalty_coeff)
+
+    def save_histogram_sharing_unit(self,
+                                    current_iter: int,
+                                    writer: SummaryWriter,
+                                    prefix: Optional[str] = "") -> None:
+        """
+        Save an histogram of the weights of each sharing unit with a given tensorboard writer.
+
+        :param current_iter: An integer that indicate the current iteration.
+        :param writer: The tensorboard writer that will be used to save the histogram.
+        :param prefix: A string that will be used as prefix of the histogram name.
+        """
+        for key, mod in self.sharing_units_dict.items():
+            weights = mod.alpha.cpu().numpy()
+            writer.add_histogram(prefix + f"Sharing units {key}", weights.flatten(), current_iter)
 
     def shared_forward(self,
                        sharing_level: int,
