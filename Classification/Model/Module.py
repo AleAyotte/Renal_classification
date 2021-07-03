@@ -49,6 +49,9 @@ class CrossStitchUnit(torch.nn.Module):
         :param spread: A float that represent the spread parameters.
         """
         super().__init__()
+        self.__num_chan = nb_channels
+        self.__num_task = nb_task
+
         mean = (1 - c) / (nb_task - 1)
         std = spread / (nb_task - 1)
 
@@ -67,6 +70,16 @@ class CrossStitchUnit(torch.nn.Module):
         # Output, Task, Batch, Channels, Depth, Width, Height
         out = torch.mul(self.alpha[:, :, None, :, None, None, None], x[None, :, :, :, :, :, :])
         return out.sum(1)
+
+    def penalty(self) -> torch.Tensor:
+        """
+        Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
+        be equal to 1.
+
+        :return: a torch.tensor that represent the penalty on the shared unit (Cross-stitch unit).
+        """
+        prod = torch.mean(torch.prod(torch.abs(self.alpha) + 1, dim=1))
+        return prod + torch.mean(torch.sum(self.alpha, dim=1) - 1)
 
 
 class MarginLoss(nn.Module):
@@ -218,6 +231,16 @@ class SluiceUnit(torch.nn.Module):
 
         # Batch, Width, Channels, Depth, Height, Subspace -> Batch, Subspace, Channels, Depth, Height, Width
         return out.transpose(1, x.ndim - 1)
+
+    def penalty(self) -> torch.Tensor:
+        """
+        Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
+        be equal to 1.
+
+        :return: a torch.tensor that represent the penalty on the shared unit (Cross-stitch unit).
+        """
+        prod = torch.mean(torch.prod(torch.abs(self.alpha) + 1, dim=0))
+        return prod + torch.mean(torch.sum(self.alpha, dim=0) - 1)
 
 
 class UncertaintyLoss(torch.nn.Module):
