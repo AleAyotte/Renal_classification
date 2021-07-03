@@ -40,6 +40,12 @@ class Experimentation(Enum):
 
 
 @unique
+class Loss(Enum):
+    UNCERTAINTY: Final = 1
+    UNIFORM: Final = 2
+
+
+@unique
 class SharingUnits(Enum):
     CROSS_STITCH: Final = 1
     SLUICE: Final = 2

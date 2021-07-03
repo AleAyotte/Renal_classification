@@ -223,7 +223,7 @@ class MultiTaskTrainer(Trainer):
                     metrics[task] = loss.item()
 
                 losses = torch.stack(losses)
-                loss = self.model.uncertainty_loss(losses)
+                loss = self.model.loss(losses)
 
             self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
@@ -278,7 +278,7 @@ class MultiTaskTrainer(Trainer):
                 metrics[task] = loss.item()
 
         losses = torch.stack(losses)
-        loss = self.model.uncertainty_loss(losses)
+        loss = self.model.loss(losses)
 
         if self._track_mode == "all":
             metrics["total"] = loss.item()
@@ -466,6 +466,6 @@ class MultiTaskTrainer(Trainer):
                                           [float("nan"), float("nan")]])
                 conf_mat[task_name] = cond_conf
 
-            total_loss = self.model.uncertainty_loss(torch.stack(losses)) if get_loss else None
+            total_loss = self.model.loss(torch.stack(losses)) if get_loss else None
 
         return (conf_mat, total_loss) if get_loss else (conf_mat, auc_score)

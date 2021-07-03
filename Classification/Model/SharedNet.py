@@ -14,13 +14,13 @@
                            Conferenceon Artificial Intelligence, 2019
 """
 
-from Constant import SharingUnits
-from Model.Module import CrossStitchUnit, SluiceUnit, UncertaintyLoss
+from Constant import Loss, SharingUnits
+from Model.Module import CrossStitchUnit, SluiceUnit, UncertaintyLoss, UniformLoss
 from Model.NeuralNet import NeuralNet
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, Final, List, Optional, Sequence, Union
+from typing import Callable, Dict, Final, List, Optional, Sequence, Union
 
 
 NB_LEVELS: Final = 4
@@ -37,6 +37,8 @@ class SharedNet(NeuralNet):
      ...
     Attributes
     ----------
+    loss: Callable[[torch.Tensor], torch.Tensor]
+        A method that will be used to compute the multi-task loss during the training.
     nets : nn.ModuleDict
         A dictionnary that contain several neural network. One for each task.
     __nb_task : int
@@ -67,7 +69,9 @@ class SharedNet(NeuralNet):
     def __init__(self,
                  sub_nets: nn.ModuleDict,
                  c: float = 0.9,
+                 loss: Loss = UncertaintyLoss,
                  num_shared_channels: Optional[Sequence[int]] = None,
+                 penalty_coeff: float = 0,
                  sharing_unit: SharingUnits = SharingUnits.SLUICE,
                  spread: float = 0.1,
                  subspace_1: Union[Dict[str, int], int] = 0,
@@ -81,6 +85,7 @@ class SharedNet(NeuralNet):
         :param c: A float that represent the conservation parameter of the sharing units.
         :param num_shared_channels: A list of int that indicate the number of channels per network before the
                                     cross-stitch unit. Only used if sharing_unit == "cross_stitch"
+        :param penalty_coeff: The penalty coeff that will be applied on the sharing module.
         :param sharing_unit: The sharing unit that will be used to shared the information between the 3 network.
         :param spread: A float that represent the spread parameter of the sharing units.
         :param subspace_1: A list of int that indicate the number of subspace in each network before the sluice unit 1.
@@ -96,11 +101,6 @@ class SharedNet(NeuralNet):
         self.nets = sub_nets
         self.__tasks = list(self.nets.keys())
         self.__nb_task = len(self.__tasks)
-
-        # --------------------------------------------
-        #              UNCERTAINTY LOSS
-        # --------------------------------------------
-        self.uncertainty_loss = UncertaintyLoss(num_task=self.__nb_task)
 
         # --------------------------------------------
         #               SHARING UNITS
@@ -134,6 +134,32 @@ class SharedNet(NeuralNet):
                                                                       nb_task=self.__nb_task,
                                                                       c=c,
                                                                       spread=spread)
+
+        # --------------------------------------------
+        #              UNCERTAINTY LOSS
+        # --------------------------------------------
+        if loss == Loss.UNCERTAINTY:
+            self.loss_module = UncertaintyLoss(num_task=self.__nb_task)
+        else:
+            self.loss_module = UniformLoss()
+        self.loss = self.define_loss(penalty_coeff)
+
+    def define_loss(self, penalty_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
+        """
+
+        """
+        if penalty_coeff:
+            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
+                penalty = []
+                for key, mod in self.sharing_units_dict.items():
+                    penalty.append(mod.penalty())
+                penalty = torch.stack(penalty)
+                return self.loss_module(losses) + penalty_coeff * torch.mean(penalty)
+        else:
+            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
+                return self.loss_module(losses)
+
+        return multi_task_loss
 
     def shared_forward(self,
                        sharing_level: int,
