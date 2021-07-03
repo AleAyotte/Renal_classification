@@ -142,11 +142,14 @@ class SharedNet(NeuralNet):
             self.loss_module = UncertaintyLoss(num_task=self.__nb_task)
         else:
             self.loss_module = UniformLoss()
-        self.loss = self.define_loss(penalty_coeff)
+        self.loss = self.__define_loss(penalty_coeff)
 
-    def define_loss(self, penalty_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
+    def __define_loss(self, penalty_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
         """
+        Build the method that will be used to compute the loss.
 
+        :param penalty_coeff: The coefficient that will multiply the penalty applied on the shared units.
+        :return: A function that compute the multi-task loss.
         """
         if penalty_coeff:
             def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
