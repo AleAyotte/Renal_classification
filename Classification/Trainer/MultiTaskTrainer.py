@@ -376,6 +376,10 @@ class MultiTaskTrainer(Trainer):
                 self._writer.add_scalars(f'{dataset_name}/Recall/{task.capitalize()}',
                                          rec,
                                          epoch)
+
+            if dataset_name == "Validation" and type(self.model).__name__ == "SharedNet":
+                self.model.save_histogram_sharing_unit(epoch, self._writer)
+                
         return mean_acc, loss
 
     def _get_conf_matrix(self,
