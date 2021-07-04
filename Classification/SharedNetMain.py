@@ -22,12 +22,13 @@ from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
+DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
 LOAD_PATH: Final = "save/STL3D_NET/"  # Loading path of the single task model.
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimum number of tasks
 MODEL_NAME: Final = "SharedNet"
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME: Final = "june-2021-softsharing"
+PROJECT_NAME: Final = "jul-2021-regul"
 SAVE_PATH: Final = "save/CS_Net.pth"  # Save path of the Cross-Stitch experiment
 SUBSPACE: Final = [4, 8, 8, 0]
 TOL: Final = 1.0  # The tolerance factor use by the trainer
@@ -156,8 +157,8 @@ if __name__ == "__main__":
 
     torch.backends.cudnn.benchmark = True
 
-    shared_lr = args.lr * 100 if args.pretrained else args.lr
-    shared_eta_min = args.eta_min * 100 if args.pretrained else args.eta_min
+    shared_lr = args.lr * DEFAULT_SHARED_LR_SCALE if args.pretrained else args.lr
+    shared_eta_min = args.eta_min * DEFAULT_SHARED_LR_SCALE if args.pretrained else args.eta_min
 
     trainer.fit(model=net,
                 trainset=trainset,
