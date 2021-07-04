@@ -157,7 +157,7 @@ class SharedNet(NeuralNet):
         :param prefix: A string that will be used as prefix of the histogram name.
         """
         for key, mod in self.sharing_units_dict.items():
-            weights = mod.alpha.cpu().numpy()
+            weights = mod.alpha.detach().cpu().numpy()
             writer.add_histogram(prefix + f"Sharing units {key}", weights.flatten(), current_iter)
 
     def shared_forward(self,
