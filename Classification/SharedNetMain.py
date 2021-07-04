@@ -150,19 +150,22 @@ if __name__ == "__main__":
                       num_workers=args.worker,
                       pin_memory=False,
                       classes_weights=args.weights,
-                      shared_net=args.pretrained,
+                      shared_net=True,
                       track_mode=args.track_mode,
                       mixed_precision=True)
 
     torch.backends.cudnn.benchmark = True
+
+    shared_lr = args.lr * 100 if args.pretrained else args.lr
+    shared_eta_min = args.eta_min * 100 if args.pretrained else args.eta_min
 
     trainer.fit(model=net,
                 trainset=trainset,
                 validset=validset,
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
-                shared_lr=args.lr * 100 if args.pretrained else args.lr,
-                shared_eta_min=args.eta_min * 100 if args.pretrained else args.eta_min,
+                shared_lr=shared_lr,
+                shared_eta_min=shared_eta_min,
                 grad_clip=args.grad_clip,
                 eps=args.eps,
                 batch_size=args.b_size,
@@ -223,5 +226,7 @@ if __name__ == "__main__":
 
     if experiment is not None:
         hparam = vars(args)
+        hparam["shared_lr"] = shared_lr
+        hparam["shared_eta_min"] = shared_eta_min
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
         experiment.log_parameter("Task", "_".join(task_list))
