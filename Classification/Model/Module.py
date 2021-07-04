@@ -78,8 +78,9 @@ class CrossStitchUnit(torch.nn.Module):
 
         :return: a torch.tensor that represent the penalty on the shared unit (Cross-stitch unit).
         """
-        prod = torch.mean(torch.prod(torch.abs(self.alpha) + 1, dim=1))
-        return prod + torch.mean(torch.sum(self.alpha, dim=1) - 1)
+        features_selection_penalty = torch.prod(torch.abs(self.alpha) + 1, dim=1)
+        simplex_penalty = torch.square(torch.sum(self.alpha, dim=1) - 1)
+        return torch.mean(features_selection_penalty + simplex_penalty)
 
 
 class MarginLoss(nn.Module):
@@ -239,8 +240,9 @@ class SluiceUnit(torch.nn.Module):
 
         :return: a torch.tensor that represent the penalty on the shared unit (Cross-stitch unit).
         """
-        prod = torch.mean(torch.prod(torch.abs(self.alpha) + 1, dim=0))
-        return prod + torch.mean(torch.sum(self.alpha, dim=0) - 1)
+        features_selection_penalty = torch.prod(torch.abs(self.alpha) + 1, dim=0)
+        simplex_penalty = torch.square(torch.sum(self.alpha, dim=0) - 1)
+        return torch.mean(features_selection_penalty + simplex_penalty)
 
 
 class UncertaintyLoss(torch.nn.Module):
