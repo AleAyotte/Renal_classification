@@ -113,7 +113,7 @@ if __name__ == "__main__":
             sub_nets[task].restore(load_path)
 
     net = SharedNet(sub_nets=sub_nets,
-                    num_shared_channels=[(2**i % 8)*args.in_channels for i in range(NB_LEVELS)],
+                    num_shared_channels=[args.in_channels, args.in_channels*2, 0, 0],
                     sharing_unit=SharingUnits[args.sharing_unit.upper()],
                     subspace_1={task: SUBSPACE[0] for task in task_list},
                     subspace_2={task: SUBSPACE[1] for task in task_list},
