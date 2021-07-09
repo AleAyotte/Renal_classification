@@ -179,6 +179,8 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             help="If True, then the SharedNet will be create with two subnet that has been pretrained "
                                  "on their corresponding task. Also, the shared_lr will be equal to lr * 100 and "
                                  "shared_eta_min will be equal to eta_min * 100.")
+        parser.add_argument('--sharing_l2', type=float, default=3e-6,
+                            help="The l2 penalty coefficient applied to the shared module.")
         parser.add_argument('--sharing_unit', type=str, default="cross_stitch",
                             help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
                                  "information transfer between multiple subnets",
