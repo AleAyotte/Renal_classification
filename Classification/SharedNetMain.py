@@ -22,7 +22,7 @@ from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 
-DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
+DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
 LOAD_PATH: Final = "save/STL3D_NET/"  # Loading path of the single task model.
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimum number of tasks
@@ -114,6 +114,7 @@ if __name__ == "__main__":
 
     net = SharedNet(sub_nets=sub_nets,
                     num_shared_channels=[args.in_channels, args.in_channels*2, 0, 0],
+                    # num_shared_channels=[args.in_channels, args.in_channels*2, args.in_channels*4, 0],
                     sharing_unit=SharingUnits[args.sharing_unit.upper()],
                     subspace_1={task: SUBSPACE[0] for task in task_list},
                     subspace_2={task: SUBSPACE[1] for task in task_list},
@@ -165,6 +166,7 @@ if __name__ == "__main__":
                 validset=validset,
                 learning_rate=args.lr,
                 eta_min=args.eta_min,
+                shared_l2=args.sharing_l2,
                 shared_lr=shared_lr,
                 shared_eta_min=shared_eta_min,
                 grad_clip=args.grad_clip,
