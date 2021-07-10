@@ -18,6 +18,15 @@ class BlockType(Enum):
     POSTACT: Final = 2
 
 
+# Configuration of the cross-stitch module. Should be multiply by args.num_channel
+CS_CONFIG: Final = [
+    [1, 2, 4, 8],  # Config 0
+    [1, 2, 4, 0],  # Config 1
+    [1, 2, 0, 0],  # Config 2
+    [0, 2, 4, 0]   # Config 3
+]
+
+
 class DatasetName:
     TRAIN: Final = "TRAIN"
     VALIDATION: Final = "VALIDATION"

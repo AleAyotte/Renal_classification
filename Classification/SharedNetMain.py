@@ -11,10 +11,10 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, DropType, Experimentation, SharingUnits, SubNetDepth, Tasks
+from Constant import BlockType, CS_CONFIG, DatasetName, DropType, Experimentation, SharingUnits, SubNetDepth, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
-from Model.SharedNet import SharedNet, NB_LEVELS
+from Model.SharedNet import SharedNet
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
@@ -113,8 +113,7 @@ if __name__ == "__main__":
             sub_nets[task].restore(load_path)
 
     net = SharedNet(sub_nets=sub_nets,
-                    num_shared_channels=[args.in_channels, args.in_channels*2, 0, 0],
-                    # num_shared_channels=[args.in_channels, args.in_channels*2, args.in_channels*4, 0],
+                    num_shared_channels=[args.in_channels * conf for conf in CS_CONFIG[args.cs_config]],
                     sharing_unit=SharingUnits[args.sharing_unit.upper()],
                     subspace_1={task: SUBSPACE[0] for task in task_list},
                     subspace_2={task: SUBSPACE[1] for task in task_list},

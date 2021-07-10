@@ -158,6 +158,9 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
         parser.add_argument('--c', type=float, default=0.85,
                             help="The conservation parameter of the Cross-Stich Unit")
+        parser.add_argument('--cs_config', type=int, default=1, choices=[0, 1, 2, 3],
+                            help="The config used to the position of the cross-stitch module if sharing_unit = "
+                                 "cross_stitch (see Constant.py CS_CONFIG).")
         parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                             help="The config used to determine the depth of each sub-network "
                                  "(see Constant.py SubNetDepth).")
