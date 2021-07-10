@@ -15,7 +15,7 @@ from monai.networks.layers.factories import Act, Norm
 import numpy as np
 import torch
 from torch import nn
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 
 class PreResBlock(nn.Module):
@@ -399,3 +399,68 @@ class ResBottleneck(nn.Module):
         out = self.residual_layer(x) + shortcut
 
         return self.last_activation(out)
+
+
+class SpatialAttBlock(nn.Module):
+    """
+    A 3D version of the Spatial Attention Block as described in
+
+    ...
+    Attributes
+    ----------
+    att: nn.Sequential
+        A Sequential module that contain all layer that form the spatial attention block.
+    subsample: nn.Module
+        A pytorch module or a block that reduce the dimension of the output tensor. If subsample block is given during
+        __init__, then an identity layer will be used.
+    """
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 kernel: Union[Sequence[int], int] = 3,
+                 norm: str = "batch",
+                 squeeze_factor: int = 8,
+                 subsample: Optional[nn.Module] = None,):
+        """
+
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps of the mask.
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
+        :param norm: The normalization layer name that will be used in the model.
+        :param squeeze_factor: A coefficient that will divide fmap_in to determine the number of intermediate feature
+                               maps.
+        :param subsample: A block or a torch.nn.module that will applied to the masked tensor to reduce the dimension
+                          of the output.
+        """
+        super().__init__()
+
+        if type(kernel) == int:
+            padding = int((kernel - 1)/2)
+        else:
+            padding = [int((ker - 1)/2) for ker in kernel]
+
+        num_int_map = fmap_in // squeeze_factor
+
+        self.att = nn.Sequential(
+            nn.Conv3d(fmap_in, num_int_map, kernel_size=kernel, padding=padding),
+            Norm[norm, 3](num_int_map),
+            nn.ReLU(),
+            nn.Conv3d(num_int_map, fmap_out, kernel_size=kernel, padding=padding),
+            Norm[norm, 3](fmap_out),
+            nn.Sigmoid()
+        )
+
+        self.subsample = subsample if subsample is not None else nn.Identity()
+
+    def forward(self,
+                x: torch.Tensor,
+                to_mask: torch.tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Spatial Attention Block.
+
+        :param x: Input tensor of the attention module.
+        :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
+        """
+        out = to_mask * self.att(x)
+
+        return self.subsample(out)
