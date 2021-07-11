@@ -74,13 +74,6 @@ class MTAN(NeuralNet):
     -------
     forward(x: torch.Tensor) -> torch.Tensor
         Execute the forward on a given torch.Tensor.
-    set_mixup(b_size : int)
-        Set the b_size parameter of each mixup module.
-    activate_mixup() -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]
-        Choose randomly a mixup module and activate it.
-    disable_mixup(key: int = -1):
-        Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
-        modules will be disable.
     """
     def __init__(self,
                  num_classes: Dict[str, int],
