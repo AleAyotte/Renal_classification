@@ -8,9 +8,7 @@
     @Description:       This file contain the classe MTAN that inherit from the NeuralNet class. This Multi-task
                         Attention Network can only be use for multitask trainer on 3D images.
 
-    @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
-                        2) CBAM: Convolutional Block Attention Module, Woo, S et al., ECCV 2018
-                        3) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
+    @Reference:         1) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
 """
 
 from Constant import AttentionBlock, BlockType, DropType, Loss, Tasks
@@ -30,7 +28,8 @@ STRIDES_LIST: Final = [[2, 2, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2]]
 
 class MTAN(NeuralNet):
     """
-    A hard shared 3D Residual Network implementation for multi task learning.
+    A 3D version of the Multi-Task Attention Network adapted to classification and regression task from the
+    version describe in Ref) 1.
 
     ...
     Attributes
