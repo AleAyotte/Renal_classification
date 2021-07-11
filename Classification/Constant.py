@@ -52,6 +52,7 @@ class Experimentation(Enum):
     SINGLE_TASK_3D: Final = 2
     HARD_SHARING: Final = 3
     SOFT_SHARING: Final = 4
+    MTAN: Final = 5
 
 
 @unique
