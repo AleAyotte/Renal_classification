@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 03/2021
+    @Last modification: 07/2021
 
     @Description:       This file contain some generic module used to create several model like the ResNet,
                         MultiLevelResNet and CapsNet. The module are DynamicHighCapsule, PrimaryCapsule, Resblock and
