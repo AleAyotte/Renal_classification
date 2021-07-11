@@ -23,7 +23,7 @@ from typing import Dict, Final, List, Sequence, Tuple, Union
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
 SQUEEZE_FACTOR_LIST: Final = [4, 8, 8, 8]
-STRIDES_LIST: Final = [[2, 2, 1], [2, 2, 2], [2, 2, 2], [2, 2, 2]]
+STRIDES: Final = [2, 2, 2]
 
 
 class MTAN(NeuralNet):
@@ -187,17 +187,17 @@ class MTAN(NeuralNet):
         #                SHARED LAYERS
         # --------------------------------------------
         self.conv = basenet.conv
-        self.shared_layers1_base = basenet.layer1[:-1]
-        self.shared_layers1_last = basenet.layer1[-1]
+        self.shared_layers1_base = basenet.layers1[:-1]
+        self.shared_layers1_last = basenet.layers1[-1]
 
-        self.shared_layers2_base = basenet.layer2[:-1]
-        self.shared_layers2_last = basenet.layer2[-1]
+        self.shared_layers2_base = basenet.layers2[:-1]
+        self.shared_layers2_last = basenet.layers2[-1]
 
-        self.shared_layers3_base = basenet.layer3[:-1]
-        self.shared_layers3_last = basenet.layer3[-1]
+        self.shared_layers3_base = basenet.layers3[:-1]
+        self.shared_layers3_last = basenet.layers3[-1]
 
-        self.shared_layers4_base = basenet.layer4[:-1]
-        self.shared_layers4_last = basenet.layer4[-1]
+        self.shared_layers4_base = basenet.layers4[:-1]
+        self.shared_layers4_last = basenet.layers4[-1]
 
         self.att_layers = nn.ModuleList()
 
@@ -206,13 +206,13 @@ class MTAN(NeuralNet):
         # --------------------------------------------
         num_out_chan = first_channels
         factor = 1  # factor = 1 if input is not concatenate with the last attention block output.
-        for block, sq_fact, strides in zip(block_list, SQUEEZE_FACTOR_LIST, STRIDES_LIST):
+        for count, (block, sq_fact) in enumerate(zip(block_list, SQUEEZE_FACTOR_LIST)):
 
             # We create the subsample module
             num_in_chan = num_out_chan * block.expansion
-            num_out_chan *= 2
+            num_out_chan *= 2 if count < 3 else 1
             subsample = block(fmap_in=num_in_chan, fmap_out=num_out_chan,
-                              kernel=kernel, strides=strides,
+                              kernel=kernel, strides=STRIDES,
                               activation=act, norm=norm)
 
             self.att_layers.append(nn.ModuleDict())
@@ -224,11 +224,10 @@ class MTAN(NeuralNet):
                     att_block = SpatialAttBlock
                 else:
                     att_block = CBAM
-
-                self.att_layers[-1][task] = att_block(fmap_in=num_out_chan * block.expansion * factor,
-                                                      fmap_out=num_out_chan*block.expansion,
+                self.att_layers[-1][task] = att_block(fmap_in=num_in_chan * block.expansion * factor,
+                                                      fmap_out=num_in_chan*block.expansion,
                                                       squeeze_factor=sq_fact,
-                                                      subsample=subsample)
+                                                      subsample=subsample if count < 3 else None)
             factor = 2
 
         # --------------------------------------------
@@ -273,9 +272,10 @@ class MTAN(NeuralNet):
         preds = {}
         for task in self.__tasks:
             att_out = self.att_layers[0][task](out1_base, out1_last)
-            att_out = self.att_layers[1][task](torch.cat(out2_base, att_out), out2_last)
-            att_out = self.att_layers[2][task](torch.cat(out3_base, att_out), out3_last)
-            att_out = self.att_layers[3][task](torch.cat(out4_base, att_out), out4_last)
-            preds[task] = self.fc_layers(att_out)
+            att_out = self.att_layers[1][task](torch.cat((out2_base, att_out), dim=1), out2_last)
+            att_out = self.att_layers[2][task](torch.cat((out3_base, att_out), dim=1), out3_last)
+            att_out = self.att_layers[3][task](torch.cat((out4_base, att_out), dim=1), out4_last)
+
+            preds[task] = self.fc_layers[task](att_out)
 
         return preds
