@@ -38,7 +38,7 @@ class CBAM(nn.Module):
     def __init__(self,
                  fmap_in: int,
                  fmap_out: int,
-                 kernel: Union[Sequence[int], int] = 3,
+                 kernel: Union[Sequence[int], int] = 1,
                  norm: str = "batch",
                  squeeze_factor: int = 8,
                  subsample: Optional[nn.Module] = None):
@@ -534,7 +534,7 @@ class SpatialAttBlock(nn.Module):
     def __init__(self,
                  fmap_in: int,
                  fmap_out: int,
-                 kernel: Union[Sequence[int], int] = 3,
+                 kernel: Union[Sequence[int], int] = 1,
                  norm: str = "batch",
                  squeeze_factor: int = 8,
                  subsample: Optional[nn.Module] = None):
