@@ -70,6 +70,7 @@ class CBAM(nn.Module):
 
         :param x: Input tensor of the attention module.
         :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
+        :return: The downsampled masked input as torch.Tensor.
         """
 
         out = self.channel_att_block(x, to_mask)
@@ -125,6 +126,7 @@ class ChannelAttBlock(nn.Module):
 
         :param x: Input tensor of the attention module.
         :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
+        :return: The downsampled masked input as torch.Tensor.
         """
         b, c = to_mask.size()[0:2]
         out = self.cat((self.avg(x).unsqueeze(1), self.max(x).unsqueeze(1)), dim=1)
@@ -578,6 +580,7 @@ class SpatialAttBlock(nn.Module):
 
         :param x: Input tensor of the attention module.
         :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
+        :return: The downsampled masked input as torch.Tensor.
         """
         out = to_mask * self.att(x)
 
