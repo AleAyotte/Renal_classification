@@ -77,8 +77,8 @@ class MTAN(NeuralNet):
     def __init__(self,
                  num_classes: Dict[str, int],
                  tasks: Sequence[str],
-                 att_type: AttentionBlock = SpatialAttBlock,
                  act: str = "ReLU",
+                 att_type: AttentionBlock = SpatialAttBlock,
                  blocks_type: Union[BlockType, List[BlockType]] = BlockType.PREACT,
                  depth: int = 18,
                  drop_rate: float = 0,
@@ -97,9 +97,9 @@ class MTAN(NeuralNet):
         :param num_classes: A dictionnary that indicate the number of class for each task. For regression tasks,
                             the num_class shoule be equal to one.
         :param tasks: A list of tasks on which the model will be train.
+        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param att_type: Indicate which type of attention module will be used. (Options: See AttentionBlock in
                           Constant.py) (Default=AttentionBlock.SPATIAL)
-        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param blocks_type: A string or a list of string that indicate the type of block that will be used at each
                             level. If only a string is gived, all blocks in the model will be of the same type.
                             (Options: see BlockType in Constant.py) (Defaut=BlockType.PREACT).
