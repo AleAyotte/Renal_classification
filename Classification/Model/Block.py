@@ -22,6 +22,60 @@ from torch import nn
 from typing import Optional, Sequence, Union
 
 
+class CBAM(nn.Module):
+    """
+    A 3D version of the Convolutional Block Attention Module as described in Ref 2).
+
+    ...
+    Attributes
+    ----------
+    channel_att_block: ChannelAttBlock
+        A 3D version of the Channel Attention Block that will be applied before the Spatial Attention Block
+    spatial_att_block: SpatialAttBlock
+        A 3D version of the Spatial Attention Block
+    """
+
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 kernel: Union[Sequence[int], int] = 3,
+                 norm: str = "batch",
+                 squeeze_factor: int = 8,
+                 subsample: Optional[nn.Module] = None):
+        """
+        Create a Convolutional Block Attention Module.
+
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps of the mask.
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
+        :param norm: The normalization layer name that will be used in the model.
+        :param squeeze_factor: A coefficient that will divide fmap_in to determine the number of intermediate feature
+                               maps.
+        :param subsample: A block or a torch.nn.module that will applied to the masked tensor to reduce the dimension
+                          of the output.
+        """
+        super().__init__()
+        self.channel_att_block = ChannelAttBlock(fmap_in=fmap_in, fmap_out=fmap_out,
+                                                 squeeze_factor=squeeze_factor)
+        self.spatial_att_block = SpatialAttBlock(fmap_in=fmap_out, fmap_out=fmap_out,
+                                                 kernel=kernel, norm=norm,
+                                                 squeeze_factor=squeeze_factor,
+                                                 subsample=subsample)
+
+    def forward(self,
+                x: torch.Tensor,
+                to_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Channel Attention Block.
+
+        :param x: Input tensor of the attention module.
+        :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
+        """
+
+        out = self.channel_att_block(x, to_mask)
+        return self.spatial_att_block(out, out)
+
+
 class ChannelAttBlock(nn.Module):
     """
     A 3D version of the Channel Attention Block as described in Ref 2).
@@ -483,7 +537,7 @@ class SpatialAttBlock(nn.Module):
                  kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
                  squeeze_factor: int = 8,
-                 subsample: Optional[nn.Module] = None,):
+                 subsample: Optional[nn.Module] = None):
         """
         Create a Spatial Attention Block.
 
