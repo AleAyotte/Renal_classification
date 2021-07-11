@@ -27,6 +27,12 @@ CS_CONFIG: Final = [
 ]
 
 
+class AttentionBlock(Enum):
+    CHANNEL: Final = 0
+    SPATIAL: Final = 1
+    CBAM: Final = 2
+
+
 class DatasetName:
     TRAIN: Final = "TRAIN"
     VALIDATION: Final = "VALIDATION"
