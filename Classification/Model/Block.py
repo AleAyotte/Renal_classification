@@ -8,6 +8,10 @@
     @Description:       This file contain some generic module used to create several model like the ResNet,
                         MultiLevelResNet and CapsNet. The module are DynamicHighCapsule, PrimaryCapsule, Resblock and
                         ResBottleneck.
+
+    @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
+                        2) CBAM: Convolutional Block Attention Module, Woo, S et al., ECCV 2018
+                        3) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
 """
 from monai.networks.blocks.convolutions import ResidualUnit
 from monai.networks.layers import split_args
@@ -16,6 +20,65 @@ import numpy as np
 import torch
 from torch import nn
 from typing import Optional, Sequence, Union
+
+
+class ChannelAttBlock(nn.Module):
+    """
+    A 3D version of the Channel Attention Block as described in Ref 2).
+
+    ...
+    Attributes
+    ----------
+    att: nn.Sequential
+        A Sequential module that contain all layer that form the spatial attention block.
+    subsample: nn.Module
+        A pytorch module or a block that reduce the dimension of the output tensor. If subsample block is given during
+        __init__, then an identity layer will be used.
+    """
+
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 squeeze_factor: int,
+                 subsample: Optional[nn.Module] = None):
+        """
+        Create a Channel Attention Block
+
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps of the mask.
+        :param squeeze_factor: A coefficient that will divide fmap_in to determine the number of intermediate feature
+                               maps.
+        :param subsample: A block or a torch.nn.module that will applied to the masked tensor to reduce the dimension
+                          of the output.
+        """
+        super().__init__()
+
+        num_int_node = fmap_in // squeeze_factor
+        self.avg = nn.AdaptiveAvgPool3d(output_size=1)
+        self.max = nn.AdaptiveMaxPool3d(output_size=1)
+        self.att = nn.Sequential(nn.Flatten(start_dim=2),
+                                 nn.Linear(fmap_in, num_int_node),
+                                 nn.Linear(num_int_node, fmap_out))
+        self.sigmoid = nn.Sigmoid()
+
+        self.subsample = subsample if subsample is not None else nn.Identity()
+
+    def forward(self,
+                x: torch.Tensor,
+                to_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Channel Attention Block.
+
+        :param x: Input tensor of the attention module.
+        :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
+        """
+        b, c = to_mask.size()[0:2]
+        out = self.cat((self.avg(x).unsqueeze(1), self.max(x).unsqueeze(1)), dim=1)
+        out = self.att(out)
+        out = self.sigmoid(torch.sum(out, dim=1)).view(b, c, 1, 1, 1)
+        out = torch.mul(to_mask, out.expand_as(to_mask))
+
+        return self.subsample(out)
 
 
 class PreResBlock(nn.Module):
@@ -403,7 +466,7 @@ class ResBottleneck(nn.Module):
 
 class SpatialAttBlock(nn.Module):
     """
-    A 3D version of the Spatial Attention Block as described in
+    A 3D version of the Spatial Attention Block as described in Ref 3)
 
     ...
     Attributes
@@ -422,6 +485,7 @@ class SpatialAttBlock(nn.Module):
                  squeeze_factor: int = 8,
                  subsample: Optional[nn.Module] = None,):
         """
+        Create a Spatial Attention Block.
 
         :param fmap_in: Number of input feature maps.
         :param fmap_out: Number of output feature maps of the mask.
