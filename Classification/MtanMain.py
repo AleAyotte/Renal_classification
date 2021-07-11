@@ -25,7 +25,7 @@ MIXED_PRECISION: Final = True
 MODEL_NAME: Final = "MTAN"
 PIN_MEMORY: Final = False
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME: Final = "june-2021-multitask"
+PROJECT_NAME: Final = "jul-2021-mtan"
 SAVE_PATH: Final = "save/MTAN_NET.pth"  # Save path of the Hard Sharing experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
 
