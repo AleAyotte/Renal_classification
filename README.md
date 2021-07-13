@@ -70,15 +70,14 @@ Morever, the following package are required to execute our code.
   - [ ] Pretraining (S-S)
   - [ ] Sharing Modules Position (S-S)
   - [ ] Regularization (S-S)
-- [ ] Experiment Phase 3
-  - [ ] MTAN depth
-  - [ ] MTAN width
-  - [ ] Attention Module
-- [ ] Prepare Radiomics Experiment
+  - [ ] MTAN depth (MTAN)
+  - [ ] MTAN width (MTAN)
+  - [ ] Attention Module (MTAN)
+- [ ] Prepare Radiomics Experiments
   - [x] Compute radiomics
   - [ ] Adapt MultiTaskTrainer
   - [ ] Add Adaptive Tree-Based Model
-- [ ] Experiment Phase 4
+- [ ] Experiment Phase 3
   - [ ] Radiomics random forest baseline
   - [ ] Radiomics in self-supervising
     - [ ] With one set of radiomics
