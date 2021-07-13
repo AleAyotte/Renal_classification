@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     06/2021
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       Contain the argument parser that will be used by every Main file.
 """

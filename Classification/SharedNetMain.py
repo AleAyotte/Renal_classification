@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       Contain the main function to train a SharedMet for multitask learning.
 

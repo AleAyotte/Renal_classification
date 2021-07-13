@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       This file contain the SharedNet class. This class used three different neural network and
                         connect them with SluiceUnit or CrossStitchUnit to create a unique MultiTaskNetwork.

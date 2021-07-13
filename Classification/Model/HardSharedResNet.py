@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       This file contain the classe HardSharedResNet that inherit from the NeuralNet class.
 
