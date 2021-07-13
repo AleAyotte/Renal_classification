@@ -47,7 +47,7 @@ Morever, the following package are required to execute our code.
   - [x] ResNet3D
   - [x] SingleTaskTrainer
   - [x] Add tensorboard
-- [ ] Multi-Task Learning
+- [x] Prepare Multi-Task Learning
   - [x] MultiTaskTrainer
   - [x] MultiLevelResNet3D
   - [x] SharedNet
@@ -56,33 +56,38 @@ Morever, the following package are required to execute our code.
   - [x] Cumulate gradient
   - [x] Add hparam tracking with comet.ml
   - [x] Add Hybrid ResNet
-  - [ ] Add Rotograd
-- [ ] Experiment Phase 1
+  - [x] Add MTAN
+  - [x] Compute Radiomics
+- [x] Experiment Phase 1
   - [x] Block type
   - [x] Hybrid ResNet
   - [x] Grouped Convolution
   - [x] Merged Mask
-  - [ ] Early stopping optimization
+  - [x] Saving criterion
 - [ ] Experiment Phase 2
-  - [ ]  Rotograd
-- [ ] Radiomics
-  - [ ] Compute Radiomics
-  - [ ] Baseline
-    - [ ] Radiomics random forest baseline
-    - [ ] Radiomics SVM baseline
-  - [ ] Radiomics as output
-    - [ ] With one principal task
-    - [ ] With all task
-- [ ] CapsNet
-  - [ ] CapsNet Trainer
-  - [ ] Single-Task Learning
-    - [ ] CapsNet2D Baseline (Sabour et al. 2017)
-    - [ ] CapsNet3D Baseline (Sabour et al. 2017)
-    - [ ] Group CapsNet2D (Xinpeng D. et al. 2020)
-    - [ ] Group CapsNet3D (Xinpeng D. et al. 2020)
-  - [ ] Multi-Task-Learning
-    - [ ] SharedCapsNet
-    - [ ] SharedCapsNet with Radiomics
+  - [x] MTL Loss (H-S)
+  - [ ] Split layer (H-S)
+  - [ ] Pretraining (S-S)
+  - [ ] Sharing Modules Position (S-S)
+  - [ ] Regularization (S-S)
+- [ ] Experiment Phase 3
+  - [ ] MTAN depth
+  - [ ] MTAN width
+  - [ ] Attention Module
+- [ ] Prepare Radiomics Experiment
+  - [x] Compute radiomics
+  - [ ] Adapt MultiTaskTrainer
+  - [ ] Add Adaptive Tree-Based Model
+- [ ] Experiment Phase 4
+  - [ ] Radiomics random forest baseline
+  - [ ] Radiomics in self-supervising
+    - [ ] With one set of radiomics
+    - [ ] All sets of radiomics
+  - [ ] Radiomics in MultiTask Learning
+    - [ ] One task + ine radiomics set
+    - [ ] All tasks + one radiomics set
+    - [ ] One task + all radiomics sets
+    - [ ] All tasks + all radiomics sets
 - [ ] Write paper
 
 
@@ -90,47 +95,52 @@ Morever, the following package are required to execute our code.
  ```
 .
 ├── Classification
+│   ├── ArgParser.py                # ArgParser used by all Main files.
 │   │── comet_api_key.txt           # Contain the needed api key to use comet.ml
+│   ├── Constant.py                 # Several class of constant and enum.
 │   │
-│   ├── Data_manager                # Dataset and data visualisation related files
-│   │   ├── DataAugView2D.py        # Visualisation of the data augmentation on 2D images
-│   │   ├── DataAugView3D.py        # Visualisation of the data augmentation on 3D images
-│   │   ├── DatasetBuilder.py       # Build and split the training, validation and testing set
-│   │   └── RenalDataset.py         # RenalDataset class
+│   ├── Data_manager                # Dataset and data visualisation related files.
+│   │   ├── DataAugView2D.py        # Visualisation of the data augmentation on 2D images.
+│   │   ├── DataAugView3D.py        # Visualisation of the data augmentation on 3D images.
+│   │   ├── DatasetBuilder.py       # Build and split the training, validation and testing set.
+│   │   └── RenalDataset.py         # RenalDataset class.
 │   │
-│   ├── Main_ResNet2D.py            # The main script for the experimentation on the ResNet2D
+│   ├── Model                       # Neural network model related files.
+│   │   ├── Block.py                # Commun ResNet, PreResNet and Attention block.
+│   │   ├── CapsNet2D.py            # CapsNet2D class.
+│   │   ├── CapsuleBlock.py         # CapsNet related block and function.
+│   │   ├── HardSharedResNet.py     # HardSharing ResNet3D class.
+│   │   ├── Module.py               # Commun module used to build NeuralNetwork.
+│   │   ├── MTAN.py                 # The MTAN class (MultiTask Attention Network).
+│   │   ├── NeuralNet.py            # Abstract class of all neural network classes (except ResNet2D).
+│   │   ├── ResNet_2D.py            # ResNet2D model class.
+│   │   ├── ResNet.py               # ResNet3D class.
+│   │   └── SharedNet.py            # SharedNet model class.
 │   │
-│   ├── Model                       # Neural network model related files
-│   │   ├── Block.py                # Commun ResNet, PreResNet and CapsNet block
-│   │   ├── HardSharedResNet.py     # HardSharing ResNet3D class
-│   │   ├── Module.py               # Commun module used to build NeuralNetwork
-│   │   ├── NeuralNet.py            # Abstract class of all neural network classes (except ResNet2D)
-│   │   ├── ResNet_2D.py            # ResNet2D model class
-│   │   ├── ResNet.py               # ResNet ResNet3D classe
-│   │   └── SharedNet.py            # SharedNet model class
+│   ├── MtanMain.py                 # Main script for experimentation on the Mtan.
+│   ├── MultiTaskMain.py            # Main script for experimentation on the Hard-Sharing ResNet3D.
+│   ├── SharedNetMain.py            # Main script for experimentation on the SharedNet.
+│   ├── STL2DMain.py                # Main script for experimentation on the ResNet2D.
+│   ├── STL3DMain.py                # Main script for experimentation on the ResNet3D.
 │   │
-│   ├── MultiTaskMain.py            # Main experimentation on the multi level ResNet3D
-│   ├── SharedNetMain.py            # The main script for the experimentation on the SharedNet
-│   ├── SingleTaskMain.py           # Main experimentation on the ResNet3D
+│   ├── Trainer                     # Neural Network training related files.
+│   │   ├── MultiTaskTrainer.py     # Training class for Multi-Task Learning.
+│   │   ├── SingleTaskTrainer.py    # Training class for Single-Task Learning.
+│   │   ├── Trainer.py              # Abstract class of all trainer classes.
+│   │   └── Utils.py                # Utils function for the trainers.
 │   │
-│   ├── Trainer                     # Neural Network training related files
-│   │   ├── MultiTaskTrainer.py     # Training class for Multi-Task Learning
-│   │   ├── SingleTaskTrainer.py    # Training class for Single-Task Learning
-│   │   ├── Trainer.py              # Abstract class of all trainer classes
-│   │   └── Utils.py                # Utils function for the trainers
-│   │
-│   └── Utils.py                    # Utils function for the main files
+│   └── Utils.py                    # Utils function for the main files.
 │
-├── Normalization                   # Normalization and preprocessing of MRI images
-│   ├── MRI_image.py                # The MRIimage class
-│   ├── Normalize2D.py              # Used to create a h5py dataset of 2D normalized images
-│   ├── Normalize.py                # Used to normalize the nifti images of a list of patient
-│   ├── Patient.py                  # The Patient class
-│   ├── RoiStats.py                 # Script used to compute statistics about the ROI
-│   ├── TransferHeader.py           # Script used to transfer metadata between nifti files
-│   ├── Transfer_in_hdf5.py         # Transfer nifti files and clinical data into hdf5
-│   ├── Utils.py                    # Commun and useful function in normalization process
-│   └── VisualizeNormalization.py   # Script used to visualize the normalization process
+├── Normalization                   # Normalization and preprocessing of MRI images.
+│   ├── MRI_image.py                # The MRIimage class.
+│   ├── Normalize2D.py              # Used to create a h5py dataset of 2D normalized images.
+│   ├── Normalize.py                # Used to normalize the nifti images of a list of patient.
+│   ├── Patient.py                  # The Patient class.
+│   ├── RoiStats.py                 # Script used to compute statistics about the ROI.
+│   ├── TransferHeader.py           # Script used to transfer metadata between nifti files.
+│   ├── Transfer_in_hdf5.py         # Transfer nifti files and clinical data into hdf5.
+│   ├── Utils.py                    # Commun and useful function in normalization process.
+│   └── VisualizeNormalization.py   # Script used to visualize the normalization process.
 │
 └── README.md
  ```
