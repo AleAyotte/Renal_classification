@@ -106,6 +106,7 @@ class HardSharedResNet(NeuralNet):
         :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
         :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
         :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param loss: Indicate the MTL loss that will be used during the training. (Default=Loss.Uncertainty)
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
         :param num_in_chan: An integer that indicate the number of channel of the input images.
