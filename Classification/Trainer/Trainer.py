@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       Contain the mother class Trainer from which the SingleTaskTrainer and MultiTaskTrainer will
                         inherit.
@@ -28,7 +28,7 @@ from Trainer.Utils import find_optimal_cutoff
 from typing import Dict, List, Sequence, Tuple, Union
 
 
-DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
+DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
 MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
 VALIDATION_BATCH_SIZE = 2  # Batch size used to create the validation dataloader and the test dataloader
 TEST_BATCH_SIZE = 1  # Batch size used to create the validation dataloader and the test dataloader
@@ -194,6 +194,7 @@ class Trainer(ABC):
             retrain: bool = False,
             shared_eta_min: float = 0,
             shared_lr: float = 0,
+            shared_l2: float = 0,
             t_0: int = 0,
             transfer_path: str = None,
             verbose: bool = True,
@@ -219,10 +220,11 @@ class Trainer(ABC):
         :param num_epoch: Maximum number of epoch during the training. (Default=200)
         :param optim: A string that indicate the optimizer that will be used for training. (Default='Adam')
         :param retrain: If false, the weights of the model will initialize. (Default=False)
-        :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
+        :param shared_eta_min: Ending learning rate value of the sharing unit. if equal to 0, then shared_eta_min
                                 will be equal to learning_rate*100. Only used when shared_net is True.
-        :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
+        :param shared_lr: Learning rate of the sharing unit. if equal to 0, then shared_lr will be
                           equal to learning_rate*100. Only used when shared_net is True.
+        :param shared_l2: L2 coefficient of the sharing unit. Only used when shared_net is True.
         :param t_0: Number of epoch before the first restart. If equal to 0, then t_0 will be equal to num_epoch.
                     (Default=0)
         :param transfer_path: If not None, initialize the model with transfer learning by loading the weight of
@@ -274,11 +276,12 @@ class Trainer(ABC):
         optimizers, schedulers = self.__prepare_optim_and_schedulers(eta_min=eta_min,
                                                                      eps=eps,
                                                                      learning_rate=learning_rate,
-                                                                     l2=l2,
+                                                                     l2_coeff=l2,
                                                                      mom=mom,
                                                                      optim=optim,
                                                                      shared_eta_min=shared_eta_min,
                                                                      shared_lr=shared_lr,
+                                                                     shared_l2=shared_l2,
                                                                      t_0=t_0*len(train_loader))
         for scheduler in schedulers:
             scheduler.step(start_epoch*len(train_loader))
@@ -481,11 +484,12 @@ class Trainer(ABC):
                                        eta_min: float,
                                        eps: float,
                                        learning_rate: float,
-                                       l2,
+                                       l2_coeff: float,
                                        mom: float,
                                        optim: str,
                                        shared_eta_min: float,
                                        shared_lr: float,
+                                       shared_l2: float,
                                        t_0: int) -> Tuple[List[torch.optim.Optimizer],
                                                           List[CosineAnnealingWarmRestarts]]:
         """
@@ -494,32 +498,38 @@ class Trainer(ABC):
         :param eta_min: Minimum value of the learning rate.
         :param eps: The epsilon parameter of the Adam Optimizer.
         :param learning_rate: Start learning rate of the optimizer.
-        :param l2: L2 regularization coefficient.
+        :param l2_coeff: L2 regularization coefficient.
         :param mom: The momentum parameter of the SGD Optimizer.
         :param optim: A string that indicate the optimizer that will be used for training.
         :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
                                 will be equal to learning_rate*100. Only used when shared_net is True.
         :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
                           equal to learning_rate*100. Only used when shared_net is True.
+        :param shared_l2: L2 coefficient of the sharing unit. Only used when shared_net is True.
         :param t_0: Number of epoch before the first restart.
         :return: A list of optimizers and a list of learning rate schedulers
         """
         assert optim.lower() in ["adam", "sgd", "novograd"]
-        lr_list = [learning_rate]
         eta_list = [eta_min]
+        lr_list = [learning_rate]
+        l2_list = [l2_coeff]
         parameters = [self.model.parameters()]
 
         if self.__shared_net:
-            lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
             eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
-
+            lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
+            l2_list.append(shared_l2)
             parameters = [self.model.nets.parameters(),
-                          list(self.model.sharing_units_dict.parameters()) +
-                          list(self.model.uncertainty_loss.parameters())]
+                          list(self.model.sharing_units_dict.parameters())]
+
+            # If the Uncertainty loss is used, we need to add these parameters.
+            if type(self.model.loss_module).__name__ == "UncertaintyLoss":
+                parameters[1] += list(self.model.loss_module.parameters())
+
         optimizers = []
 
         if optim.lower() == "adam":
-            for lr, param in zip(lr_list, parameters):
+            for lr, l2, param in zip(lr_list, l2_list, parameters):
                 optimizers.append(
                     torch.optim.Adam(param,
                                      lr=lr,
@@ -527,7 +537,7 @@ class Trainer(ABC):
                                      eps=eps)
                 )
         elif optim.lower() == "sgd":
-            for lr, param in zip(lr_list, parameters):
+            for lr, l2, param in zip(lr_list, l2_list, parameters):
                 optimizers.append(
                     torch.optim.SGD(param,
                                     lr=lr,
@@ -536,7 +546,7 @@ class Trainer(ABC):
                                     nesterov=True)
                 )
         else:
-            for lr, param in zip(lr_list, parameters):
+            for lr, l2, param in zip(lr_list, l2_list, parameters):
                 optimizers.append(
                     Novograd(param,
                              lr=lr,

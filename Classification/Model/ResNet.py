@@ -126,7 +126,7 @@ class ResNet(NeuralNet):
         # --------------------------------------------
         #                    BLOCK
         # --------------------------------------------
-        if type(blocks_type) is DropType:
+        if type(blocks_type) is BlockType:
             block_type_list = [blocks_type for _ in range(4)]
         elif type(blocks_type) is list:
             assert len(blocks_type) == NB_LEVELS, "You should specify one or 4 pre_act parameters."

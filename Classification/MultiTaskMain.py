@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       Contain the main function to train a MultiLevel 3D ResNet for multitask learning.
 
@@ -69,7 +69,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     trainset, validset, testset = build_datasets(tasks=task_list,
                                                  testset_name=args.testset,
-                                                 num_chan=args.num_chan_data)
+                                                 num_chan=args.num_chan_data,
+                                                 split_seed=args.seed)
 
     # --------------------------------------------
     #                NEURAL NETWORK

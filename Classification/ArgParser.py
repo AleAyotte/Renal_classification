@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     06/2021
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       Contain the argument parser that will be used by every Main file.
 """
@@ -60,6 +60,8 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                         choices=["adam", "novograd", "sgd"])
     parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
                         help="If true, load the last saved model and continue the training.")
+    parser.add_argument('--seed', type=int, default=None,
+                        help="The seed that will be used to split the data.")
     parser.add_argument('--testset', type=str, default="test",
                         help="The name of the testset. If testset=='test' then a random stratified testset will be "
                              "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
@@ -137,6 +139,10 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             help="Number of channels after the first convolution.")
         parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the malignancy task.")
+        parser.add_argument('--mtl_loss', type=str, default="uncertainty",
+                            help="Indicate the multi-task loss that will be used to train the network."
+                                 " Options = (uncertainty, uniform).",
+                            choices=["uncertainty", "uniform"])
         parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
                             help="The number of channels of the input images.")
         parser.add_argument('--split_level', type=int, default=4,
@@ -156,6 +162,56 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
         parser.add_argument('--c', type=float, default=0.85,
                             help="The conservation parameter of the Cross-Stich Unit")
+        parser.add_argument('--cs_config', type=int, default=1, choices=[0, 1, 2, 3],
+                            help="The config used to the position of the cross-stitch module if sharing_unit = "
+                                 "cross_stitch (see Constant.py CS_CONFIG).")
+        parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
+                            help="The config used to determine the depth of each sub-network "
+                                 "(see Constant.py SubNetDepth).")
+        parser.add_argument('--drop_type', type=str, default="linear",
+                            help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                                 "Else if, drop_type == 'linear' the drop rate will grow linearly  "
+                                 "at each dropout layer from 0 to 'drop_rate'.",
+                            choices=["flat", "linear"])
+        parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the grade task.")
+        parser.add_argument('--groups', type=int, default=1)
+        parser.add_argument('--in_channels', type=int, default=16,
+                            help="Number of channels after the first convolution.")
+        parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the malignancy task.")
+        parser.add_argument('--mtl_loss', type=str, default="uncertainty",
+                            help="Indicate the multi-task loss that will be used to train the network."
+                                 " Options = (uncertainty, uniform).",
+                            choices=["uncertainty", "uniform"])
+        parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                            help="The number of channels of the input images.")
+        parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
+                            help="If True, then the SharedNet will be create with two subnet that has been pretrained "
+                                 "on their corresponding task. Also, the shared_lr will be equal to lr * 100 and "
+                                 "shared_eta_min will be equal to eta_min * 100.")
+        parser.add_argument('--sharing_l2', type=float, default=3e-6,
+                            help="The l2 penalty coefficient applied to the shared module.")
+        parser.add_argument('--sharing_unit', type=str, default="cross_stitch",
+                            help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
+                                 "information transfer between multiple subnets",
+                            choices=["sluice", "cross_stitch"])
+        parser.add_argument('--spread', type=float, default=0.10,
+                            help="The spread parameter of the Cross-Stitch Units.")
+        parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the subtype task.")
+
+    # --------------------------------------------
+    #               HARD SHARED 3D
+    # --------------------------------------------
+    elif experiment is Experimentation.MTAN:
+        parser.add_argument('--activation', type=str, default='ReLU',
+                            help="The activation function use in the NeuralNet.",
+                            choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+        parser.add_argument('--att_block', type=str, default="spatial",
+                            help="Indicate the attention block type that will be used during training."
+                                 " Options = (channel, spatialm cbam).",
+                            choices=["channel", "spatial", "cbam"])
         parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                             help="The number of layer in the ResNet.")
         parser.add_argument('--drop_type', type=str, default="linear",
@@ -165,22 +221,17 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=["flat", "linear"])
         parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the grade task.")
+        parser.add_argument('--groups', type=int, default=1)
         parser.add_argument('--in_channels', type=int, default=16,
                             help="Number of channels after the first convolution.")
         parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the malignancy task.")
+        parser.add_argument('--mtl_loss', type=str, default="uncertainty",
+                            help="Indicate the multi-task loss that will be used to train the network."
+                                 " Options = (uncertainty, uniform).",
+                            choices=["uncertainty", "uniform"])
         parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
                             help="The number of channels of the input images.")
-        parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
-                            help="If True, then the SharedNet will be create with two subnet that has been pretrained "
-                                 "on their corresponding task. Also, the shared_lr will be equal to lr * 100 and "
-                                 "shared_eta_min will be equal to eta_min * 100.")
-        parser.add_argument('--sharing_unit', type=str, default="cross_stitch",
-                            help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
-                                 "information transfer between multiple subnets",
-                            choices=["sluice", "cross_stitch"])
-        parser.add_argument('--spread', type=float, default=0.10,
-                            help="The spread parameter of the Cross-Stitch Units.")
         parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the subtype task.")
 

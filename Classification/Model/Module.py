@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 03/2021
+    @Last modification: 07/2021
 
     @Description:       This file contain some generic module used to create several model like
                         MultiLevelResNet and SharedNet. The module are SluiceUnit, CrossStitchUnit, Mixup and
@@ -49,6 +49,9 @@ class CrossStitchUnit(torch.nn.Module):
         :param spread: A float that represent the spread parameters.
         """
         super().__init__()
+        self.__num_chan = nb_channels
+        self.__num_task = nb_task
+
         mean = (1 - c) / (nb_task - 1)
         std = spread / (nb_task - 1)
 
@@ -67,6 +70,17 @@ class CrossStitchUnit(torch.nn.Module):
         # Output, Task, Batch, Channels, Depth, Width, Height
         out = torch.mul(self.alpha[:, :, None, :, None, None, None], x[None, :, :, :, :, :, :])
         return out.sum(1)
+
+    def penalty(self) -> torch.Tensor:
+        """
+        Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
+        be equal to 1.
+
+        :return: a torch.tensor that represent the penalty on the shared unit (Cross-stitch unit).
+        """
+        features_selection_penalty = torch.prod(torch.abs(self.alpha) + 1, dim=1)
+        simplex_penalty = torch.square(torch.sum(self.alpha, dim=1) - 1)
+        return torch.mean(features_selection_penalty + simplex_penalty)
 
 
 class MarginLoss(nn.Module):
@@ -219,6 +233,17 @@ class SluiceUnit(torch.nn.Module):
         # Batch, Width, Channels, Depth, Height, Subspace -> Batch, Subspace, Channels, Depth, Height, Width
         return out.transpose(1, x.ndim - 1)
 
+    def penalty(self) -> torch.Tensor:
+        """
+        Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
+        be equal to 1.
+
+        :return: a torch.tensor that represent the penalty on the shared unit (Cross-stitch unit).
+        """
+        features_selection_penalty = torch.prod(torch.abs(self.alpha) + 1, dim=0)
+        simplex_penalty = torch.square(torch.sum(self.alpha, dim=0) - 1)
+        return torch.mean(features_selection_penalty + simplex_penalty)
+
 
 class UncertaintyLoss(torch.nn.Module):
     """
@@ -244,7 +269,25 @@ class UncertaintyLoss(torch.nn.Module):
         """
         Compute the uncertainty loss
 
-        :param losses: A torch.Tensor that represent the vector of lenght 3 that contain the losses.
+        :param losses: A torch.Tensor that represent the vector of length num_task that contain the losses.
         :return: A torch.Tensor that represent the uncertainty loss (multi-task loss).
         """
         return torch.dot(torch.exp(-self.phi), losses) + torch.sum(self.phi / 2)
+
+
+class UniformLoss(torch.nn.Module):
+    """
+    An implementation of the Uniform loss for multi-task learning. This loss does not scale the different losses, it
+    only sum them.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+
+    def forward(self, losses: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the uniform loss for multi-task learning. It will only sum all losses.
+
+        :param losses: A torch.Tensor that represent the vector of length num_task that contain the losses.
+        :return: A torch.Tensor that represent the uniform loss (multi-task loss).
+        """
+        return torch.sum(losses)

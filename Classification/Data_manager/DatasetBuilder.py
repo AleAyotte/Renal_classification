@@ -114,7 +114,7 @@ def build_datasets(tasks: Sequence[str],
                    clin_features: Union[Sequence[str], None] = None,
                    num_chan: int = 4,
                    num_dimension: int = 3,
-                   testseed: Optional[int] = None,
+                   split_seed: Optional[int] = None,
                    testset_name: str = "test") -> Tuple[RenalDataset, RenalDataset, RenalDataset]:
     """
 
@@ -124,7 +124,7 @@ def build_datasets(tasks: Sequence[str],
     :param num_dimension: The number of dimension of the images in the dataset.
     :param testset_name: Determine the data that will be used in the testset. If testset == 'test' then the testset
                          will be sampled in the train set. Else, it will load the corresponding testset.
-    :param testseed: The seed that should be use to sample the testset in the training set.
+    :param split_seed: The seed that should be use to sample the testset and the validset in the training set.
     :return: 3 RenalDataset: Training set, validation set and testset
     """
     # --------------------------------------------
@@ -171,8 +171,8 @@ def build_datasets(tasks: Sequence[str],
                            split=None if testset_name == "test" else testset_name,
                            stratification_keys=STRATIFICATION_KEYS)
 
-    seed_valid = randint(0, 10000)
-    seed_test = randint(0, 10000) if testseed is None else testseed
+    seed_valid = randint(0, 10000) if split_seed is None else split_seed
+    seed_test = randint(0, 10000) if split_seed is None else split_seed
     if testset_name == "test":
         trainset, testset = split_trainset(trainset, testset, validation_split=0.2, random_seed=seed_test)
 

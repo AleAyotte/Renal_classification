@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       Contain the class MultiTaskTrainer which inherit from the class Trainer. This class is used
                         to train the MultiLevelResNet and the SharedNet on the three task (malignancy, subtype and
@@ -24,9 +24,6 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Dict, Sequence, Tuple, Union
-
-
-NUM_TASK = 2  # Number of task
 
 
 class MultiTaskTrainer(Trainer):
@@ -226,7 +223,7 @@ class MultiTaskTrainer(Trainer):
                     metrics[task] = loss.item()
 
                 losses = torch.stack(losses)
-                loss = self.model.uncertainty_loss(losses)
+                loss = self.model.loss(losses)
 
             self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
@@ -281,7 +278,7 @@ class MultiTaskTrainer(Trainer):
                 metrics[task] = loss.item()
 
         losses = torch.stack(losses)
-        loss = self.model.uncertainty_loss(losses)
+        loss = self.model.loss(losses)
 
         if self._track_mode == "all":
             metrics["total"] = loss.item()
@@ -379,6 +376,10 @@ class MultiTaskTrainer(Trainer):
                 self._writer.add_scalars(f'{dataset_name}/Recall/{task.capitalize()}',
                                          rec,
                                          epoch)
+
+            if dataset_name == "Validation" and type(self.model).__name__ == "SharedNet":
+                self.model.save_histogram_sharing_unit(epoch, self._writer)
+                
         return mean_acc, loss
 
     def _get_conf_matrix(self,
@@ -469,6 +470,6 @@ class MultiTaskTrainer(Trainer):
                                           [float("nan"), float("nan")]])
                 conf_mat[task_name] = cond_conf
 
-            total_loss = self.model.uncertainty_loss(torch.stack(losses)) if get_loss else None
+            total_loss = self.model.loss(torch.stack(losses)) if get_loss else None
 
         return (conf_mat, total_loss) if get_loss else (conf_mat, auc_score)

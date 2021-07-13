@@ -3,16 +3,16 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 06/2021
+    @Last modification: 07/2021
 
     @Description:       This file contain the classe HardSharedResNet that inherit from the NeuralNet class.
 
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
 
-from Constant import BlockType, DropType, Tasks
+from Constant import BlockType, DropType, Loss, Tasks
 from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
-from Model.Module import Mixup, UncertaintyLoss
+from Model.Module import Mixup, UncertaintyLoss, UniformLoss
 from monai.networks.blocks.convolutions import Convolution
 from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
@@ -40,6 +40,8 @@ class HardSharedResNet(NeuralNet):
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
         The last series of residual block.
+    loss: Union[UncertaintyLoss, UniformLoss]
+        A torch.module that will be used to compute the multi-task loss during the training.
     __num_flat_features : int
         Number of features at the output of the last convolution.
     shared_layers : nn.Sequentiel
@@ -76,6 +78,7 @@ class HardSharedResNet(NeuralNet):
                  first_kernel: Union[Sequence[int], int] = 3,
                  in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  kernel: Union[Sequence[int], int] = 3,
+                 loss: Loss = Loss.UNCERTAINTY,
                  norm: str = "batch",
                  num_in_chan: int = 4,
                  task_block: Union[
@@ -103,6 +106,7 @@ class HardSharedResNet(NeuralNet):
         :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
         :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
         :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param loss: Indicate the MTL loss that will be used during the training. (Default=Loss.Uncertainty)
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
         :param num_in_chan: An integer that indicate the number of channel of the input images.
@@ -155,8 +159,10 @@ class HardSharedResNet(NeuralNet):
         # --------------------------------------------
         #              UNCERTAINTY LOSS
         # --------------------------------------------
-        self.uncertainty_loss = UncertaintyLoss(num_task=nb_task)
-
+        if loss == Loss.UNCERTAINTY:
+            self.loss = UncertaintyLoss(num_task=nb_task)
+        else:
+            self.loss = UniformLoss()
         # --------------------------------------------
         #                   DROPOUT
         # --------------------------------------------
