@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 04/2021
+    @Last modification: 07/2021
 
     @Description:       This file contain a function that build the training, validation and testing set for both 2D
                         and 3D datasets.
@@ -35,21 +35,6 @@ def get_data_augmentation(num_chan: int = 4,
     :return: A tuple of Compose object that list the transformation that will be applied on the images.
     """
     if num_dimension == 3:
-        """
-        transform = Compose([
-            AddChanneld(keys=["t1", "t2", "roi"]),
-            RandFlipd(keys=["t1", "t2", "roi"], spatial_axis=[0], prob=0.5),
-            RandScaleIntensityd(keys=["t1", "t2"], factors=0.1, prob=0.5),
-            RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
-                        rotate_range=[0, 0, 6.28], translate_range=0.1, padding_mode="zeros"),
-            RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
-            RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=1.00, max_zoom=1.05,
-                      keep_size=False, mode="trilinear", align_corners=True),
-            ResizeWithPadOrCropd(keys=["t1", "t2", "roi"], spatial_size=[96, 96, 32], mode=args.pad_mode),
-            ToTensord(keys=["t1", "t2", "roi"])
-        ])
-        """
-
         # 4 CHANNELS
         if num_chan == 4:
             transform = Compose([
@@ -58,7 +43,6 @@ def get_data_augmentation(num_chan: int = 4,
                 RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
                 RandAffined(keys=["t1", "t2", "roi_t1", "roi_t2"], prob=0.5, shear_range=[0.4, 0.4, 0],
                             rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
-                # RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
                 RandSpatialCropd(keys=["t1", "t2", "roi_t1", "roi_t2"], roi_size=[64, 64, 24], random_center=False),
                 RandZoomd(keys=["t1", "t2", "roi_t1", "roi_t2"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
                           keep_size=False, mode="trilinear", align_corners=True),
@@ -78,7 +62,6 @@ def get_data_augmentation(num_chan: int = 4,
                 RandScaleIntensityd(keys=["t1", "t2"], factors=0.2, prob=0.5),
                 RandAffined(keys=["t1", "t2", "roi"], prob=0.5, shear_range=[0.4, 0.4, 0],
                             rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
-                # RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 16], random_center=False),
                 RandSpatialCropd(keys=["t1", "t2", "roi"], roi_size=[64, 64, 24], random_center=False),
                 RandZoomd(keys=["t1", "t2", "roi"], prob=0.5, min_zoom=0.77, max_zoom=1.23,
                           keep_size=False, mode="trilinear", align_corners=True),
