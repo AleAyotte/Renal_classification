@@ -125,8 +125,9 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
         parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
-        parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
-                            help="The number of layer in the ResNet.")
+        parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
+                            help="The config used to determine the depth of each sub-network. The depth of the shared "
+                                 "layers is determined by the most commun depth (see Constant.py SubNetDepth).")
         parser.add_argument('--drop_type', type=str, default="linear",
                             help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
                                  "Else if, drop_type == 'linear' the drop rate will grow linearly  "

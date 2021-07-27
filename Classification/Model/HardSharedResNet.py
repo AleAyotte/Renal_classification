@@ -23,6 +23,7 @@ from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
+SHARED: Final = "shared"
 
 
 class HardSharedResNet(NeuralNet):
@@ -71,7 +72,8 @@ class HardSharedResNet(NeuralNet):
                  act: str = "ReLU",
                  backend_tasks: Optional[str] = None,
                  commun_block: Union[BlockType, List[BlockType]] = BlockType.PREACT,
-                 depth: int = 18,
+                 commun_depth: int = 18,
+                 task_depth: Optional[Dict[str, int]] = None,
                  drop_rate: float = 0,
                  drop_type: DropType = DropType.FLAT,
                  first_channels: int = 16,
@@ -97,7 +99,9 @@ class HardSharedResNet(NeuralNet):
         :param commun_block: A string or a sequence of string that indicate which type of block will be use to
                              create the shared layers of the network. If it is a list, it should be equal in length to
                              split_level - 1.
-        :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
+        :param commun_depth: The ResNet configuration that will be used to build the shared layer. (Default=18)
+        :param task_depth: A dictionary that indicate the ResNet configuration that will be used to create the task
+                           specific network. If None or if tasks is missing, the commun_depth will be used instead.
         :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
         :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
                           Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
@@ -163,33 +167,48 @@ class HardSharedResNet(NeuralNet):
             self.loss = UncertaintyLoss(num_task=nb_task)
         else:
             self.loss = UniformLoss()
+
+        # --------------------------------------------
+        #                   DEPTH
+        # --------------------------------------------
+        layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
+
+        if task_depth is None:
+            task_depth = {task: commun_depth for task in self.__tasks}
+        else:
+            for missing_task in list(set(task_depth.keys()) - set(self.__tasks)):
+                task_depth[missing_task] = commun_depth
+
+        task_depth[SHARED] = commun_depth
         # --------------------------------------------
         #                   DROPOUT
         # --------------------------------------------
-        layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
-        num_block = int(np.sum(layers[depth]))
 
-        assert type(drop_type) is DropType, f"The drop_type should be of type DropType, but get {drop_type}"
-        if drop_type is DropType.FLAT:
-            temp = [drop_rate for _ in range(num_block)]
-        else:
-            temp = [1 - (1 - (drop_rate * i / (num_block - 1))) for i in range(num_block)]
+        task_dropout = {}
+        for task, depth in list(task_depth.items()):
+            num_block = int(np.sum(layers[depth]))
+            assert type(drop_type) is DropType, f"The drop_type should be of type DropType, but get {drop_type}"
+            if drop_type is DropType.FLAT:
+                temp = [drop_rate for _ in range(num_block)]
+            else:
+                temp = [1 - (1 - (drop_rate * i / (num_block - 1))) for i in range(num_block)]
 
-        dropout = []
-        for i in range(NB_LEVELS):
-            first = int(np.sum(layers[depth][0:i]))
-            last = int(np.sum(layers[depth][0:i+1]))
-            dropout.append(temp[first:last])
+            task_dropout[task] = []
+
+            for i in range(NB_LEVELS):
+                first = int(np.sum(layers[depth][0:i]))
+                last = int(np.sum(layers[depth][0:i+1]))
+                task_dropout[task].append(temp[first:last])
 
         # --------------------------------------------
         #                SHARED BLOCKS
         # --------------------------------------------
         if type(commun_block) is not list:
-            shared_blocks = [self.__get_block(commun_block, depth) for _ in range(split_level - 1)]
+            shared_blocks = [self.__get_block(commun_block, task_depth[SHARED]) for _ in range(split_level - 1)]
         else:
             assert len(commun_block) == split_level - 1, \
                 "The lenght of commun_block do not match with the split_level."
-            shared_blocks = [self.__get_block(block, depth) for block in commun_block]
+            shared_blocks = [self.__get_block(block, task_depth[SHARED]) for block in commun_block]
 
         # --------------------------------------------
         #                TASKS BLOCKS
@@ -200,11 +219,11 @@ class HardSharedResNet(NeuralNet):
         task_block_list = {}
         for task, blocks in list(task_block.items()):
             if type(blocks) is not list:
-                task_block_list[task] = [self.__get_block(blocks, depth) for _ in range(5 - split_level)]
+                task_block_list[task] = [self.__get_block(blocks, task_depth[task]) for _ in range(5 - split_level)]
             else:
                 assert len(task_block) == 5 - split_level, \
                     "The lenght of shared_block do not match with the split_level."
-                task_block_list[task] = [self.__get_block(block, depth) for block in blocks]
+                task_block_list[task] = [self.__get_block(block, task_depth[task]) for block in blocks]
 
         # --------------------------------------------
         #                  CONV LAYERS
@@ -229,11 +248,11 @@ class HardSharedResNet(NeuralNet):
             if split_level > i + 1:
                 temp_layers = self.__make_layer(shared_blocks[i],
                                                 act=act,
-                                                drop_rate=dropout[i],
+                                                drop_rate=task_dropout[SHARED][i],
                                                 fmap_out=first_channels * (2**i),
                                                 kernel=kernel,
                                                 norm=norm,
-                                                num_block=layers[depth][i],
+                                                num_block=layers[task_depth[SHARED]][i],
                                                 strides=strides)
                 shared_layers.append(temp_layers)
 
@@ -244,11 +263,11 @@ class HardSharedResNet(NeuralNet):
                     self.__in_channels = in_channels
                     temp_layers = self.__make_layer(task_block_list[task][idx],
                                                     act=act,
-                                                    drop_rate=dropout[i],
+                                                    drop_rate=task_dropout[task][i],
                                                     fmap_out=first_channels * (2**i),
                                                     kernel=kernel,
                                                     norm=norm,
-                                                    num_block=layers[depth][i],
+                                                    num_block=layers[task_depth[task]][i],
                                                     strides=strides)
                     task_specific_layer[task].append(temp_layers)
         # --------------------------------------------
