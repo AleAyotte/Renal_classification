@@ -11,7 +11,7 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, DropType, Experimentation, Tasks
+from Constant import BlockType, DatasetName, DropType, Experimentation, SubNetDepth, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.HardSharedResNet import HardSharedResNet
 import torch
@@ -27,7 +27,7 @@ MIXED_PRECISION: Final = True
 MODEL_NAME: Final = "HardSharing"
 PIN_MEMORY: Final = False
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME: Final = "june-2021-multitask"
+PROJECT_NAME: Final = "jul-2021-hardsharing2"
 SAVE_PATH: Final = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
 
@@ -75,10 +75,22 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
+    # Depth config
+    if args.depth_config == 1:
+        commun_depth = 18
+        depth_config: Final = SubNetDepth.CONFIG1
+    elif args.depth_config == 2:
+        commun_depth = 34
+        depth_config: Final = SubNetDepth.CONFIG2
+    else:
+        commun_depth = 18
+        depth_config: Final = SubNetDepth.CONFIG3
+
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     net = HardSharedResNet(tasks=task_list,
                            num_classes=num_classes,
-                           depth=args.depth,
+                           commun_depth=commun_depth,
+                           task_depth=depth_config,
                            split_level=args.split_level,
                            in_shape=in_shape,
                            first_channels=args.in_channels,
@@ -159,6 +171,7 @@ if __name__ == "__main__":
 
         csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
         train_csv_path, valid_csv_path, test_csv_path = csv_path
+        train_csv_path = valid_csv_path = test_csv_path = ""
     else:
         experiment = None
         train_csv_path = valid_csv_path = test_csv_path = ""
