@@ -487,6 +487,6 @@ class MultiTaskTrainer(Trainer):
                                           [float("nan"), float("nan")]])
                 conf_mat[task_name] = cond_conf
 
-            total_loss = self.model.loss(torch.stack(losses)) if get_loss else None
+            total_loss = torch.sum(torch.stack(losses)) if get_loss else None
 
         return (conf_mat, total_loss) if get_loss else (conf_mat, auc_score)
