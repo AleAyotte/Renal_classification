@@ -77,6 +77,7 @@ Morever, the following package are required to execute our code.
   - [ ] Adapt MultiTaskTrainer
   - [ ] Add Learn-To-Branch (LTB) Model
 - [ ] Experiment Phase 3
+  - [ ] Auxiliary tasks
   - [ ] Base Test (LTB)
   - [ ] Multiple Layer Type (LTB)
 - [ ] Experiment Phase 4
