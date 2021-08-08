@@ -96,7 +96,7 @@ class Trainer(ABC):
     """
     def __init__(self,
                  tasks: Sequence[str],
-                 num_classes: dict,
+                 num_classes: Dict[str, int],
                  classes_weights: str = "balanced",
                  early_stopping: bool = False,
                  loss: str = "ce",
