@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 07/2021
+    @Last modification: 08/2021
 
     @Description:       This file contain some generic module used to create several model like the ResNet,
                         MultiLevelResNet and CapsNet. The module are DynamicHighCapsule, PrimaryCapsule, Resblock and
@@ -171,6 +171,7 @@ class GumbelSoftmaxBlock(nn.Module):
 
         :param block_list: A list of block class to instantiate.
         :param num_input: The number of parent nodes.
+        :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
         :param kwargs: A dictionary of parameters that will be used to instantiate the blocks.
         """
         super().__init__()
