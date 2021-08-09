@@ -12,6 +12,7 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
                         2) CBAM: Convolutional Block Attention Module, Woo, S et al., ECCV 2018
                         3) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
+                        4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
 from monai.networks.blocks.convolutions import ResidualUnit
 from monai.networks.layers import split_args
@@ -19,7 +20,8 @@ from monai.networks.layers.factories import Act, Norm
 import numpy as np
 import torch
 from torch import nn
-from typing import Optional, Sequence, Union
+from torch.nn.functional import gumbel_softmax
+from typing import Final, NewType, Optional, Sequence, Type, Union
 
 
 class CBAM(nn.Module):
@@ -135,6 +137,72 @@ class ChannelAttBlock(nn.Module):
         out = torch.mul(to_mask, out.expand_as(to_mask))
 
         return self.subsample(out)
+
+
+class GumbelSoftmaxBlock(nn.Module):
+    """
+    The Gumbel Softmax that will be used in the Learn-To-Branch model as described in ref 4)
+
+    ...
+    Attributes
+    ----------
+    blocks : nn.ModuleList
+        A list of block that correspond to the children nodes.
+    __num_block : int
+        The number of children nodes.
+    __tau : float
+        The non-negative scalar temperature argument that is used to compute the gumbel softmax.
+    weights : nn.Parameters
+        The logits weights that are used in the gumbel softmax
+    """
+    BLOCK_LIST_TYPE: Final = Union[NewType("PreResBlock", type),
+                                   NewType("PreResBottleneck", type),
+                                   NewType("ResBlock", type),
+                                   NewType("ResBottleneck", type),
+                                   Type[nn.Linear]]
+
+    def __init__(self,
+                 block_list: Sequence[BLOCK_LIST_TYPE],
+                 num_input: int,
+                 tau: float = 1,
+                 **kwargs):
+        """
+        Create a gumbel softmax block
+
+        :param block_list: A list of block class to instantiate.
+        :param num_input: The number of parent nodes.
+        :param kwargs: A dictionary of parameters that will be used to instantiate the blocks.
+        """
+        super().__init__()
+        self.__num_block = len(block_list)
+        self.__tau = tau
+        self.weights = nn.Parameter(data=torch.rand(self.__num_block, num_input), requires_grad=True)
+
+        self.blocks = nn.ModuleList()
+        for block in block_list:
+            if isinstance(block, type(nn.Linear)):
+                self.blocks.append(block(kwargs["in_features"], kwargs["out_features"]))
+            else:
+                self.blocks.append(block(fmap_in=kwargs["in_channels"],
+                                         fmap_out=kwargs["fmap_out"],
+                                         kernel=kwargs["kernel"],
+                                         strides=kwargs["strides"],
+                                         drop_rate=kwargs["drop_rate"],
+                                         activation=kwargs["act"],
+                                         norm=kwargs["norm"]))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the GumbelSoftmaxBlock
+
+        :param x: A torch.Tensor that represent the stacked output of the parent nodes.
+        :return: A torch.Tensor that represent the stacked output of the children nodes.
+        """
+        probs = gumbel_softmax(self.weights, tau=self.__tau, hard=not self.training)
+
+        # Output, Input, Batch, Channel, Depth, Width, Height
+        out = torch.mul(probs[:, :, None, None, None, None, None], x[None, :, :, :, :, :, :])
+        return torch.stack([self.blocks[i](out[i]) for i in range(self.__num_block)])
 
 
 class PreResBlock(nn.Module):
