@@ -20,7 +20,7 @@ from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
+from typing import Dict, Final, List, Sequence, Tuple, Type, Union
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
@@ -29,7 +29,39 @@ WIDTH_FACTOR: Final = 2
 
 class LTBResNet(NeuralNet):
     """
+    An implementation of the Learn-To-Branch version of the ResNet3D inspired by Ref) 2
 
+    ...
+    Attributes
+    ----------
+    avg_pool :  nn.AvgPool3d
+        The AvgPool3D module that is used after the last series of residual block.
+    conv : nn.ModuleList
+        First blocks of the network.
+    __in_channels : int
+        Number of output channels of the last convolution created. Used to determine the number of input channels of
+        the next convolution to create.
+        The last series of residual block.
+    last_layers : nn.Sequential
+        A sequential that contain the average pooling and the fully connected layer.
+    layers1 : nn.Sequential
+        The first series of residual block.
+    layers2 : nn.Sequential
+        The second series of residual block.
+    layers3 : nn.Sequential
+        The third series of residual block.
+    layers4 : nn.Sequential
+        The last series of residual block.
+    loss: Union[UncertaintyLoss, UniformLoss]
+        A torch.module that will be used to compute the multi-task loss during the training.
+    __num_flat_features : int
+        Number of features at the output of the last convolution.
+    __tasks : List[str]
+        The list of tasks on which the model will be train.
+    Methods
+    -------
+    forward(x: torch.Tensor) -> Dict[str, torch.Tensor]
+        Execute the forward on a given torch.Tensor.
     """
     def __init__(self,
                  num_classes: Dict[str, int],
@@ -49,21 +81,25 @@ class LTBResNet(NeuralNet):
                  tau: float = 1):
         """
 
-        :param num_classes:
-        :param tasks:
-        :param act:
+        :param num_classes: A dictionnary that indicate the number of class for each task. For regression tasks,
+                            the num_class shoule be equal to one.
+        :param tasks: A list of tasks on which the model will be train.
+        :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param block_width: A integer or a list of integer that indicate the number of possible path at each layer.
-        :param depth:
-        :param drop_rate:
-        :param drop_type:
-        :param first_channels:
-        :param first_kernel:
-        :param in_shape:
-        :param kernel:
-        :param loss:
-        :param norm:
-        :param num_in_chan:
-        :param tau:
+        :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
+        :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
+        :param drop_type: If drop_type == 'flat' every dropout layer will have the same drop rate.
+                          Else if, drop_type == 'linear' the drop rate will grow linearly at each dropout layer
+                          from 0 to 'drop_rate'. (Default='Flat')
+        :param first_channels: The number of channels at the output of the first convolution layer. (Default=16)
+        :param first_kernel: The kernel shape of the first convolution layer. (Default=3)
+        :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
+        :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
+        :param loss: Indicate the MTL loss that will be used during the training. (Default=Loss.Uncertainty)
+        :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
+                     (Default=batch)
+        :param num_in_chan: An integer that indicate the number of channel of the input images.
+        :param tau: The non-negative scalar temperature parameter of the gumble softmax operation.
         """
         assert len(tasks) > 0, "You should specify the name of each task"
         super().__init__()
@@ -238,10 +274,10 @@ class LTBResNet(NeuralNet):
     def foward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         The forward pass of the LTBResNet
-        
+
         :param x: A torch.Tensor that represent a batch of 3D images.
         :return: A dictionnary of torch.tensor that reprensent the output per task.
-                 The keys correspond to the tasks name
+                 The keys correspond to the tasks name.
         """
 
         out = torch.stack([conv(x) for conv in self.conv])
