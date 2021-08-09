@@ -4,3 +4,5 @@ Normalization/__pycache__/MRI_image.cpython-36.pyc
 Normalization/__pycache__/Patient.cpython-36.pyc
 *.hdf5
 *.pyc
+*.iml
+*.xml

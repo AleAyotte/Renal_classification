@@ -64,21 +64,23 @@ Morever, the following package are required to execute our code.
   - [x] Grouped Convolution
   - [x] Merged Mask
   - [x] Saving criterion
-- [ ] Experiment Phase 2
+- [x] Experiment Phase 2
   - [x] MTL Loss (H-S)
-  - [ ] Split layer (H-S)
-  - [ ] Pretraining (S-S)
-  - [ ] Sharing Modules Position (S-S)
-  - [ ] Regularization (S-S)
-  - [ ] MTAN depth (MTAN)
-  - [ ] MTAN width (MTAN)
-  - [ ] Attention Module (MTAN)
+  - [x] Split layer (H-S)
+  - [x] Pretraining (S-S)
+  - [x] Sharing Modules Position (S-S)
+  - [x] MTAN depth (MTAN)
+  - [x] MTAN width (MTAN)
+  - [x] Attention Module (MTAN)
 - [ ] Prepare Radiomics Experiments
   - [x] Compute radiomics
   - [ ] Adapt MultiTaskTrainer
-  - [ ] Add Adaptive Tree-Based Model
+  - [ ] Add Learn-To-Branch (LTB) Model
 - [ ] Experiment Phase 3
-  - [ ] Radiomics random forest baseline
+  - [ ] Auxiliary tasks
+  - [ ] Base Test (LTB)
+  - [ ] Multiple Layer Type (LTB)
+- [ ] Experiment Phase 4
   - [ ] Radiomics in self-supervising
     - [ ] With one set of radiomics
     - [ ] All sets of radiomics
@@ -88,7 +90,9 @@ Morever, the following package are required to execute our code.
     - [ ] One task + all radiomics sets
     - [ ] All tasks + all radiomics sets
 - [ ] Write paper
-
+- [ ] Bonus
+  - [ ] Add Fully Adaptive Features Sharing (FAFS) Model
+  - [ ] Test FAFS
 
 ## Folder Structure
  ```

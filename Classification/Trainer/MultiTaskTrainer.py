@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 07/2021
+    @Last modification: 08/2021
 
     @Description:       Contain the class MultiTaskTrainer which inherit from the class Trainer. This class is used
                         to train the MultiLevelResNet and the SharedNet on the three task (malignancy, subtype and
@@ -23,7 +23,7 @@ from torch.cuda import amp
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Dict, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 
 class MultiTaskTrainer(Trainer):
@@ -44,12 +44,14 @@ class MultiTaskTrainer(Trainer):
         (Default="balanced")
     _loss : str
         The name of the loss that will be used during the training.
+    _main_tasks : list
+        A list of tasks that will be used to validate the model.
     _mixed_precision : bool
         If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
-        _num_classes: dict
-    A dictionnary that indicate the number of classes for each task. For a regression task, the number of classes
+    _num_classes: dict
+        A dictionnary that indicate the number of classes for each task. For a regression task, the number of classes
         should be equal to one.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
@@ -69,47 +71,60 @@ class MultiTaskTrainer(Trainer):
         Compute the accuracy of the model on a given data loader.
     """
     def __init__(self,
-                 tasks: Sequence,
-                 num_classes: Union[None, Dict[str, int]],
-                 conditional_prob: Union[Sequence[Sequence[str]], None] = None,
-                 loss: str = "ce",
-                 tol: float = 0.01,
-                 early_stopping: bool = False,
-                 mixed_precision: bool = False,
-                 pin_memory: bool = False,
-                 num_workers: int = 0,
+                 main_tasks: Sequence[str],
+                 aux_tasks: Optional[Sequence[str]] = None,
                  classes_weights: str = "balanced",
-                 shared_net: bool = False,
+                 conditional_prob: Optional[Sequence[Sequence[str]]] = None,
+                 early_stopping: bool = False,
+                 loss: str = "ce",
+                 mixed_precision: bool = False,
+                 num_classes: Optional[Dict[str, int]] = None,
+                 num_workers: int = 0,
+                 pin_memory: bool = False,
                  save_path: str = "",
+                 shared_net: bool = False,
+                 tol: float = 0.01,
                  track_mode: str = "all"):
         """
         The constructor of the trainer class. 
 
-        :param conditional_prob: A list of pairs, where the pair A, B represent the name of task from which we want
-                                 to compute the conditionnal probability P(A|B).
-        :param loss: The loss that will be use during mixup epoch. (Default="ce")
-        :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
-                    (Default=0.01)
-        :param early_stopping: If true, the training will be stop after the third of the training if the model did
-                               not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
-        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
-        :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will 
-                           copied into the CUDA pinned memory. (Default=False)
-        :param num_workers: Number of parallel process used for the preprocessing of the data. If 0, 
-                            the main process will be used for the data augmentation. (Default=0)
+        :param main_tasks: A sequence of string that indicate the name of the main tasks. The validation will be done only
+                      on those tasks. In other words, the model will be optimized with the early stopping criterion
+                      on the main tasks.
+        :param aux_tasks: A sequence of string that indicate the name of the auxiliary tasks. The model will not be
+                          validate on those tasks.
         :param classes_weights: The configuration of weights that will be applied on the loss during the training.
                                 Flat: All classes have the same weight during the training.
-                                Balanced: The weights are inversionaly proportional to the number of data of each 
+                                Balanced: The weights are inversionaly proportional to the number of data of each
                                           classes in the training set.
                                 (Default="balanced")
+        :param conditional_prob: A list of pairs, where the pair A, B represent the name of task from which we want
+                                 to compute the conditionnal probability P(A|B).
+        :param early_stopping: If true, the training will be stop after the third of the training if the model did
+                               not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
+        :param loss: The loss that will be use during mixup epoch. (Default="ce")
+        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
+        :param num_classes: A dictionnary that indicate the number of classes of each. For regression task, the number
+                            of classes should be 1.
+        :param num_workers: Number of parallel process used for the preprocessing of the data. If 0,
+                            the main process will be used for the data augmentation. (Default=0)
+        :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will
+                           copied into the CUDA pinned memory. (Default=False)
+        :param save_path: Indicate where the weights of the network and the result will be saved.
         :param shared_net: If true, the model to train will be a SharedNet. In this case we need two optimizer, one for
                            the subnets and one for the sharing units and the Uncertainty loss parameters.
                            (Default=False)
-        :param save_path: Indicate where the weights of the network and the result will be saved.
+        :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
+                    (Default=0.01)
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default=all)
         """
+
+        # We merge the main tasks with the auxiliary tasks.
+        tasks = list(set(main_tasks).union(set(aux_tasks)))
+        self._main_tasks = main_tasks
+
         # If num_classes has not been defined, then we assume that every task are binary classification.
         if num_classes is None:
             num_classes = {}
@@ -129,6 +144,8 @@ class MultiTaskTrainer(Trainer):
         # Define the number of classes for the tasks created by the conditionnal probability.
         self.__cond_prob = [] if conditional_prob is None else conditional_prob
         for cond_tasks in self.__cond_prob:
+            assert set(cond_tasks) <= set(self._main_tasks), "Tasks using in condition_pro should be part of " \
+                                                             "the main tasks set."
             task1, task2 = cond_tasks
             task_name = task1 + "|" + task2
             num_classes[task_name] = num_classes[task1]
@@ -178,18 +195,19 @@ class MultiTaskTrainer(Trainer):
                 self._losses[task] = MarginLoss()
 
     def _standard_epoch(self,
-                        train_loader: DataLoader,
+                        epoch: int,
+                        grad_clip: float,
                         optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
                         schedulers: Sequence[CosineAnnealingWarmRestarts],
-                        grad_clip: float,
-                        epoch: int) -> float:
+                        train_loader: DataLoader) -> float:
         """
         Make a standard training epoch
 
-        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param epoch: The current epoch number. Will be used to save the result with tensorboard.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param optimizers: The torch optimizers that will used to train the model.
         :param schedulers: The learning rate schedulers that will be used at each iteration.
-        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
         :return: The average training loss.
         """
         sum_loss = 0
@@ -237,18 +255,19 @@ class MultiTaskTrainer(Trainer):
         return sum_loss.item() / n_iters
 
     def _mixup_criterion(self,
-                         pred: Dict[str, torch.Tensor],
+                         it: int,
                          labels: Dict[str, torch.Tensor],
                          lamb: float,
                          permut: Sequence[int],
-                         it: int) -> torch.FloatTensor:
+                         pred: Dict[str, torch.Tensor]) -> torch.FloatTensor:
         """
         Transform target into one hot vector and apply mixup on it
 
-        :param pred: A matrix of the prediction of the model. 
+        :param it: The current iteration number. Will be used to save the training loss with tensorboard.
         :param labels: Vector of the ground truth.
         :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass.
         :param permut: A numpy array that indicate which images has been shuffle during the foward pass.
+        :param pred: A matrix of the prediction of the model.
         :return: The mixup loss as torch tensor.
         """
 
@@ -288,18 +307,19 @@ class MultiTaskTrainer(Trainer):
         return loss
 
     def _mixup_epoch(self,
-                     train_loader: DataLoader,
+                     epoch: int,
+                     grad_clip: float,
                      optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
                      schedulers: Sequence[CosineAnnealingWarmRestarts],
-                     grad_clip: float,
-                     epoch: int) -> float:
+                     train_loader: DataLoader) -> float:
         """
         Make a manifold mixup epoch
 
-        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param epoch: The current epoch number. Will be used to save the result with tensorboard.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param optimizers: The torch optimizers that will used to train the model.
         :param schedulers: The learning rate schedulers that will be used at each iteration.
-        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
         :return: The average training loss.
         """
         sum_loss = 0
@@ -322,11 +342,11 @@ class MultiTaskTrainer(Trainer):
             # training step
             with amp.autocast(enabled=self._mixed_precision):
                 preds = self.model(images) if features is None else self.model(images, features)
-                loss = self._mixup_criterion(preds,
-                                             labels,
-                                             lamb,
-                                             permut,
-                                             it + epoch*n_iters)
+                loss = self._mixup_criterion(pred=preds,
+                                             labels=labels,
+                                             lamb=lamb,
+                                             permut=permut,
+                                             it=it + epoch*n_iters)
 
             self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             self.model.disable_mixup(mixup_key)
@@ -412,14 +432,14 @@ class MultiTaskTrainer(Trainer):
         masks = {}
         with torch.no_grad():
             # Compute the mask and the prediction
-            for task in self._tasks:
+            for task in self._main_tasks:
                 masks[task] = torch.where(labels[task] > -1, 1, 0).bool()
 
                 threshold = self._optimal_threshold[task] if use_optimal_threshold else 0.5
                 preds[task] = torch.where(outs[task][:, 1] >= threshold, 1, 0).cpu()
 
             # Compute the confusion matrix and the loss for each task.
-            for task in self._tasks:
+            for task in self._main_tasks:
                 task_labels = labels[task][masks[task]]
                 conf_mat[task] = confusion_matrix(task_labels.numpy(),
                                                   preds[task][masks[task]].numpy())
@@ -470,6 +490,6 @@ class MultiTaskTrainer(Trainer):
                                           [float("nan"), float("nan")]])
                 conf_mat[task_name] = cond_conf
 
-            total_loss = self.model.loss(torch.stack(losses)) if get_loss else None
+            total_loss = torch.sum(torch.stack(losses)) if get_loss else None
 
         return (conf_mat, total_loss) if get_loss else (conf_mat, auc_score)

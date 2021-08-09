@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 06/2021
+    @Last modification: 08/2021
 
     @Description:       Contain the class SingleTaskTrainer which inherit from the class Trainer. This class is used
                         to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
@@ -139,18 +139,19 @@ class SingleTaskTrainer(Trainer):
             self.__loss = MarginLoss()
 
     def _standard_epoch(self,
-                        train_loader: DataLoader,
+                        epoch: int,
+                        grad_clip: float,
                         optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
                         schedulers: Sequence[CosineAnnealingWarmRestarts],
-                        grad_clip: float,
-                        epoch: int) -> float:
+                        train_loader: DataLoader) -> float:
         """
         Make a standard training epoch
 
-        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param epoch: The current epoch number. Will be used to save the result with tensorboard.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param optimizers: The torch optimizers that will used to train the model.
         :param schedulers: The learning rate schedulers that will be used at each iteration.
-        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
         :return: The average training loss.
         """
         sum_loss = 0
@@ -184,18 +185,19 @@ class SingleTaskTrainer(Trainer):
         return sum_loss.item() / n_iters
 
     def _mixup_criterion(self,
-                         pred: Sequence[torch.Tensor],
-                         target: Sequence[Variable],
+                         it: int,
                          lamb: float,
                          permut: Sequence[int],
-                         it: int) -> torch.FloatTensor:
+                         pred: Sequence[torch.Tensor],
+                         target: Sequence[Variable]) -> torch.FloatTensor:
         """
         Transform target into one hot vector and apply mixup on it
 
-        :param pred: A matrix of the prediction of the model. 
-        :param target: Vector of the ground truth.
+        :param it: The current iteration number. Will be used to saved the training loss with tensorboard.
         :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass.
         :param permut: A numpy array that indicate which images has been shuffle during the foward pass.
+        :param pred: A matrix of the prediction of the model. 
+        :param target: Vector of the ground truth.
         :return: The mixup loss as torch tensor.
         """
         pred, target = pred[0], target[0]
@@ -219,18 +221,19 @@ class SingleTaskTrainer(Trainer):
         return loss
 
     def _mixup_epoch(self,
-                     train_loader: DataLoader,
+                     epoch: int,
+                     grad_clip: float,
                      optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
                      schedulers: Sequence[CosineAnnealingWarmRestarts],
-                     grad_clip: float,
-                     epoch: int) -> float:
+                     train_loader: DataLoader) -> float:
         """
         Make a manifold mixup epoch
 
-        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param epoch: The current epoch number. Will be used to save the result with tensorboard.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param optimizers: The torch optimizers that will used to train the model.
         :param schedulers: The learning rate schedulers that will be used at each iteration.
-        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
         :return: The average training loss.
         """
         sum_loss = 0
@@ -254,11 +257,11 @@ class SingleTaskTrainer(Trainer):
             # training step
             with amp.autocast(enabled=self._mixed_precision):
                 pred = self.model(images) if features is None else self.model(images, features)
-                loss = self._mixup_criterion([pred], 
-                                             [labels], 
-                                             lamb, 
-                                             permut,
-                                             it + epoch*n_iters)
+                loss = self._mixup_criterion(pred=[pred],
+                                             target=[labels],
+                                             lamb=lamb,
+                                             permut=permut,
+                                             it=it + epoch*n_iters)
 
             self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss

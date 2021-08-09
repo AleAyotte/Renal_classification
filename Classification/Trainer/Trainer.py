@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 07/2021
+    @Last modification: 08/2021
 
     @Description:       Contain the mother class Trainer from which the SingleTaskTrainer and MultiTaskTrainer will
                         inherit.
@@ -96,7 +96,7 @@ class Trainer(ABC):
     """
     def __init__(self,
                  tasks: Sequence[str],
-                 num_classes: dict,
+                 num_classes: Dict[str, int],
                  classes_weights: str = "balanced",
                  early_stopping: bool = False,
                  loss: str = "ce",
