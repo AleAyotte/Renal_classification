@@ -203,7 +203,7 @@ class GumbelSoftmaxBlock(nn.Module):
         probs = gumbel_softmax(self.weights, tau=self.__tau, hard=not self.training)
 
         # Output, Input, Batch, Channel, Depth, Width, Height
-        out = torch.mul(probs[:, :, None, None, None, None, None], x[None, :, :, :, :, :, :])
+        out = torch.mul(probs[:, :, None, None, None, None, None], x[None, :, :, :, :, :, :]).sum(1)
         return torch.stack([self.blocks[i](out[i]) for i in range(self.__num_block)])
 
 
