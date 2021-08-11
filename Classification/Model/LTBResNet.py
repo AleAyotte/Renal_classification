@@ -227,6 +227,7 @@ class LTBResNet(NeuralNet):
                                    in_features=self.__num_flat_features,
                                    out_features=num_classes[task]))
 
+        self.apply(init_weights)
 
     def __make_layer(self,
                      block_list: List[Union[Type[PreResBlock], Type[PreResBottleneck],
@@ -274,7 +275,7 @@ class LTBResNet(NeuralNet):
 
         return nn.Sequential(*layers)
 
-    def foward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         The forward pass of the LTBResNet
 
@@ -282,7 +283,6 @@ class LTBResNet(NeuralNet):
         :return: A dictionnary of torch.tensor that reprensent the output per task.
                  The keys correspond to the tasks name.
         """
-
         out = torch.stack([conv(x) for conv in self.conv])
         out = self.layers1(out)
         out = self.layers2(out)
