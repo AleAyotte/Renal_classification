@@ -53,6 +53,7 @@ class Experimentation(Enum):
     HARD_SHARING: Final = 3
     SOFT_SHARING: Final = 4
     MTAN: Final = 5
+    LTB_RESNET: Final = 6
 
 
 @unique

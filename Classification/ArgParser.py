@@ -135,7 +135,6 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=["flat", "linear"])
         parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the grade task.")
-        parser.add_argument('--groups', type=int, default=1)
         parser.add_argument('--in_channels', type=int, default=16,
                             help="Number of channels after the first convolution.")
         parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
@@ -203,7 +202,7 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             help="Train the model on the subtype task.")
 
     # --------------------------------------------
-    #               HARD SHARED 3D
+    #                   MTAN 3D
     # --------------------------------------------
     elif experiment is Experimentation.MTAN:
         parser.add_argument('--activation', type=str, default='ReLU',
@@ -222,7 +221,6 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=["flat", "linear"])
         parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the grade task.")
-        parser.add_argument('--groups', type=int, default=1)
         parser.add_argument('--in_channels', type=int, default=16,
                             help="Number of channels after the first convolution.")
         parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
@@ -236,6 +234,38 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
         parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the subtype task.")
 
+    # --------------------------------------------
+    #               LTB RESNET 3D
+    # --------------------------------------------
+    elif experiment is Experimentation.LTB_RESNET:
+        parser.add_argument('--activation', type=str, default='ReLU',
+                            help="The activation function use in the NeuralNet.",
+                            choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+        parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
+                            help="The number of layer in the ResNet.")
+        parser.add_argument('--drop_type', type=str, default="linear",
+                            help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                                 "Else if, drop_type == 'linear' the drop rate will grow linearly  "
+                                 "at each dropout layer from 0 to 'drop_rate'.",
+                            choices=["flat", "linear"])
+        parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the grade task.")
+        parser.add_argument('--in_channels', type=int, default=16,
+                            help="Number of channels after the first convolution.")
+        parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the malignancy task.")
+        parser.add_argument('--mtl_loss', type=str, default="uncertainty",
+                            help="Indicate the multi-task loss that will be used to train the network."
+                                 " Options = (uncertainty, uniform).",
+                            choices=["uncertainty", "uniform"])
+        parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                            help="The number of channels of the input images.")
+        parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the subtype task.")
+        parser.add_argument('--tau', type=float, default=0.1,
+                            help="The tau parameter of the gumbel softmax block.")
+        parser.add_argument('--width', type=int, default=2, choices=[2, 3, 4],
+                            help="The number of parallel layers (possible path) in the Learn-To-Branch model.")
     else:
         raise Exception("This experimentation does not exist.")
 
