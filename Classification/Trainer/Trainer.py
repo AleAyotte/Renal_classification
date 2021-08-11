@@ -296,9 +296,9 @@ class Trainer(ABC):
 
                 # We make a training epoch
                 if current_mode == "Mixup":
-                    _ = self._mixup_epoch(train_loader, optimizers, schedulers, grad_clip, epoch)
+                    _ = self._mixup_epoch(epoch, grad_clip, optimizers, schedulers, train_loader)
                 else:
-                    _ = self._standard_epoch(train_loader, optimizers, schedulers, grad_clip, epoch)
+                    _ = self._standard_epoch(epoch, grad_clip, optimizers, schedulers, train_loader)
 
                 self.model.eval()
 
@@ -656,36 +656,38 @@ class Trainer(ABC):
 
     @abstractmethod
     def _mixup_epoch(self,
-                     train_loader: DataLoader,
+                     epoch: int,
+                     grad_clip: float,
                      optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
                      schedulers: Sequence[CosineAnnealingWarmRestarts],
-                     grad_clip: float,
-                     epoch: int) -> float:
+                     train_loader: DataLoader) -> float:
         """
         Make a manifold mixup epoch
 
-        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param epoch: The current epoch number. Will be used to save the result with tensorboard.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param optimizers: The torch optimizers that will used to train the model.
         :param schedulers: The learning rate schedulers that will be used at each iteration.
-        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
         :return: The average training loss.
         """
         raise NotImplementedError("Must override _mixup_epoch.")
 
     @abstractmethod
     def _standard_epoch(self,
-                        train_loader: DataLoader,
+                        epoch: int,
+                        grad_clip: float,
                         optimizers: Sequence[Union[torch.optim.Optimizer, Novograd]],
                         schedulers: Sequence[CosineAnnealingWarmRestarts],
-                        grad_clip: float,
-                        epoch: int) -> float:
+                        train_loader: DataLoader) -> float:
         """
         Make a standard training epoch
 
-        :param train_loader: A torch data_loader that contain the features and the labels for training.
+        :param epoch: The current epoch number. Will be used to save the result with tensorboard.
+        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
         :param optimizers: The torch optimizers that will used to train the model.
         :param schedulers: The learning rate schedulers that will be used at each iteration.
-        :param grad_clip: Max norm of the gradient. If 0, no clipping will be applied on the gradient.
+        :param train_loader: A torch data_loader that contain the features and the labels for training.
         :return: The average training loss.
         """
         raise NotImplementedError("Must override _standard_epoch.")
