@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(tasks=task_list,
+    trainer = Trainer(main_tasks=task_list,
                       num_classes=num_classes,
                       conditional_prob=conditional_prob,
                       early_stopping=args.early_stopping,
@@ -171,7 +171,6 @@ if __name__ == "__main__":
 
         csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
         train_csv_path, valid_csv_path, test_csv_path = csv_path
-        train_csv_path = valid_csv_path = test_csv_path = ""
     else:
         experiment = None
         train_csv_path = valid_csv_path = test_csv_path = ""

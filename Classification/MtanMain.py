@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    trainer = Trainer(tasks=task_list,
+    trainer = Trainer(main_tasks=task_list,
                       num_classes=num_classes,
                       conditional_prob=conditional_prob,
                       early_stopping=args.early_stopping,
