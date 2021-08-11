@@ -122,7 +122,7 @@ class MultiTaskTrainer(Trainer):
         """
 
         # We merge the main tasks with the auxiliary tasks.
-        tasks = list(set(main_tasks).union(set(aux_tasks)))
+        tasks = list(set(main_tasks).union(set(aux_tasks))) if aux_tasks is not None else main_tasks
         self._main_tasks = main_tasks
 
         # If num_classes has not been defined, then we assume that every task are binary classification.
