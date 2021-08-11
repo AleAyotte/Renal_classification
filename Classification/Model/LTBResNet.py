@@ -284,6 +284,7 @@ class LTBResNet(NeuralNet):
                  The keys correspond to the tasks name.
         """
         out = torch.stack([conv(x) for conv in self.conv])
+        print(out.size())
         out = self.layers1(out)
         out = self.layers2(out)
         out = self.layers3(out)
@@ -291,5 +292,5 @@ class LTBResNet(NeuralNet):
 
         out = torch.stack([self.avg_pool(out[i]) for i in range(out.size()[0])])
 
-        pred = {self.__tasks[i]: self.last_layers[self.tasks[i]](out[i]) for i in range(len(self.__tasks))}
+        pred = {self.__tasks[i]: self.last_layers[self.__tasks[i]](out[i]) for i in range(len(self.__tasks))}
         return pred
