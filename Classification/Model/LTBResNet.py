@@ -217,13 +217,16 @@ class LTBResNet(NeuralNet):
         self.avg_pool = nn.AvgPool3d(kernel_size=out_shape)
         self.__num_flat_features = self.__in_channels
 
-        layer_list = [torch.nn.Linear for _ in range(len(tasks))]
-        self.last_layers = nn.Sequential(nn.Flatten(start_dim=2),  # We start at two, because there is multiple input
-                                         GumbelSoftmaxBlock(layer_list,
-                                                            num_input=net_width[3] * WIDTH_FACTOR,
-                                                            tau=tau,
-                                                            in_features=self.__num_flat_features,
-                                                            out_features=num_classes))
+        self.last_layers = nn.ModuleDict()
+        for task in self.__tasks:
+            self.last_layers[task] = nn.Sequential(
+                nn.Flatten(start_dim=2),  # We start at two, because there is multiple input
+                GumbelSoftmaxBlock([torch.nn.Linear],
+                                   num_input=net_width[3] * WIDTH_FACTOR,
+                                   tau=tau,
+                                   in_features=self.__num_flat_features,
+                                   out_features=num_classes[task]))
+
 
     def __make_layer(self,
                      block_list: List[Union[Type[PreResBlock], Type[PreResBottleneck],
@@ -287,5 +290,6 @@ class LTBResNet(NeuralNet):
         out = self.layers4(out)
 
         out = torch.stack([self.avg_pool(out[i]) for i in range(out.size()[0])])
-        pred = {self.__tasks[i]: out[i] for i in range(len(self.__tasks))}
+
+        pred = {self.__tasks[i]: self.last_layers[self.tasks[i]](out[i]) for i in range(len(self.__tasks))}
         return pred

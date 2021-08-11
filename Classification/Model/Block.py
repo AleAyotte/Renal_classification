@@ -181,15 +181,16 @@ class GumbelSoftmaxBlock(nn.Module):
 
         self.blocks = nn.ModuleList()
         for block in block_list:
-            if isinstance(block, type(nn.Linear)):
-                self.blocks.append(block(kwargs["in_features"], kwargs["out_features"]))
+            if block is nn.modules.linear.Linear:
+                self.blocks.append(block(in_features=kwargs["in_features"],
+                                         out_features=kwargs["out_features"]))
             else:
-                self.blocks.append(block(fmap_in=kwargs["in_channels"],
+                self.blocks.append(block(fmap_in=kwargs["fmap_in"],
                                          fmap_out=kwargs["fmap_out"],
                                          kernel=kwargs["kernel"],
                                          strides=kwargs["strides"],
                                          drop_rate=kwargs["drop_rate"],
-                                         activation=kwargs["act"],
+                                         activation=kwargs["activation"],
                                          norm=kwargs["norm"]))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
