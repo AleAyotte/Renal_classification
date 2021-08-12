@@ -182,9 +182,11 @@ class GumbelSoftmaxBlock(nn.Module):
         self.blocks = nn.ModuleList()
         for block in block_list:
             if block is nn.modules.linear.Linear:
+                self.__layer_type = "linear"
                 self.blocks.append(block(in_features=kwargs["in_features"],
                                          out_features=kwargs["out_features"]))
             else:
+                self.__layer_type = "conv"
                 self.blocks.append(block(fmap_in=kwargs["fmap_in"],
                                          fmap_out=kwargs["fmap_out"],
                                          kernel=kwargs["kernel"],
@@ -202,8 +204,13 @@ class GumbelSoftmaxBlock(nn.Module):
         """
         probs = gumbel_softmax(self.weights, tau=self.__tau, hard=not self.training)
 
-        # Output, Input, Batch, Channel, Depth, Width, Height
-        out = torch.mul(probs[:, :, None, None, None, None, None], x[None, :, :, :, :, :, :]).sum(1)
+        if self.__layer_type == "linear":
+            # Output, Input, Batch, features
+            print(x.size())
+            out = torch.mul(probs[:, :, None, None], x[None, :, :, :]).sum(1)
+        else:
+            # Output, Input, Batch, Channel, Depth, Width, Height
+            out = torch.mul(probs[:, :, None, None, None, None, None], x[None, :, :, :, :, :, :]).sum(1)
         return torch.stack([self.blocks[i](out[i]) for i in range(self.__num_block)])
 
 
