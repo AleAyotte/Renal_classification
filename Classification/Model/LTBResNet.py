@@ -291,5 +291,6 @@ class LTBResNet(NeuralNet):
         out = self.layers4(out)
 
         out = torch.stack([self.avg_pool(out[i]) for i in range(out.size()[0])])
-        pred = {self.__tasks[i]: self.last_layers[self.__tasks[i]](out) for i in range(len(self.__tasks))}
+
+        pred = {task: self.last_layers[task](out).squeeze(dim=0) for task in self.__tasks}
         return pred
