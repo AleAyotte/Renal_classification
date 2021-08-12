@@ -206,7 +206,6 @@ class GumbelSoftmaxBlock(nn.Module):
 
         if self.__layer_type == "linear":
             # Output, Input, Batch, features
-            print(x.size())
             out = torch.mul(probs[:, :, None, None], x[None, :, :, :]).sum(1)
         else:
             # Output, Input, Batch, Channel, Depth, Width, Height
