@@ -10,6 +10,7 @@
                         grade prediction).
 """
 
+from Constant import ModelType
 from Model.Module import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
@@ -50,6 +51,8 @@ class MultiTaskTrainer(Trainer):
         If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
+    _model_type : ModelType
+        Indicate the type of model that will be train. Used because some model need a particular training.
     _num_classes: dict
         A dictionnary that indicate the number of classes for each task. For a regression task, the number of classes
         should be equal to one.
@@ -78,19 +81,19 @@ class MultiTaskTrainer(Trainer):
                  early_stopping: bool = False,
                  loss: str = "ce",
                  mixed_precision: bool = False,
+                 model_type: ModelType = ModelType.STANDARD,
                  num_classes: Optional[Dict[str, int]] = None,
                  num_workers: int = 0,
                  pin_memory: bool = False,
                  save_path: str = "",
-                 shared_net: bool = False,
                  tol: float = 0.01,
                  track_mode: str = "all"):
         """
         The constructor of the trainer class. 
 
-        :param main_tasks: A sequence of string that indicate the name of the main tasks. The validation will be done only
-                      on those tasks. In other words, the model will be optimized with the early stopping criterion
-                      on the main tasks.
+        :param main_tasks: A sequence of string that indicate the name of the main tasks. The validation will be done
+                           only on those tasks. In other words, the model will be optimized with the early stopping
+                           criterion on the main tasks.
         :param aux_tasks: A sequence of string that indicate the name of the auxiliary tasks. The model will not be
                           validate on those tasks.
         :param classes_weights: The configuration of weights that will be applied on the loss during the training.
@@ -104,6 +107,8 @@ class MultiTaskTrainer(Trainer):
                                not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
+        :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on opmizers
+                           and the training. See ModelType in Constant.py (Default=ModelType.STANDARD)
         :param num_classes: A dictionnary that indicate the number of classes of each. For regression task, the number
                             of classes should be 1.
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0,
@@ -111,9 +116,6 @@ class MultiTaskTrainer(Trainer):
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will
                            copied into the CUDA pinned memory. (Default=False)
         :param save_path: Indicate where the weights of the network and the result will be saved.
-        :param shared_net: If true, the model to train will be a SharedNet. In this case we need two optimizer, one for
-                           the subnets and one for the sharing units and the Uncertainty loss parameters.
-                           (Default=False)
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
@@ -158,7 +160,7 @@ class MultiTaskTrainer(Trainer):
                          num_workers=num_workers,
                          pin_memory=pin_memory,
                          save_path=save_path,
-                         shared_net=shared_net,
+                         model_type=model_type,
                          tasks=tasks,
                          tol=tol,
                          track_mode=track_mode)
@@ -397,7 +399,7 @@ class MultiTaskTrainer(Trainer):
                                          rec,
                                          epoch)
 
-            if dataset_name == "Validation" and type(self.model).__name__ == "SharedNet":
+            if dataset_name == "Validation" and self._model_type is ModelType.SHARED_NET:
                 self.model.save_histogram_sharing_unit(epoch, self._writer)
                 
         return mean_acc, loss

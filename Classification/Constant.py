@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     06/2021
-    @Last modification: 07/2021
+    @Last modification: 08/2021
 
     @Description:       Contain several class that group constant and enum.
 """
@@ -60,6 +60,13 @@ class Experimentation(Enum):
 class Loss(Enum):
     UNCERTAINTY: Final = 1
     UNIFORM: Final = 2
+
+
+@unique
+class ModelType(Enum):
+    STANDARD: Final = 1
+    SHARED_NET: Final = 2
+    LTB_NET: Final = 3
 
 
 @unique

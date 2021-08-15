@@ -10,6 +10,7 @@
 """
 
 from abc import ABC, abstractmethod
+from Constant import ModelType
 import csv
 from Data_manager.RenalDataset import RenalDataset
 from Model.NeuralNet import NeuralNet
@@ -58,6 +59,8 @@ class Trainer(ABC):
         If true, mixed_precision will be used during training and inferance.
     model : NeuralNet
         The neural network to train and evaluate.
+    _model_type: ModelType
+        Indicate the type of model that will be train. Used because some model need a particular training.
     _num_classes: dict
         A dictionnary that indicate the number of classes for each task. For a regression task, the number of classes
         should be equal to one.
@@ -70,9 +73,6 @@ class Trainer(ABC):
         A list that contain the name of every regression task on which the model will be train.
     __save_path : string
         Indicate where the weights of the network and the result will be saved.
-    __shared_net: bool
-        If true, the model to train will be a SharedNet. In this we need to optimizer, one for the subnets and
-        one for the sharing units and the Uncertainty loss parameters.
     _soft : torch.nn.Softmax
         The softmax operation used to transform the last layer of a network into a probability.
     _tasks : list
@@ -101,10 +101,10 @@ class Trainer(ABC):
                  early_stopping: bool = False,
                  loss: str = "ce",
                  mixed_precision: bool = False,
+                 model_type: ModelType = ModelType.STANDARD,
                  num_workers: int = 0,
                  pin_memory: bool = False,
                  save_path: str = "",
-                 shared_net: bool = False,
                  tol: float = 0.01,
                  track_mode: str = "all"):
         """
@@ -122,13 +122,13 @@ class Trainer(ABC):
                                not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
+        :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on opmizers
+                           and the training. See ModelType in Constant.py (Default=ModelType.STANDARD)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0,
                             the main process will be used for the data augmentation. (Default=0)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will
                            copied into the CUDA pinned memory. (Default=False)
         :param save_path: Indicate where the weights of the network and the result will be saved.
-        :param shared_net: If true, the model to train will be a SharedNet. In this we need to optimizer, one for the
-                           subnets and one for the sharing units and the Uncertainty loss parameters. (Default=False)
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
         :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
@@ -163,7 +163,7 @@ class Trainer(ABC):
         self.__pin_memory = pin_memory
         self._regression_tasks = [task for task in tasks if num_classes[task] == 1]
         self.__save_path = save_path
-        self.__shared_net = shared_net
+        self._model_type = model_type
         self._soft = nn.Softmax(dim=-1)
         self._tasks = tasks
         self.__tol = tol
@@ -502,7 +502,7 @@ class Trainer(ABC):
         l2_list = [l2_coeff]
         parameters = [self.model.parameters()]
 
-        if self.__shared_net:
+        if self._model_type is ModelType.SHARED_NET:
             eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
             lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
             l2_list.append(shared_l2)
