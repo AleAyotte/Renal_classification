@@ -220,11 +220,11 @@ class Trainer(ABC):
         :param num_epoch: Maximum number of epoch during the training. (Default=200)
         :param optim: A string that indicate the optimizer that will be used for training. (Default='Adam')
         :param retrain: If false, the weights of the model will initialize. (Default=False)
-        :param shared_eta_min: Ending learning rate value of the sharing unit. if equal to 0, then shared_eta_min
-                                will be equal to learning_rate*100. Only used when shared_net is True.
-        :param shared_lr: Learning rate of the sharing unit. if equal to 0, then shared_lr will be
+        :param shared_eta_min: Ending learning rate value of the sharing/branching unit. if equal to 0, then
+                               shared_eta_min will be equal to learning_rate*100. Only used when shared_net is True.
+        :param shared_lr: Learning rate of the sharing/branching unit. if equal to 0, then shared_lr will be
                           equal to learning_rate*100. Only used when shared_net is True.
-        :param shared_l2: L2 coefficient of the sharing unit. Only used when shared_net is True.
+        :param shared_l2: L2 coefficient of the sharing/branching unit. Only used when shared_net is True.
         :param t_0: Number of epoch before the first restart. If equal to 0, then t_0 will be equal to num_epoch.
                     (Default=0)
         :param transfer_path: If not None, initialize the model with transfer learning by loading the weight of
@@ -284,6 +284,8 @@ class Trainer(ABC):
                     _ = self._mixup_epoch(epoch, grad_clip, optimizers, schedulers, train_loader)
                 else:
                     _ = self._standard_epoch(epoch, grad_clip, optimizers, schedulers, train_loader)
+
+                self.model.update_epoch() if self._model_type is ModelType.LTB_NET else None
 
                 self.model.eval()
                 val_acc, val_loss = self._validation_step(dt_loader=valid_loader, 
@@ -509,9 +511,9 @@ class Trainer(ABC):
         :param optim: A string that indicate the optimizer that will be used for training.
         :param shared_eta_min: Ending learning rate value of the shared unit. if equal to 0, then shared_eta_min
                                 will be equal to learning_rate*100. Only used when shared_net is True.
-        :param shared_lr: Learning rate of the shared unit. if equal to 0, then shared_lr will be
+        :param shared_lr: Learning rate of the shared/branching unit. if equal to 0, then shared_lr will be
                           equal to learning_rate*100. Only used when shared_net is True.
-        :param shared_l2: L2 coefficient of the sharing unit. Only used when shared_net is True.
+        :param shared_l2: L2 coefficient of the sharing/branching unit. Only used when shared_net is True.
         :param t_0: Number of epoch before the first restart.
         :return: A list of optimizers and a list of learning rate schedulers
         """
@@ -521,16 +523,24 @@ class Trainer(ABC):
         l2_list = [l2_coeff]
         parameters = [self.model.parameters()]
 
-        if self._model_type is ModelType.SHARED_NET:
+        if self._model_type is not ModelType.STANDARD:
             eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
             lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
             l2_list.append(shared_l2)
-            parameters = [self.model.nets.parameters(),
-                          list(self.model.sharing_units_dict.parameters())]
 
-            # If the Uncertainty loss is used, we need to add these parameters.
-            if type(self.model.loss_module).__name__ == "UncertaintyLoss":
-                parameters[1] += list(self.model.loss_module.parameters())
+            # Parameters of the LTBResNet
+            if self._model_type is ModelType.LTB_NET:
+                parameters = [self.model.get_weights(),
+                              self.model.get_weights(gumbel_softmax_weights=True)]
+
+            # Parameters of the SharedNet
+            if self._model_type is ModelType.SHARED_NET:
+                parameters = [self.model.nets.parameters(),
+                              list(self.model.sharing_units_dict.parameters())]
+
+                # If the Uncertainty loss is used, we need to add these parameters.
+                if type(self.model.loss_module).__name__ == "UncertaintyLoss":
+                    parameters[1] += list(self.model.loss_module.parameters())
 
         optimizers = []
 
