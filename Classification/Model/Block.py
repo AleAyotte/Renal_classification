@@ -21,7 +21,7 @@ from monai.networks.layers.factories import Act, Norm
 import numpy as np
 import torch
 from torch import nn
-from typing import Final, Iterator, NewType, Optional, Sequence, Type, Union
+from typing import Final, List, NewType, Optional, Sequence, Type, Union
 
 
 class CBAM(nn.Module):
@@ -201,11 +201,11 @@ class BranchingBlock(nn.Module):
                                          norm=kwargs["norm"]))
 
     def get_weights(self, gumbel_softmax_weights: bool = False) -> Union[torch.nn.Parameter,
-                                                                         Iterator[torch.nn.Parameter]]:
+                                                                         List[torch.nn.Parameter]]:
         """
         Get the blocks or gumbel softmax parameters.
 
-        :param gumbel_softmax_weights: If true, the gumbel softmax layer wieghts will be returned. Else, it will be
+        :param gumbel_softmax_weights: If true, the gumbel softmax layer weights will be returned. Else, it will be
                                        the blocks weights that will be returned.
         :return: The parameters blocks parameters or the gumbel softmax parameters.
         """
@@ -213,7 +213,7 @@ class BranchingBlock(nn.Module):
         if gumbel_softmax_weights:
             return self.gumbel_softmax.parameters()
         else:
-            return self.blocks.parameters()
+            return list(self.blocks.parameters())
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

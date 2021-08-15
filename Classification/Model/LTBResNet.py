@@ -20,7 +20,7 @@ from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, Final, List, Sequence, Tuple, Type, Union
+from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
@@ -62,6 +62,8 @@ class LTBResNet(NeuralNet):
     -------
     forward(x: torch.Tensor) -> Dict[str, torch.Tensor]
         Execute the forward on a given torch.Tensor.
+    update_epoch(num_epoch: Optional[int] = None) -> None
+        Update the attribute named num_epoch of all gumbel_softmax layer in the LTBResNet.
     """
     def __init__(self,
                  num_classes: Dict[str, int],
@@ -276,6 +278,24 @@ class LTBResNet(NeuralNet):
 
         return nn.Sequential(*layers)
 
+    def get_weights(self, gumbel_softmax_weights: bool = False) -> List[torch.nn.Parameter]:
+        """
+        get the branching or the nodes parameters.
+
+        :param gumbel_softmax_weights: If true the branching weights will be return. Else, it will be the nodes weights.
+        :return: A list of torch.Parameter that represent the weights of either the nodes or the branching.
+        """
+        weights = [self.loss.parameters(), self.conv.parameters()] if not gumbel_softmax_weights else []
+
+        for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
+            for layer in layers():
+                weights.append(layer.get_weights(gumbel_softmax_weights))
+
+        for task in self.__tasks:
+            weights.append(self.last_layers[task].get_weights(gumbel_softmax_weights))
+
+        return weights
+
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         The forward pass of the LTBResNet
@@ -294,3 +314,16 @@ class LTBResNet(NeuralNet):
 
         pred = {task: self.last_layers[task](out).squeeze(dim=0) for task in self.__tasks}
         return pred
+
+    def update_epoch(self, num_epoch: Optional[int] = None) -> None:
+        """
+        Update the attribute named num_epoch of all gumbel_softmax layer in the LTBResNet.
+
+        :param num_epoch: The current number of epoch as int. If None, self.__num_epoch will be incremented by 1.
+        """
+        for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
+            for layer in layers:
+                layer.gumbel_softmax.update_epoch(num_epoch)
+
+        for task in self.__tasks:
+            self.last_layers[task].gumbel_softmax.update_epoch(num_epoch)

@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 07/2021
+    @Last modification: 08/2021
 
     @Description:       This file contain some generic module used to create several model like
                         MultiLevelResNet and SharedNet. The module are SluiceUnit, CrossStitchUnit, Mixup and
