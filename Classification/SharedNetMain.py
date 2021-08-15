@@ -11,7 +11,8 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, CS_CONFIG, DatasetName, DropType, Experimentation, SharingUnits, SubNetDepth, Tasks
+from Constant import BlockType, CS_CONFIG, DatasetName, DropType, \
+    Experimentation, ModelType, SharingUnits, SubNetDepth, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
@@ -151,7 +152,7 @@ if __name__ == "__main__":
                       num_workers=args.worker,
                       pin_memory=False,
                       classes_weights=args.weights,
-                      shared_net=True,
+                      model_type=ModelType.SHARED_NET,
                       track_mode=args.track_mode,
                       mixed_precision=True)
 

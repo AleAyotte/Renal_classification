@@ -11,7 +11,7 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, DropType, Experimentation, SubNetDepth, Tasks
+from Constant import DatasetName, DropType, Experimentation, ModelType, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.LTBResNet import LTBResNet
 import torch
@@ -108,6 +108,7 @@ if __name__ == "__main__":
                       save_path=SAVE_PATH,
                       loss=args.loss,
                       tol=TOL,
+                      model_type=ModelType.LTB_NET,
                       num_workers=args.worker,
                       pin_memory=PIN_MEMORY,
                       classes_weights=args.weights,
