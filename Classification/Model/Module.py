@@ -15,6 +15,7 @@
                            Conferenceon Artificial Intelligence, 2019
                         3) R. Cipolla et al. Multi-task Learning UsingUncertainty to Weigh Losses for Scene Geometry
                            and Semantics. IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2018
+                        4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
 
 import numpy as np
@@ -22,7 +23,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from Trainer.Utils import to_one_hot
-from typing import Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
 
 class CrossStitchUnit(torch.nn.Module):
@@ -81,6 +82,67 @@ class CrossStitchUnit(torch.nn.Module):
         features_selection_penalty = torch.prod(torch.abs(self.alpha) + 1, dim=1)
         simplex_penalty = torch.square(torch.sum(self.alpha, dim=1) - 1)
         return torch.mean(features_selection_penalty + simplex_penalty)
+
+
+class GumbelSoftmax(nn.Module):
+    """
+    A gumbel softmax unit that has been adapted from pytorch to works with the LTB described in Ref 4).
+
+    ...
+    Attributes
+    ----------
+    __num_epoch : int
+        The number of completed epoch in the training.
+    __tau : float
+        The non-negative scalar temperature argument that is used to compute the gumbel softmax.
+    __warm_up : int
+        The number of completed training required before updating the weights.
+    weights : nn.Parameters
+        The logits weights that are used in the gumbel softmax
+    """
+    def __init__(self,
+                 num_input: int,
+                 num_output: int,
+                 num_warm_up_epoch: int = 5,
+                 tau: float = 1):
+        """
+        Create a gumbel softmax block
+
+        :param num_input: The number of parent nodes.
+        :param num_output: The number of children nodes.
+        :param num_warm_up_epoch: The number of completed training required before updating the weights.
+        :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
+        """
+        super().__init__()
+        self.__num_epoch = 0
+        self.__tau = tau
+        self.__warm_up = num_warm_up_epoch
+
+        weights = torch.ones((num_output, num_input)) / num_input
+        self.weights = nn.Parameter(data=weights, requires_grad=True)
+
+    def forward(self) -> torch.Tensor:
+        """
+        Define the forward pass of the GumbelSoftmax
+
+        :param x: A torch.Tensor that represent the stacked output of the parent nodes.
+        :return: A torch.Tensor that represent the stacked output of the children nodes.
+        """
+        if self.training:
+            if self.__num_epoch < self.__warm_up:
+                probs = self.weights.detach()
+            else:
+                probs = F.gumbel_softmax(self.weights, tau=self.__tau / self.__num_epoch, hard=False)
+        else:
+            probs = F.one_hot(torch.argmax(self.weights, dim=1))
+        return probs
+
+    def update_epoch(self, num_epoch: Optional[int] = None) -> None:
+        """
+
+        :param num_epoch: The current number of epoch as int. If None, self.__num_epoch will be incremented by 1.
+        """
+        self.__num_epoch = self.__num_epoch + 1 if num_epoch is None else num_epoch
 
 
 class MarginLoss(nn.Module):
