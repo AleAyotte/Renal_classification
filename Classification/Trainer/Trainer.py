@@ -234,14 +234,12 @@ class Trainer(ABC):
         """
         # Indicator for early stopping
         best_accuracy = 0
-        best_epoch = -1
+        best_epoch = 0
         current_mode = "Standard"
-        last_saved_loss = float("inf")
         early_stopping_epoch = int(num_epoch / 3) - 1
-        self.__num_cumulated_batch = num_cumulated_batch
+        last_saved_loss = float("inf")
         self.__cumulate_counter = 0
-
-        # Tensorboard writer
+        self.__num_cumulated_batch = num_cumulated_batch
         self._writer = SummaryWriter()
 
         # Initialization of the model and the loss.
@@ -286,22 +284,18 @@ class Trainer(ABC):
         for scheduler in schedulers:
             scheduler.step(start_epoch*len(train_loader))
 
-        # Go in training mode to activate mixup module
-        self.model.train()
-
         with tqdm(total=num_epoch, initial=start_epoch, leave=True) as t:
             for epoch in range(start_epoch, num_epoch):
-
                 current_mode = mode if warm_up_epoch <= epoch else current_mode
 
-                # We make a training epoch
+                # Training epoch
+                self.model.train()
                 if current_mode == "Mixup":
                     _ = self._mixup_epoch(epoch, grad_clip, optimizers, schedulers, train_loader)
                 else:
                     _ = self._standard_epoch(epoch, grad_clip, optimizers, schedulers, train_loader)
 
                 self.model.eval()
-
                 val_acc, val_loss = self._validation_step(dt_loader=valid_loader, 
                                                           epoch=epoch)
                 train_acc, train_loss = self._validation_step(dt_loader=train_loader, 
@@ -309,31 +303,25 @@ class Trainer(ABC):
                                                               dataset_name="Training")
 
                 self._writer.add_scalars('Accuracy', 
-                                         {'Training': train_acc,
-                                          'Validation': val_acc}, 
+                                         {'Training': train_acc, 'Validation': val_acc},
                                          epoch)
                 self._writer.add_scalars('Validation/Loss',
                                          {'loss': val_loss},
                                          epoch)
-                self.model.train()
 
-                # ------------------------------------------------------------------------------------------
-                #                                   EARLY STOPPING PART
-                # ------------------------------------------------------------------------------------------
-
+                # -----------------------------------------------------------------
+                #                         EARLY STOPPING
+                # -----------------------------------------------------------------
                 if (val_loss < last_saved_loss and val_acc >= best_accuracy) or \
                         (val_loss < last_saved_loss*(1+self.__tol) and val_acc > best_accuracy):
                     self.__save_checkpoint(epoch, val_loss, val_acc)
                     best_accuracy = val_acc
                     last_saved_loss = val_loss
-                    best_epoch = epoch
+                    best_epoch = epoch + 1
 
                 if verbose:
-                    t.postfix = "train loss: {:.4f}, train acc {:.2f}%, val loss: {:.4f}, val acc: {:.2f}%, " \
-                                "best acc: {:.2f}%, best epoch: {}, epoch type: {}".format(
-                                    train_loss, train_acc * 100, val_loss, val_acc * 100, best_accuracy * 100,
-                                    best_epoch + 1, current_mode
-                                )
+                    t.postfix = f"{train_loss= :.4f}, {train_acc= :.2%}, {val_loss= :.4f}, {val_acc= :.2%}, " \
+                                f"{best_accuracy = :.2%}, {best_epoch= }"
                 t.update()
 
                 if self.__early_stopping and epoch == early_stopping_epoch and best_accuracy < MINIMUM_ACCURACY:
@@ -344,7 +332,6 @@ class Trainer(ABC):
 
         # Compute the optimal threshold
         self.__get_threshold(train_loader)
-        print(self._optimal_threshold)
 
     def score(self,
               testset: RenalDataset,
