@@ -14,14 +14,14 @@
                         3) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
                         4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
+from Model.Module import GumbelSoftmax
 from monai.networks.blocks.convolutions import ResidualUnit
 from monai.networks.layers import split_args
 from monai.networks.layers.factories import Act, Norm
 import numpy as np
 import torch
 from torch import nn
-from torch.nn.functional import gumbel_softmax
-from typing import Final, NewType, Optional, Sequence, Type, Union
+from typing import Final, Iterator, NewType, Optional, Sequence, Type, Union
 
 
 class CBAM(nn.Module):
@@ -139,21 +139,25 @@ class ChannelAttBlock(nn.Module):
         return self.subsample(out)
 
 
-class GumbelSoftmaxBlock(nn.Module):
+class BranchingBlock(nn.Module):
     """
-    The Gumbel Softmax that will be used in the Learn-To-Branch model as described in ref 4)
+    The Branching block that will be used in the Learn-To-Branch model as described in ref 4)
 
     ...
     Attributes
     ----------
     blocks : nn.ModuleList
         A list of block that correspond to the children nodes.
+    gumbel_softmax : GumbelSoftmax
+        The gumbel softmax layer that learn which parents should be connected to the childrens.
     __num_block : int
         The number of children nodes.
-    __tau : float
-        The non-negative scalar temperature argument that is used to compute the gumbel softmax.
-    weights : nn.Parameters
-        The logits weights that are used in the gumbel softmax
+    Methods
+    -------
+    get_weights() -> Union[torch.nn.Parameter, Iterator[torch.nn.Parameter]]
+        Get the blocks or gumbel softmax parameters.
+    forward() -> torch.Tensor
+        The forward pass of the gumbel softmax layer.
     """
     BLOCK_LIST_TYPE: Final = Union[NewType("PreResBlock", type),
                                    NewType("PreResBottleneck", type),
@@ -164,6 +168,7 @@ class GumbelSoftmaxBlock(nn.Module):
     def __init__(self,
                  block_list: Sequence[BLOCK_LIST_TYPE],
                  num_input: int,
+                 num_warm_up_epoch: int = 5,
                  tau: float = 1,
                  **kwargs):
         """
@@ -176,10 +181,10 @@ class GumbelSoftmaxBlock(nn.Module):
         """
         super().__init__()
         self.__num_block = len(block_list)
-        self.__tau = tau
-        self.weights = nn.Parameter(data=torch.rand(self.__num_block, num_input), requires_grad=True)
-
+        self.gumbel_softmax = GumbelSoftmax(num_input=num_input, num_output=self.__num_block,
+                                            num_warm_up_epoch=num_warm_up_epoch, tau=tau)
         self.blocks = nn.ModuleList()
+
         for block in block_list:
             if block is nn.modules.linear.Linear:
                 self.__layer_type = "linear"
@@ -195,6 +200,21 @@ class GumbelSoftmaxBlock(nn.Module):
                                          activation=kwargs["activation"],
                                          norm=kwargs["norm"]))
 
+    def get_weights(self, gumbel_softmax_weights: bool = False) -> Union[torch.nn.Parameter,
+                                                                         Iterator[torch.nn.Parameter]]:
+        """
+        Get the blocks or gumbel softmax parameters.
+
+        :param gumbel_softmax_weights: If true, the gumbel softmax layer wieghts will be returned. Else, it will be
+                                       the blocks weights that will be returned.
+        :return: The parameters blocks parameters or the gumbel softmax parameters.
+        """
+
+        if gumbel_softmax_weights:
+            return self.gumbel_softmax.parameters()
+        else:
+            return self.blocks.parameters()
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Define the forward pass of the GumbelSoftmaxBlock
@@ -202,7 +222,7 @@ class GumbelSoftmaxBlock(nn.Module):
         :param x: A torch.Tensor that represent the stacked output of the parent nodes.
         :return: A torch.Tensor that represent the stacked output of the children nodes.
         """
-        probs = gumbel_softmax(self.weights, tau=self.__tau, hard=not self.training)
+        probs = self.gumbel_softmax()
 
         if self.__layer_type == "linear":
             # Output, Input, Batch, features
