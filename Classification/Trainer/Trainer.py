@@ -205,7 +205,7 @@ class Trainer(ABC):
         :param model: The model to train.
         :param trainset: The dataset that will be used to train the model.
         :param validset: The dataset that will be used to mesure the model performan
-        :param batch_size: The batch size that will be used during the training. (Default=32)ce.
+        :param batch_size: The batch size that will be used during the training. (Default=32).
         :param device: The device on which the training will be done. (Default="cuda:0", first GPU)
         :param eps: The epsilon parameter of the Adam Optimizer. (Default=1e-4)
         :param eta_min: Minimum value of the learning rate. (Default=1e-4)
@@ -240,6 +240,7 @@ class Trainer(ABC):
         last_saved_loss = float("inf")
         self.__cumulate_counter = 0
         self.__num_cumulated_batch = num_cumulated_batch
+
         self._writer = SummaryWriter()
 
         # Initialization of the model and the loss.
@@ -256,18 +257,7 @@ class Trainer(ABC):
             _, _, _ = self.model.restore(transfer_path)
 
         # Initialization of the dataloader
-        train_loader = DataLoader(trainset,
-                                  batch_size=batch_size,
-                                  pin_memory=self.__pin_memory,
-                                  num_workers=self.__num_work,
-                                  shuffle=True,
-                                  drop_last=True)
-        valid_loader = DataLoader(validset,
-                                  batch_size=VALIDATION_BATCH_SIZE,
-                                  pin_memory=self.__pin_memory,
-                                  num_workers=self.__num_work,
-                                  shuffle=False,
-                                  drop_last=True)
+        train_loader, valid_loader = self.__prepare_dataloarder(batch_size, trainset, validset)
 
         # Initialization of the optimizer and the scheduler
         t_0 = t_0 if t_0 <= 0 else num_epoch
@@ -466,6 +456,35 @@ class Trainer(ABC):
 
         for scheduler in schedulers:
             scheduler.step()
+
+    def __prepare_dataloarder(self,
+                              batch_size: int,
+                              trainset: RenalDataset,
+                              validset: RenalDataset) -> Tuple[DataLoader, DataLoader]:
+        """
+        Transform the RenalDataset into dataloader.
+
+        :param batch_size: The batch size that will be used during the training. (Default=32).
+        :param trainset: The dataset that will be used to train the model.
+        :param validset: The dataset that will be used to mesure the model performan
+        :return: A dataloader with training data and another one with the validation data.
+        """
+
+        # Initialization of the dataloader
+        train_loader = DataLoader(trainset,
+                                  batch_size=batch_size,
+                                  pin_memory=self.__pin_memory,
+                                  num_workers=self.__num_work,
+                                  shuffle=True,
+                                  drop_last=True)
+        valid_loader = DataLoader(validset,
+                                  batch_size=VALIDATION_BATCH_SIZE,
+                                  pin_memory=self.__pin_memory,
+                                  num_workers=self.__num_work,
+                                  shuffle=False,
+                                  drop_last=True)
+
+        return train_loader, valid_loader
 
     def __prepare_optim_and_schedulers(self,
                                        eta_min: float,
