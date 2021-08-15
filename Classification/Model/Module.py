@@ -99,6 +99,10 @@ class GumbelSoftmax(nn.Module):
         The number of completed training required before updating the weights.
     weights : nn.Parameters
         The logits weights that are used in the gumbel softmax
+    Methods
+    -------
+    forward() -> torch.Tensor
+        The forward pass of the gumbel softmax layer.
     """
     def __init__(self,
                  num_input: int,
@@ -125,8 +129,7 @@ class GumbelSoftmax(nn.Module):
         """
         Define the forward pass of the GumbelSoftmax
 
-        :param x: A torch.Tensor that represent the stacked output of the parent nodes.
-        :return: A torch.Tensor that represent the stacked output of the children nodes.
+        :return: The probability output of the gumbel softmax operation as a torch.Tensor.
         """
         if self.training:
             if self.__num_epoch < self.__warm_up:
@@ -139,6 +142,7 @@ class GumbelSoftmax(nn.Module):
 
     def update_epoch(self, num_epoch: Optional[int] = None) -> None:
         """
+        Update the attribute named num_epoch.
 
         :param num_epoch: The current number of epoch as int. If None, self.__num_epoch will be incremented by 1.
         """
