@@ -264,10 +264,10 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             help="Train the model on the subtype task.")
         parser.add_argument('--tau', type=float, default=0.1,
                             help="The tau parameter of the gumbel softmax block.")
-        parser.add_argument('--width', type=int, default=2, choices=[2, 3, 4],
-                            help="The number of parallel layers (possible path) in the Learn-To-Branch model.")
         parser.add_argument('--warm_up', type=int, default=5,
                             help="Number of epoch before training the branching unit.")
+        parser.add_argument('--width', type=int, default=2, choices=[2, 3, 4],
+                            help="The number of parallel layers (possible path) in the Learn-To-Branch model.")
     else:
         raise Exception("This experimentation does not exist.")
 
