@@ -80,7 +80,6 @@ if __name__ == "__main__":
                     first_channels=args.in_channels,
                     in_shape=in_shape,
                     num_classes=num_classes,
-                    num_warm_up_epoch=args.warm_up,
                     tasks=task_list).to(args.device)
 
     # summary(net, tuple(trainset[0]["sample"].size()))
@@ -134,7 +133,8 @@ if __name__ == "__main__":
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
                 l2=PRELU_L2 if args.activation == "PReLU" else args.l2,
-                retrain=args.retrain)
+                retrain=args.retrain,
+                warm_up_epoch=args.warm_up)
 
     # --------------------------------------------
     #                    SCORE
