@@ -80,6 +80,7 @@ class LTBResNet(NeuralNet):
                  loss: Loss = Loss.UNCERTAINTY,
                  norm: str = "batch",
                  num_in_chan: int = 4,
+                 num_warm_up_epoch: int = 5,
                  tau: float = 1):
         """
 
@@ -101,6 +102,8 @@ class LTBResNet(NeuralNet):
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
         :param num_in_chan: An integer that indicate the number of channel of the input images.
+        :param num_warm_up_epoch: The number of completed training epoch required before updating the weights of the
+                                  branching unit.
         :param tau: The non-negative scalar temperature parameter of the gumble softmax operation.
         """
         assert len(tasks) > 0, "You should specify the name of each task"
@@ -182,29 +185,33 @@ class LTBResNet(NeuralNet):
 
         self.layers1 = self.__make_layer(block_list[0], dropout[0],
                                          first_channels, kernel,
-                                         num_input=net_width[0],
                                          num_block=layers[depth][0],
+                                         num_input=net_width[0],
+                                         num_warm_up_epoch=num_warm_up_epoch,
                                          strides=[2, 2, 1], norm=norm,
                                          act=act, tau=tau)
 
         self.layers2 = self.__make_layer(block_list[1], dropout[1],
                                          first_channels * 2, kernel,
-                                         num_input=net_width[0] * WIDTH_FACTOR,
                                          num_block=layers[depth][1],
+                                         num_input=net_width[0] * WIDTH_FACTOR,
+                                         num_warm_up_epoch=num_warm_up_epoch,
                                          strides=[2, 2, 2], norm=norm,
                                          act=act, tau=tau)
 
         self.layers3 = self.__make_layer(block_list[2], dropout[2],
                                          first_channels * 4, kernel,
-                                         num_input=net_width[1] * WIDTH_FACTOR,
                                          num_block=layers[depth][2],
+                                         num_input=net_width[1] * WIDTH_FACTOR,
+                                         num_warm_up_epoch=num_warm_up_epoch,
                                          strides=[2, 2, 2], norm=norm,
                                          act=act, tau=tau)
 
         self.layers4 = self.__make_layer(block_list[3], dropout[3],
                                          first_channels * 8, kernel,
-                                         num_input=net_width[2] * WIDTH_FACTOR,
                                          num_block=layers[depth][3],
+                                         num_input=net_width[2] * WIDTH_FACTOR,
+                                         num_warm_up_epoch=num_warm_up_epoch,
                                          strides=[2, 2, 2], norm=norm,
                                          act=act, tau=tau)
 
@@ -225,6 +232,7 @@ class LTBResNet(NeuralNet):
             self.last_layers[task] = nn.Sequential(
                 BranchingBlock([torch.nn.Linear],
                                num_input=net_width[3] * WIDTH_FACTOR,
+                               num_warm_up_epoch=num_warm_up_epoch,
                                tau=tau,
                                in_features=self.__num_flat_features,
                                out_features=num_classes[task])
@@ -240,6 +248,7 @@ class LTBResNet(NeuralNet):
                      kernel: Union[Sequence[int], int],
                      num_block: int,
                      num_input: int,
+                     num_warm_up_epoch : int,
                      tau: float,
                      act: str = "ReLU",
                      norm: str = "batch",
@@ -253,6 +262,8 @@ class LTBResNet(NeuralNet):
         :param kernel: An integer or a list of integer that indicate the convolution kernel size.
         :param num_block: An integer that indicate how many block will contain the sequence.
         :param num_input: An integer that indicate the number of parent node of the first block.
+        :param num_warm_up_epoch: The number of completed training epoch required before updating the weights of the
+                                  branching unit.
         :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
         :param act: The activation function that will be used in each block.
         :param norm: The normalization layer that will be used in each block.
@@ -265,6 +276,7 @@ class LTBResNet(NeuralNet):
         for i in range(num_block):
             layers.append(BranchingBlock(block_list=block_list,
                                          num_input=num_input if i == 0 else len(block_list),
+                                         num_warm_up_epoch=num_warm_up_epoch,
                                          tau=tau,
                                          fmap_in=self.__in_channels,
                                          fmap_out=fmap_out,

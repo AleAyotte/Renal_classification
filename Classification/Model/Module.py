@@ -114,7 +114,7 @@ class GumbelSoftmax(nn.Module):
 
         :param num_input: The number of parent nodes.
         :param num_output: The number of children nodes.
-        :param num_warm_up_epoch: The number of completed training required before updating the weights.
+        :param num_warm_up_epoch: The number of completed training epoch required before updating the weights.
         :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
         """
         super().__init__()

@@ -74,13 +74,14 @@ if __name__ == "__main__":
     # Depth config
 
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    net = LTBResNet(tasks=task_list,
-                    num_classes=num_classes,
-                    in_shape=in_shape,
-                    first_channels=args.in_channels,
+    net = LTBResNet(act=args.activation,
                     drop_rate=args.drop_rate,
                     drop_type=DropType[args.drop_type.upper()],
-                    act=args.activation).to(args.device)
+                    first_channels=args.in_channels,
+                    in_shape=in_shape,
+                    num_classes=num_classes,
+                    num_warm_up_epoch=args.warm_up,
+                    tasks=task_list).to(args.device)
 
     summary(net, tuple(trainset[0]["sample"].size()))
 

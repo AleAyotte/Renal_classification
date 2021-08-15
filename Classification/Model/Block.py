@@ -176,6 +176,8 @@ class BranchingBlock(nn.Module):
 
         :param block_list: A list of block class to instantiate.
         :param num_input: The number of parent nodes.
+        :param num_warm_up_epoch: The number of completed training epoch required before updating the weights of the
+                                  branching unit.
         :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
         :param kwargs: A dictionary of parameters that will be used to instantiate the blocks.
         """
