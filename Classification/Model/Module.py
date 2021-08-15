@@ -93,10 +93,10 @@ class GumbelSoftmax(nn.Module):
     ----------
     __num_epoch : int
         The number of completed epoch in the training.
+    __num_input : int
+        The number of parent nodes.
     __tau : float
         The non-negative scalar temperature argument that is used to compute the gumbel softmax.
-    __warm_up : int
-        The number of completed training required before updating the weights.
     weights : nn.Parameters
         The logits weights that are used in the gumbel softmax
     Methods
@@ -107,21 +107,18 @@ class GumbelSoftmax(nn.Module):
     def __init__(self,
                  num_input: int,
                  num_output: int,
-                 num_warm_up_epoch: int = 5,
                  tau: float = 1):
         """
         Create a gumbel softmax block
 
         :param num_input: The number of parent nodes.
         :param num_output: The number of children nodes.
-        :param num_warm_up_epoch: The number of completed training epoch required before updating the weights.
         :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
         """
         super().__init__()
-        self.__num_epoch = 0
+        self.__num_epoch = 1
         self.__num_input = num_input
         self.__tau = tau
-        self.__warm_up = num_warm_up_epoch
 
         weights = torch.ones((num_output, num_input)) / num_input
         self.weights = nn.Parameter(data=weights, requires_grad=True)
@@ -133,10 +130,7 @@ class GumbelSoftmax(nn.Module):
         :return: The probability output of the gumbel softmax operation as a torch.Tensor.
         """
         if self.training:
-            if self.__num_epoch < self.__warm_up:
-                probs = self.weights
-            else:
-                probs = F.gumbel_softmax(self.weights, tau=self.__tau / self.__num_epoch, hard=True)
+            probs = F.gumbel_softmax(self.weights, tau=self.__tau / self.__num_epoch, hard=True)
         else:
             probs = F.one_hot(torch.argmax(self.weights, dim=1), num_classes=self.__num_input)
         return probs

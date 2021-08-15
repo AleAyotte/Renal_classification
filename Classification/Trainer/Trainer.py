@@ -276,14 +276,19 @@ class Trainer(ABC):
 
         with tqdm(total=num_epoch, initial=start_epoch, leave=True) as t:
             for epoch in range(start_epoch, num_epoch):
+                if warm_up_epoch <= epoch and self._model_type is ModelType.LTB_NET:
+                    optims, scheds = [optimizers[0]], [schedulers[0]]
+                else:
+                    optims, scheds = optimizers, schedulers
+
                 current_mode = mode if warm_up_epoch <= epoch else current_mode
 
                 # Training epoch
                 self.model.train()
                 if current_mode == "Mixup":
-                    _ = self._mixup_epoch(epoch, grad_clip, optimizers, schedulers, train_loader)
+                    _ = self._mixup_epoch(epoch, grad_clip, optims, scheds, train_loader)
                 else:
-                    _ = self._standard_epoch(epoch, grad_clip, optimizers, schedulers, train_loader)
+                    _ = self._standard_epoch(epoch, grad_clip, optims, scheds, train_loader)
 
                 self.model.update_epoch() if self._model_type is ModelType.LTB_NET else None
 
@@ -455,6 +460,9 @@ class Trainer(ABC):
 
                 for optimizer in optimizers:
                     optimizer.step()
+
+            for optimizer in optimizers:
+                optimizer.zero_grad()
 
         for scheduler in schedulers:
             scheduler.step()

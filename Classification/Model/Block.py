@@ -168,7 +168,6 @@ class BranchingBlock(nn.Module):
     def __init__(self,
                  block_list: Sequence[BLOCK_LIST_TYPE],
                  num_input: int,
-                 num_warm_up_epoch: int = 5,
                  tau: float = 1,
                  **kwargs):
         """
@@ -176,15 +175,12 @@ class BranchingBlock(nn.Module):
 
         :param block_list: A list of block class to instantiate.
         :param num_input: The number of parent nodes.
-        :param num_warm_up_epoch: The number of completed training epoch required before updating the weights of the
-                                  branching unit.
         :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
         :param kwargs: A dictionary of parameters that will be used to instantiate the blocks.
         """
         super().__init__()
         self.__num_block = len(block_list)
-        self.gumbel_softmax = GumbelSoftmax(num_input=num_input, num_output=self.__num_block,
-                                            num_warm_up_epoch=num_warm_up_epoch, tau=tau)
+        self.gumbel_softmax = GumbelSoftmax(num_input=num_input, num_output=self.__num_block, tau=tau)
         self.blocks = nn.ModuleList()
 
         for block in block_list:

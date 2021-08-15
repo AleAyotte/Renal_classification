@@ -215,6 +215,9 @@ class MultiTaskTrainer(Trainer):
         sum_loss = 0
         n_iters = len(train_loader)
 
+        for optimizer in optimizers:
+            optimizer.zero_grad()
+
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
@@ -223,9 +226,6 @@ class MultiTaskTrainer(Trainer):
             features = None
             if "features" in list(data.keys()):
                 features = data["features"].to(self._device)
-
-            for optimizer in optimizers:
-                optimizer.zero_grad()
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
@@ -327,6 +327,9 @@ class MultiTaskTrainer(Trainer):
         sum_loss = 0
         n_iters = len(train_loader)
 
+        for optimizer in optimizers:
+            optimizer.zero_grad()
+
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             images, labels = data["sample"].to(self._device), data["labels"]
@@ -334,9 +337,6 @@ class MultiTaskTrainer(Trainer):
             features = None
             if "features" in list(data.keys()):
                 features = data["features"].to(self._device)
-
-            for optimizer in optimizers:
-                optimizer.zero_grad()
 
             # Mixup activation
             mixup_key, lamb, permut = self.model.activate_mixup()
