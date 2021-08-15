@@ -229,15 +229,12 @@ class LTBResNet(NeuralNet):
 
         self.last_layers = nn.ModuleDict()
         for task in self.__tasks:
-            self.last_layers[task] = nn.Sequential(
-                BranchingBlock([torch.nn.Linear],
-                               num_input=net_width[3] * WIDTH_FACTOR,
-                               num_warm_up_epoch=num_warm_up_epoch,
-                               tau=tau,
-                               in_features=self.__num_flat_features,
-                               out_features=num_classes[task])
-            )
-
+            self.last_layers[task] = BranchingBlock([torch.nn.Linear],
+                                                    num_input=net_width[3] * WIDTH_FACTOR,
+                                                    num_warm_up_epoch=num_warm_up_epoch,
+                                                    tau=tau,
+                                                    in_features=self.__num_flat_features,
+                                                    out_features=num_classes[task])
         self.apply(init_weights)
 
     def __make_layer(self,
@@ -297,14 +294,14 @@ class LTBResNet(NeuralNet):
         :param gumbel_softmax_weights: If true the branching weights will be return. Else, it will be the nodes weights.
         :return: A list of torch.Parameter that represent the weights of either the nodes or the branching.
         """
-        weights = [self.loss.parameters(), self.conv.parameters()] if not gumbel_softmax_weights else []
+        weights = list(self.loss.parameters()) + list(self.conv.parameters()) if not gumbel_softmax_weights else []
 
         for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
-            for layer in layers():
-                weights.append(layer.get_weights(gumbel_softmax_weights))
+            for layer in layers:
+                weights += layer.get_weights(gumbel_softmax_weights)
 
         for task in self.__tasks:
-            weights.append(self.last_layers[task].get_weights(gumbel_softmax_weights))
+            weights += self.last_layers[task].get_weights(gumbel_softmax_weights)
 
         return weights
 

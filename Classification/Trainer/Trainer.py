@@ -312,8 +312,8 @@ class Trainer(ABC):
                     best_epoch = epoch + 1
 
                 if verbose:
-                    t.postfix = f"{train_loss= :.4f}, {train_acc= :.2%}, {val_loss= :.4f}, {val_acc= :.2%}, " \
-                                f"{best_accuracy = :.2%}, {best_epoch= }"
+                    t.postfix = f"{train_loss=:.4f}, {train_acc=:.2%}, {val_loss=:.4f}, {val_acc=:.2%}, " \
+                                f"{best_accuracy=:.2%}, {best_epoch=}"
                 t.update()
 
                 if self.__early_stopping and epoch == early_stopping_epoch and best_accuracy < MINIMUM_ACCURACY:

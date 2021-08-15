@@ -119,6 +119,7 @@ class GumbelSoftmax(nn.Module):
         """
         super().__init__()
         self.__num_epoch = 0
+        self.__num_input = num_input
         self.__tau = tau
         self.__warm_up = num_warm_up_epoch
 
@@ -133,11 +134,11 @@ class GumbelSoftmax(nn.Module):
         """
         if self.training:
             if self.__num_epoch < self.__warm_up:
-                probs = self.weights.detach()
+                probs = self.weights
             else:
-                probs = F.gumbel_softmax(self.weights, tau=self.__tau / self.__num_epoch, hard=False)
+                probs = F.gumbel_softmax(self.weights, tau=self.__tau / self.__num_epoch, hard=True)
         else:
-            probs = F.one_hot(torch.argmax(self.weights, dim=1))
+            probs = F.one_hot(torch.argmax(self.weights, dim=1), num_classes=self.__num_input)
         return probs
 
     def update_epoch(self, num_epoch: Optional[int] = None) -> None:

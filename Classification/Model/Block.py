@@ -213,7 +213,7 @@ class BranchingBlock(nn.Module):
         """
 
         if gumbel_softmax_weights:
-            return self.gumbel_softmax.parameters()
+            return list(self.gumbel_softmax.parameters())
         else:
             return list(self.blocks.parameters())
 

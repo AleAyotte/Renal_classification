@@ -83,7 +83,7 @@ if __name__ == "__main__":
                     num_warm_up_epoch=args.warm_up,
                     tasks=task_list).to(args.device)
 
-    summary(net, tuple(trainset[0]["sample"].size()))
+    # summary(net, tuple(trainset[0]["sample"].size()))
 
     # --------------------------------------------
     #                SANITY CHECK
@@ -122,7 +122,9 @@ if __name__ == "__main__":
                 trainset=trainset,
                 validset=validset,
                 learning_rate=args.lr,
+                shared_lr=args.lr/10,
                 eta_min=args.eta_min,
+                shared_eta_min=args.eta_min/10,
                 grad_clip=args.grad_clip,
                 eps=args.eps,
                 batch_size=args.b_size,
