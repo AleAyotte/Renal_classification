@@ -13,7 +13,7 @@
 """
 
 from Constant import BlockType, DropType, Loss, Tasks
-from Model.Block import GumbelSoftmaxBlock, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
+from Model.Block import BranchingBlock, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
 from Model.Module import Mixup, UncertaintyLoss, UniformLoss
 from monai.networks.blocks.convolutions import Convolution
 from Model.NeuralNet import NeuralNet, init_weights
@@ -221,11 +221,11 @@ class LTBResNet(NeuralNet):
         self.last_layers = nn.ModuleDict()
         for task in self.__tasks:
             self.last_layers[task] = nn.Sequential(
-                GumbelSoftmaxBlock([torch.nn.Linear],
-                                   num_input=net_width[3] * WIDTH_FACTOR,
-                                   tau=tau,
-                                   in_features=self.__num_flat_features,
-                                   out_features=num_classes[task])
+                BranchingBlock([torch.nn.Linear],
+                               num_input=net_width[3] * WIDTH_FACTOR,
+                               tau=tau,
+                               in_features=self.__num_flat_features,
+                               out_features=num_classes[task])
             )
 
         self.apply(init_weights)
@@ -261,16 +261,16 @@ class LTBResNet(NeuralNet):
         layers = []
 
         for i in range(num_block):
-            layers.append(GumbelSoftmaxBlock(block_list=block_list,
-                                             num_input=num_input if i == 0 else len(block_list),
-                                             tau=tau,
-                                             fmap_in=self.__in_channels,
-                                             fmap_out=fmap_out,
-                                             kernel=kernel,
-                                             strides=strides if i == 0 else 1,
-                                             drop_rate=drop_rate[i],
-                                             activation=act,
-                                             norm=norm))
+            layers.append(BranchingBlock(block_list=block_list,
+                                         num_input=num_input if i == 0 else len(block_list),
+                                         tau=tau,
+                                         fmap_in=self.__in_channels,
+                                         fmap_out=fmap_out,
+                                         kernel=kernel,
+                                         strides=strides if i == 0 else 1,
+                                         drop_rate=drop_rate[i],
+                                         activation=act,
+                                         norm=norm))
 
             self.__in_channels = fmap_out * block_list[0].expansion if i == 0 else self.__in_channels
 
