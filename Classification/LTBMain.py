@@ -11,7 +11,7 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import DatasetName, DropType, Experimentation, ModelType, Tasks
+from Constant import BlockType, DatasetName, DropType, Experimentation, LTBConfig, ModelType, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.LTBResNet import LTBResNet
 import torch
@@ -57,6 +57,13 @@ if __name__ == "__main__":
         if args.malignancy:
             conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
 
+    if args.config == 1:
+        block_config = LTBConfig.CONFIG1
+    elif args.config == 2:
+        block_config = LTBConfig.CONFIG2
+    else:
+        block_config = LTBConfig.CONFIG3
+
     if len(task_list) < MIN_NUM_TASKS:
         raise Exception("You have to select at least two task.")
 
@@ -75,6 +82,8 @@ if __name__ == "__main__":
 
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     net = LTBResNet(act=args.activation,
+                    block_type_list=block_config,
+                    block_width=args.width,
                     drop_rate=args.drop_rate,
                     drop_type=DropType[args.drop_type.upper()],
                     first_channels=args.in_channels,

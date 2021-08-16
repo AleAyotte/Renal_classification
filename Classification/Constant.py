@@ -12,6 +12,12 @@ from enum import Enum, unique
 from typing import Final
 
 
+class AttentionBlock(Enum):
+    CHANNEL: Final = 0
+    SPATIAL: Final = 1
+    CBAM: Final = 2
+
+
 @unique
 class BlockType(Enum):
     PREACT: Final = 1
@@ -25,12 +31,6 @@ CS_CONFIG: Final = [
     [1, 2, 0, 0],  # Config 2
     [0, 2, 4, 0]   # Config 3
 ]
-
-
-class AttentionBlock(Enum):
-    CHANNEL: Final = 0
-    SPATIAL: Final = 1
-    CBAM: Final = 2
 
 
 class DatasetName:
@@ -60,6 +60,12 @@ class Experimentation(Enum):
 class Loss(Enum):
     UNCERTAINTY: Final = 1
     UNIFORM: Final = 2
+
+
+class LTBConfig:
+    CONFIG1: Final = [BlockType.PREACT]
+    CONFIG2: Final = [BlockType.POSTACT]
+    CONFIG3: Final = [BlockType.PREACT, BlockType.POSTACT]
 
 
 @unique

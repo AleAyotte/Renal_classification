@@ -241,6 +241,9 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
         parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+        parser.add_argument('--config', type=int, default=2, choices=[1, 2, 3],
+                            help="The config used to determine the that will be used in the LTBResNet "
+                                 "(see Constant.py LTBConfig).")
         parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                             help="The number of layer in the ResNet.")
         parser.add_argument('--drop_type', type=str, default="linear",
