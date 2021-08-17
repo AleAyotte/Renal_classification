@@ -130,7 +130,7 @@ class GumbelSoftmax(nn.Module):
         :return: The probability output of the gumbel softmax operation as a torch.Tensor.
         """
         if self.training:
-            probs = F.gumbel_softmax(self.weights, tau=self.__tau / self.__num_epoch, hard=True)
+            probs = F.gumbel_softmax(self.weights, tau=self.__tau / self.__num_epoch, hard=False)
         else:
             probs = F.one_hot(torch.argmax(self.weights, dim=1), num_classes=self.__num_input)
         return probs

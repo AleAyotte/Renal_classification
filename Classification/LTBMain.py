@@ -11,7 +11,7 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, DropType, Experimentation, LTBConfig, ModelType, Tasks
+from Constant import DatasetName, DropType, Experimentation, LTBConfig, ModelType, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.LTBResNet import LTBResNet
 import torch
