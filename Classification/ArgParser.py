@@ -241,6 +241,12 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
         parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+        parser.add_argument('--branch_eta', type=float, default=1e-6,
+                            help="The filnal learning rate parameter of the gumbel softmax block.")
+        parser.add_argument('--branch_lr', type=float, default=1e-4,
+                            help="The learning rate parameter of the gumbel softmax block.")
+        parser.add_argument('--branch_l2', type=float, default=0,
+                            help="The l2 penalty of the gumbel softmax block.")
         parser.add_argument('--config', type=int, default=2, choices=[1, 2, 3],
                             help="The config used to determine the that will be used in the LTBResNet "
                                  "(see Constant.py LTBConfig).")

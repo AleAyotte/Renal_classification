@@ -126,22 +126,23 @@ if __name__ == "__main__":
 
     torch.backends.cudnn.benchmark = True
 
-    trainer.fit(model=net,
+    trainer.fit(batch_size=args.b_size,
+                num_cumulated_batch=args.num_cumu_batch,
+                device=args.device,
+                eps=args.eps,
+                grad_clip=args.grad_clip,
+                model=net,
                 trainset=trainset,
                 validset=validset,
                 learning_rate=args.lr,
-                shared_lr=args.lr/10,
+                shared_lr=args.branch_lr,
                 eta_min=args.eta_min,
-                shared_eta_min=args.eta_min/10,
-                grad_clip=args.grad_clip,
-                eps=args.eps,
-                batch_size=args.b_size,
-                num_cumulated_batch=args.num_cumu_batch,
-                device=args.device,
+                shared_eta_min=args.branch_eta,
+                l2=PRELU_L2 if args.activation == "PReLU" else args.l2,
+                shared_l2=args.branch_l2,
                 optim=args.optim,
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
-                l2=PRELU_L2 if args.activation == "PReLU" else args.l2,
                 retrain=args.retrain,
                 warm_up_epoch=args.warm_up)
 
