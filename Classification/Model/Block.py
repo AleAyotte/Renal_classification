@@ -146,10 +146,18 @@ class BranchingBlock(nn.Module):
     ...
     Attributes
     ----------
+    __active_children : List[int]
+        A list of integer that indicate which children is use as parent in the next branching block.
+    __active_parents :  List[int]
+        A list of integer that indicate the index of the input that will be used by every children in the forward pass.
     blocks : nn.ModuleList
         A list of block that correspond to the children nodes.
+    __frozen : bool
+        A boolean that indicate if the architecture search is finish.
     gumbel_softmax : GumbelSoftmax
         The gumbel softmax layer that learn which parents should be connected to the childrens.
+    __layer_type : str
+        Indicate the type of layer that is use in the current block. Can be 'conv' or 'linear'.
     __num_block : int
         The number of children nodes.
     Methods
@@ -180,6 +188,9 @@ class BranchingBlock(nn.Module):
         """
         super().__init__()
         self.__num_block = len(block_list)
+        self.__active_children = range(self.__num_block)
+        self.__active_parents = range(num_input)
+        self.__frozen = False
         self.gumbel_softmax = GumbelSoftmax(num_input=num_input, num_output=self.__num_block, tau=tau)
         self.blocks = nn.ModuleList()
 
@@ -220,15 +231,42 @@ class BranchingBlock(nn.Module):
         :param x: A torch.Tensor that represent the stacked output of the parent nodes.
         :return: A torch.Tensor that represent the stacked output of the children nodes.
         """
-        probs = self.gumbel_softmax()
+        if not self.__frozen:
+            probs = self.gumbel_softmax()
 
-        if self.__layer_type == "linear":
-            # Output, Input, Batch, features
-            out = torch.mul(probs[:, :, None, None], x[None, :, :, :]).sum(1)
+            if self.__layer_type == "linear":
+                # Output, Input, Batch, features
+                out = torch.mul(probs[:, :, None, None], x[None, :, :, :]).sum(1)
+            else:
+                # Output, Input, Batch, Channel, Depth, Width, Height
+                out = torch.mul(probs[:, :, None, None, None, None, None], x[None, :, :, :, :, :, :]).sum(1)
+            return torch.stack([self.blocks[i](out[i]) for i in range(self.__num_block)])
         else:
-            # Output, Input, Batch, Channel, Depth, Width, Height
-            out = torch.mul(probs[:, :, None, None, None, None, None], x[None, :, :, :, :, :, :]).sum(1)
-        return torch.stack([self.blocks[i](out[i]) for i in range(self.__num_block)])
+            out = []
+            for child, parent in zip(self.__active_children, self.__active_parents):
+                out.append(self.blocks[child](x[parent]))
+            return torch.stack(out)
+
+    def freeze_branch(self, children: Optional[List[int]] = None) -> List[int]:
+        """
+        Freeze the branching operation for an optimized forward pass and return a list that indicate the active parents.
+
+        :param children: A list of int that indicate the children that are use as parents
+                         by next block's active children.
+        :return: Return a list of int that indicate the parents that are used by the active children.
+        """
+        self.__active_children = children if children is not None else self.__active_children
+        self.__frozen = True
+        parents = torch.argmax(self.gumbel_softmax(), dim=-1).cpu().numpy()
+        active_parents = [parents[child] for child in self.__active_children]
+
+        # The parent's index of each child. Will be used in the forward pass.
+        # Ex: [1, 4, 2, 4] -> [0, 1, 2, 1]
+        self.__active_parents = [active_parents.index(x) for x in active_parents]
+
+        # Return the list of used parent without repetition. Ex: [1, 4, 2, 4] -> [1, 4, 2]
+        unique_parent, index = np.unique(np.array(active_parents), return_index=True)
+        return list(unique_parent(index))
 
 
 class PreResBlock(nn.Module):
