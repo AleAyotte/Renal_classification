@@ -322,6 +322,21 @@ class LTBResNet(NeuralNet):
         pred = {task: self.last_layers[task](out).squeeze(dim=0) for task in self.__tasks}
         return pred
 
+    def freeze_branching(self) -> List[List[int]]:
+        """
+        Freeze the gumbel softmax operation of all branching blocks in the model and return a list of list of int
+        that represent the result of the architecture search.
+        """
+        parents = [[]]
+        for task in self.__tasks:
+            parents[0].extend(self.last_layers[task].freeze_branch())
+
+        for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
+            for layer in layers.reverse():
+                parents.append(layer.freeze_branch(parents[-1]))
+
+        return parents.reverse()
+
     def update_epoch(self, num_epoch: Optional[int] = None) -> None:
         """
         Update the attribute named num_epoch of all gumbel_softmax layer in the LTBResNet.
