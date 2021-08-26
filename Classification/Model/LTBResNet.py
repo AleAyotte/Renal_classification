@@ -325,12 +325,15 @@ class LTBResNet(NeuralNet):
     def freeze_branching(self) -> Tuple[List[List[int]], List[str]]:
         """
         Freeze the gumbel softmax operation of all branching blocks in the model and return a list of list of int
-        that represent the result of the architecture search.
+        that represent the result of the architecture search. Finally the weights are re initialized.
 
         :return: A list that indicate which children are connected to which parents and the task list.
         """
         parents_list = [[]]
         unique_parents = []
+
+        self.eval()
+
         for task in self.__tasks:
             parents, unique_parents = self.last_layers[task].freeze_branch()
             parents_list[0].extend(parents)
@@ -341,6 +344,7 @@ class LTBResNet(NeuralNet):
                 parents_list.append(parents)
 
         parents_list.reverse()
+        self.apply(init_weights)
         return parents_list, self.__tasks
 
     def update_epoch(self, num_epoch: Optional[int] = None) -> None:
