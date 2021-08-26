@@ -75,7 +75,7 @@ Morever, the following package are required to execute our code.
 - [ ] Prepare Radiomics Experiments
   - [x] Compute radiomics
   - [ ] Adapt MultiTaskTrainer
-  - [ ] Add Learn-To-Branch (LTB) Model
+  - [x] Add Learn-To-Branch (LTB) Model
 - [ ] Experiment Phase 3
   - [ ] Auxiliary tasks
   - [ ] Base Test (LTB)
@@ -108,11 +108,14 @@ Morever, the following package are required to execute our code.
 │   │   ├── DatasetBuilder.py       # Build and split the training, validation and testing set.
 │   │   └── RenalDataset.py         # RenalDataset class.
 │   │
+│   ├── LTBMain.py                  # Main script for experimentation on the LTBResNet.
+│   │
 │   ├── Model                       # Neural network model related files.
 │   │   ├── Block.py                # Commun ResNet, PreResNet and Attention block.
 │   │   ├── CapsNet2D.py            # CapsNet2D class.
 │   │   ├── CapsuleBlock.py         # CapsNet related block and function.
 │   │   ├── HardSharedResNet.py     # HardSharing ResNet3D class.
+│   │   ├── LTBResNet.py            # Learn-To-Branch ResNet3D class.
 │   │   ├── Module.py               # Commun module used to build NeuralNetwork.
 │   │   ├── MTAN.py                 # The MTAN class (MultiTask Attention Network).
 │   │   ├── NeuralNet.py            # Abstract class of all neural network classes (except ResNet2D).
