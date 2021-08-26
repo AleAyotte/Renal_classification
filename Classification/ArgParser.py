@@ -269,6 +269,8 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
                             choices=["uncertainty", "uniform"])
         parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
                             help="The number of channels of the input images.")
+        parser.add_argument('--branch_num_epoch', type=int, default=200,
+                            help="The number of training epoch that is use to find the optimal architecture.")
         parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
                             help="Train the model on the subtype task.")
         parser.add_argument('--tau', type=float, default=0.1,

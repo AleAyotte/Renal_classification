@@ -110,6 +110,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
+    torch.backends.cudnn.benchmark = True
+
     trainer = Trainer(main_tasks=task_list,
                       num_classes=num_classes,
                       conditional_prob=conditional_prob,
@@ -123,8 +125,6 @@ if __name__ == "__main__":
                       classes_weights=args.weights,
                       track_mode=args.track_mode,
                       mixed_precision=MIXED_PRECISION)
-
-    torch.backends.cudnn.benchmark = True
 
     trainer.fit(batch_size=args.b_size,
                 num_cumulated_batch=args.num_cumu_batch,
@@ -141,9 +141,42 @@ if __name__ == "__main__":
                 l2=PRELU_L2 if args.activation == "PReLU" else args.l2,
                 shared_l2=args.branch_l2,
                 optim=args.optim,
-                num_epoch=args.num_epoch,
+                num_epoch=args.branch_num_epoch,
                 t_0=args.num_epoch,
                 retrain=args.retrain,
+                warm_up_epoch=args.warm_up)
+
+    _, _ = net.freeze_branching()
+
+    trainer = Trainer(main_tasks=task_list,
+                      num_classes=num_classes,
+                      conditional_prob=conditional_prob,
+                      early_stopping=args.early_stopping,
+                      save_path=SAVE_PATH,
+                      loss=args.loss,
+                      tol=TOL,
+                      model_type=ModelType.STANDARD,
+                      num_workers=args.worker,
+                      pin_memory=PIN_MEMORY,
+                      classes_weights=args.weights,
+                      track_mode=args.track_mode,
+                      mixed_precision=MIXED_PRECISION)
+
+    trainer.fit(batch_size=args.b_size,
+                num_cumulated_batch=args.num_cumu_batch,
+                device=args.device,
+                eps=args.eps,
+                grad_clip=args.grad_clip,
+                model=net,
+                trainset=trainset,
+                validset=validset,
+                learning_rate=args.lr,
+                eta_min=args.eta_min,
+                l2=PRELU_L2 if args.activation == "PReLU" else args.l2,
+                optim=args.optim,
+                num_epoch=args.num_epoch,
+                t_0=args.num_epoch,
+                retrain=False,
                 warm_up_epoch=args.warm_up)
 
     # --------------------------------------------
@@ -164,7 +197,9 @@ if __name__ == "__main__":
         experiment.log_code("LTBMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/MultiTaskTrainer.py")
+        experiment.log_code("Model/Block.py")
         experiment.log_code("Model/LTBResNet.py")
+        experiment.log_code("Model/Module.py")
 
         csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
         train_csv_path, valid_csv_path, test_csv_path = csv_path
