@@ -11,6 +11,7 @@
 """
 
 from Constant import ModelType
+from copy import deepcopy
 from Model.Module import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
@@ -89,7 +90,7 @@ class MultiTaskTrainer(Trainer):
                  tol: float = 0.01,
                  track_mode: str = "all"):
         """
-        The constructor of the trainer class. 
+        The constructor of the trainer class.
 
         :param main_tasks: A sequence of string that indicate the name of the main tasks. The validation will be done
                            only on those tasks. In other words, the model will be optimized with the early stopping
@@ -124,8 +125,8 @@ class MultiTaskTrainer(Trainer):
         """
 
         # We merge the main tasks with the auxiliary tasks.
-        tasks = list(set(main_tasks).union(set(aux_tasks))) if aux_tasks is not None else main_tasks
-        self._main_tasks = main_tasks
+        tasks = list(set(main_tasks).union(set(aux_tasks))) if aux_tasks is not None else deepcopy(main_tasks)
+        self._main_tasks = deepcopy(main_tasks)
 
         # If num_classes has not been defined, then we assume that every task are binary classification.
         if num_classes is None:
@@ -135,6 +136,7 @@ class MultiTaskTrainer(Trainer):
 
         # If num_classes has been defined for some tasks but not all, we assume that the remaining are regression task
         else:
+            num_classes = deepcopy(num_classes)
             key_set = set(num_classes.keys())
             tasks_set = set(tasks)
             missing_tasks = tasks_set - key_set
@@ -144,7 +146,7 @@ class MultiTaskTrainer(Trainer):
                 num_classes[task] = 1
 
         # Define the number of classes for the tasks created by the conditionnal probability.
-        self.__cond_prob = [] if conditional_prob is None else conditional_prob
+        self.__cond_prob = [] if conditional_prob is None else deepcopy(conditional_prob)
         for cond_tasks in self.__cond_prob:
             assert set(cond_tasks) <= set(self._main_tasks), "Tasks using in condition_pro should be part of " \
                                                              "the main tasks set."
@@ -250,7 +252,7 @@ class MultiTaskTrainer(Trainer):
 
             if self._track_mode == "all":
                 metrics["total"] = loss.item()
-                self._writer.add_scalars('Training/Loss', 
+                self._writer.add_scalars('Training/Loss',
                                          metrics,
                                          it + epoch*n_iters)
 
@@ -303,7 +305,7 @@ class MultiTaskTrainer(Trainer):
 
         if self._track_mode == "all":
             metrics["total"] = loss.item()
-            self._writer.add_scalars('Training/Loss', 
+            self._writer.add_scalars('Training/Loss',
                                      metrics,
                                      it)
         return loss
@@ -401,7 +403,7 @@ class MultiTaskTrainer(Trainer):
 
             if dataset_name == "Validation" and self._model_type is ModelType.SHARED_NET:
                 self.model.save_histogram_sharing_unit(epoch, self._writer)
-                
+
         return mean_acc, loss
 
     def _get_conf_matrix(self,

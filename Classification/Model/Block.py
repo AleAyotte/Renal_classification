@@ -267,7 +267,7 @@ class BranchingBlock(nn.Module):
 
         # Return the list of used parent without repetition. Ex: [1, 4, 2, 4] -> [1, 4, 2]
         unique_parent, index = np.unique(np.array(active_parents), return_index=True)
-        return active_parents, list(unique_parent(index))
+        return active_parents, list(unique_parent[index])
 
 
 class PreResBlock(nn.Module):
