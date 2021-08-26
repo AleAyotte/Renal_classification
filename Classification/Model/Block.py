@@ -21,7 +21,7 @@ from monai.networks.layers.factories import Act, Norm
 import numpy as np
 import torch
 from torch import nn
-from typing import Final, List, NewType, Optional, Sequence, Type, Union
+from typing import Final, List, NewType, Optional, Sequence, Tuple, Type, Union
 
 
 class CBAM(nn.Module):
@@ -247,13 +247,14 @@ class BranchingBlock(nn.Module):
                 out.append(self.blocks[child](x[parent]))
             return torch.stack(out)
 
-    def freeze_branch(self, children: Optional[List[int]] = None) -> List[int]:
+    def freeze_branch(self, children: Optional[List[int]] = None) -> Tuple[List[int], List[int]]:
         """
         Freeze the branching operation for an optimized forward pass and return a list that indicate the active parents.
 
         :param children: A list of int that indicate the children that are use as parents
                          by next block's active children.
-        :return: Return a list of int that indicate the parents that are used by the active children.
+        :return: Return a list of int that indicate the parents that are used by the active children and the same list
+                 but without repetition of parents.
         """
         self.__active_children = children if children is not None else self.__active_children
         self.__frozen = True
@@ -266,7 +267,7 @@ class BranchingBlock(nn.Module):
 
         # Return the list of used parent without repetition. Ex: [1, 4, 2, 4] -> [1, 4, 2]
         unique_parent, index = np.unique(np.array(active_parents), return_index=True)
-        return list(unique_parent(index))
+        return active_parents, list(unique_parent(index))
 
 
 class PreResBlock(nn.Module):

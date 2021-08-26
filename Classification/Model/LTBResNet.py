@@ -67,7 +67,7 @@ class LTBResNet(NeuralNet):
     def __init__(self,
                  block_type_list: List[BlockType],
                  num_classes: Dict[str, int],
-                 tasks: Sequence[str],
+                 tasks: List[str],
                  act: str = "ReLU",
                  block_width: Union[int, List[int]] = 2,
                  depth: int = 18,
@@ -322,20 +322,26 @@ class LTBResNet(NeuralNet):
         pred = {task: self.last_layers[task](out).squeeze(dim=0) for task in self.__tasks}
         return pred
 
-    def freeze_branching(self) -> List[List[int]]:
+    def freeze_branching(self) -> Tuple[List[List[int]], List[str]]:
         """
         Freeze the gumbel softmax operation of all branching blocks in the model and return a list of list of int
         that represent the result of the architecture search.
+
+        :return: A list that indicate which children are connected to which parents and the task list.
         """
-        parents = [[]]
+        parents_list = [[]]
+        unique_parents = []
         for task in self.__tasks:
-            parents[0].extend(self.last_layers[task].freeze_branch())
+            parents, unique_parents = self.last_layers[task].freeze_branch()
+            parents_list[0].extend(parents)
 
         for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
-            for layer in layers.reverse():
-                parents.append(layer.freeze_branch(parents[-1]))
+            for layer in reversed(list(layers)):
+                parents, unique_parents = layer.freeze_branch(unique_parents)
+                parents_list.append(parents)
 
-        return parents.reverse()
+        parents_list.reverse()
+        return parents_list, self.__tasks
 
     def update_epoch(self, num_epoch: Optional[int] = None) -> None:
         """
