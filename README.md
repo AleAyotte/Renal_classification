@@ -154,6 +154,3 @@ Morever, the following package are required to execute our code.
 ## Authors
 - Alexandre Ayotte (Ms student in medical imaging, University of Sherbrooke, GRIIS)
 - Martin Vallieres (Pr, Computer science departement, University of Sherbrooke, GRIIS) 
-
-## Acknowledgments
-Merci à Simon Giard-Leroux pour avoir fait mes impôts de 2019 et 2020.
