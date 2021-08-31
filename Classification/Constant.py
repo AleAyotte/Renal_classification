@@ -63,8 +63,8 @@ class Loss(Enum):
 
 
 class LTBConfig:
-    CONFIG1: Final = [BlockType.PREACT]
-    CONFIG2: Final = [BlockType.POSTACT]
+    CONFIG1: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.PREACT, BlockType.PREACT]
+    CONFIG2: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
     CONFIG3: Final = [BlockType.PREACT, BlockType.POSTACT]
 
 

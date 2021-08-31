@@ -65,7 +65,7 @@ class LTBResNet(NeuralNet):
         Update the attribute named num_epoch of all gumbel_softmax layer in the LTBResNet.
     """
     def __init__(self,
-                 block_type_list: List[BlockType],
+                 block_type_list: Union[List[BlockType], List[List[BlockType]], BlockType],
                  num_classes: Dict[str, int],
                  tasks: List[str],
                  act: str = "ReLU",
@@ -142,19 +142,28 @@ class LTBResNet(NeuralNet):
         layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
         net_width = [block_width for _ in range(NB_LEVELS)] if isinstance(block_width, int) else block_width
 
-        blocks_type = []
-        for block_type in block_type_list:
-            if block_type is BlockType.PREACT:
-                blocks_type.append(PreResBlock if depth <= 34 else PreResBottleneck)
-            elif block_type is BlockType.POSTACT:
-                blocks_type.append(ResBlock if depth <= 34 else ResBottleneck)
+        if type(block_type_list) is BlockType:
+            block_type_list = [[block_type_list] for _ in range(NB_LEVELS)]
+        elif type(block_type_list) is list:
+            if len(block_type_list) == 4:
+                block_type_list = [[block_type] for block_type in block_type_list]
             else:
-                raise Exception(f"The block_type is not an option: {block_type}, see BlockType Enum in Constant.py.")
+                block_type_list = [block_type_list for _ in range(NB_LEVELS)]
 
-        block_list = [[layer for _ in range(net_width[i]) for layer in blocks_type]
-                      for i in range(NB_LEVELS)]
+        block_list = []
+        for count, block_level in enumerate(block_type_list):
+            block_list.append([])
+            for block_type in block_level:
+                for _ in range(net_width[count]):
+                    if block_type is BlockType.PREACT:
+                        block_list[count].append(PreResBlock if depth <= 34 else PreResBottleneck)
+                    elif block_type is BlockType.POSTACT:
+                        block_list[count].append(ResBlock if depth <= 34 else ResBottleneck)
+                    else:
+                        raise Exception(f"The block_type is not an option: {block_type}, "
+                                        f"see BlockType Enum in Constant.py.")
 
-        width_factor = len(blocks_type)
+        width_factor = [len(blocks_type) for blocks_type in block_type_list]
         # --------------------------------------------
         #                   DROPOUT
         # --------------------------------------------
@@ -179,7 +188,7 @@ class LTBResNet(NeuralNet):
         # --------------------------------------------
         self.__in_channels = first_channels
         self.conv = nn.ModuleList()
-        for block_type in block_type_list:
+        for block_type in block_type_list[0]:
             self.conv.append(
                 Convolution(dimensions=NB_DIMENSIONS,
                             in_channels=num_in_chan,
@@ -200,21 +209,21 @@ class LTBResNet(NeuralNet):
         self.layers2 = self.__make_layer(block_list[1], dropout[1],
                                          first_channels * 2, kernel,
                                          num_block=layers[depth][1],
-                                         num_input=net_width[0] * width_factor,
+                                         num_input=net_width[0] * width_factor[0],
                                          strides=[2, 2, 2], norm=norm,
                                          act=act, tau=tau)
 
         self.layers3 = self.__make_layer(block_list[2], dropout[2],
                                          first_channels * 4, kernel,
                                          num_block=layers[depth][2],
-                                         num_input=net_width[1] * width_factor,
+                                         num_input=net_width[1] * width_factor[1],
                                          strides=[2, 2, 2], norm=norm,
                                          act=act, tau=tau)
 
         self.layers4 = self.__make_layer(block_list[3], dropout[3],
                                          first_channels * 8, kernel,
                                          num_block=layers[depth][3],
-                                         num_input=net_width[2] * width_factor,
+                                         num_input=net_width[2] * width_factor[2],
                                          strides=[2, 2, 2], norm=norm,
                                          act=act, tau=tau)
 
@@ -233,7 +242,7 @@ class LTBResNet(NeuralNet):
         self.last_layers = nn.ModuleDict()
         for task in self.__tasks:
             self.last_layers[task] = BranchingBlock([torch.nn.Linear],
-                                                    num_input=net_width[3] * width_factor,
+                                                    num_input=net_width[3] * width_factor[3],
                                                     tau=tau,
                                                     in_features=self.__num_flat_features,
                                                     out_features=num_classes[task])
