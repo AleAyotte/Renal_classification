@@ -348,7 +348,7 @@ class LTBResNet(NeuralNet):
             parents_list[0].extend(parents)
             unique_parents.extend(unique_parent)
 
-        for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
+        for layers in [self.layers4, self.layers3, self.layers2, self.layers1]:
             for layer in reversed(list(layers)):
                 parents, unique_parents = layer.freeze_branch(unique_parents)
                 parents_list.append(parents)
