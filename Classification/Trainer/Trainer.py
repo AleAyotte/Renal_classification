@@ -276,7 +276,7 @@ class Trainer(ABC):
 
         with tqdm(total=num_epoch, initial=start_epoch, leave=True) as t:
             for epoch in range(start_epoch, num_epoch):
-                if warm_up_epoch <= epoch and self._model_type is ModelType.LTB_NET:
+                if warm_up_epoch > epoch and self._model_type is ModelType.LTB_NET:
                     optims, scheds = [optimizers[0]], [schedulers[0]]
                 else:
                     optims, scheds = optimizers, schedulers
