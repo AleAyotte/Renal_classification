@@ -146,7 +146,7 @@ if __name__ == "__main__":
                 retrain=args.retrain,
                 warm_up_epoch=args.warm_up)
 
-    _, _ = net.freeze_branching()
+    parents_list, _ = net.freeze_branching()
 
     trainer = Trainer(main_tasks=task_list,
                       num_classes=num_classes,
@@ -177,7 +177,7 @@ if __name__ == "__main__":
                 num_epoch=args.num_epoch,
                 t_0=args.num_epoch,
                 retrain=False,
-                warm_up_epoch=args.warm_up)
+                warm_up_epoch=0)
 
     # --------------------------------------------
     #                    SCORE
@@ -206,7 +206,7 @@ if __name__ == "__main__":
     else:
         experiment = None
         train_csv_path = valid_csv_path = test_csv_path = ""
-
+    print(f"{parents_list=}")
     conf, auc = trainer.score(trainset, save_path=train_csv_path)
     print_score(dataset_name=DatasetName.TRAIN,
                 task_list=list(auc.keys()),
