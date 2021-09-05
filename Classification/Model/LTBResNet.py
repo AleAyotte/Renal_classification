@@ -202,7 +202,7 @@ class LTBResNet(NeuralNet):
         self.layers1 = self.__make_layer(block_list[0], dropout[0],
                                          first_channels, kernel,
                                          num_block=layers[depth][0],
-                                         num_input=net_width[0],
+                                         num_input=len(block_type_list[0]),
                                          strides=[2, 2, 1], norm=norm,
                                          act=act, tau=tau)
 
