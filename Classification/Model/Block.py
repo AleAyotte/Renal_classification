@@ -270,6 +270,198 @@ class BranchingBlock(nn.Module):
         return active_parents, list(unique_parent[index])
 
 
+class IndPreResBlock(nn.Module):
+    """
+    A 3D version of the preactivation residual block but with independent normalization layers.
+    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+
+    ...
+    Attributes
+    ----------
+    first_activation: nn.module
+        The non linear activation function that is applied before the forward pass in the residual mapping.
+    first_normalization: nn.module
+        The normalization layer that is applied before the forward pass in the residual mapping.
+    residual_layer: nn.Sequential
+        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+    sub_conv: nn.Sequential
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        with the dimension of the residual mapping.
+    __subsample: boolean
+        A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    """
+    expansion = 1
+
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 task_list: List[str],
+                 activation: str = "relu",
+                 bias: bool = True,
+                 drop_rate: float = 0,
+                 groups: int = 1,
+                 kernel: Union[Sequence[int], int] = 3,
+                 norm: str = "batch",
+                 split_layer: bool = False,
+                 strides: Union[Sequence[int], int] = 1):
+        """
+        Create a PreActivation Residual Block with independent normalization layers.
+
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps.
+        :param activation: The activation function that will be used in the model.
+        :param bias: The bias parameter of the convolution.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
+        :param groups: Number of group in the convolutions.
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
+        :param norm: The normalization layer name that will be used in the model.
+        :param split_layer: If true, then the first convolution and the shortcut
+                            will ignore the groups parameter.
+        :param strides: Convolution strides.
+        """
+        super().__init__()
+
+        if type(strides) == int and strides == 1:
+            self.__subsample = False
+        elif type(strides) == Sequence and np.sum(strides) == 3:
+            self.__subsample = False
+        else:
+            self.__subsample = True
+            self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=bias,
+                                      groups=groups if split_layer is False else 1)
+
+        if type(kernel) == int:
+            padding = int((kernel - 1)/2)
+        else:
+            padding = [int((ker - 1)/2) for ker in kernel]
+
+        # We initialize the PReLU with the LeakyReLU default parameter.
+        if activation == "PReLU":
+            _, args = split_args((activation, {"init": 0.01}))
+        else:
+            _, args = split_args(activation)
+
+        self.norm1 = nn.ModuleDict({task: Norm[norm, 3](fmap_in) for task in task_list})
+        self.act1 = Act[activation](**args)
+        self.conv1 = nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides,
+                               padding=padding, bias=bias,
+                               groups=groups if split_layer is False else 1)
+        self.norm2 = nn.ModuleDict({task: Norm[norm, 3](fmap_out) for task in task_list})
+        self.act2 = Act[activation](**args)
+        self.conv2 = nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1,
+                               padding=padding, bias=bias,
+                               groups=groups)
+
+        self.drop = nn.Dropout3d(drop_rate) if drop_rate > 0 else nn.Identity()
+
+    def forward(self, task: str, x: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Residual layer
+
+        :param task: The task name. Will be used to define witch normalization layer will be used.
+        :param x: Input tensor of the convolutional layer
+        :return: Output tensor of the residual block
+        """
+
+        out = self.act1(self.norm1[task](x))
+
+        if self.__subsample:
+            shortcut = self.sub_conv(out)
+        else:
+            shortcut = x
+
+        res = self.conv1(out)
+        res = self.conv2(self.act2(self.norm2[task](res)))
+
+        return self.drop(res) + shortcut
+
+
+class IndResBlock(nn.Module):
+    """
+        A 3D version of the residual block as described in Ref 1) but with independent normalization layers.
+        (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+
+        ...
+        Attributes
+        ----------
+
+        """
+    expansion = 1
+
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 task_list: List[str],
+                 activation: str = "ReLU",
+                 bias: bool = True,
+                 drop_rate: float = 0,
+                 kernel: Union[Sequence[int], int] = 3,
+                 norm: str = "batch",
+                 strides: Union[Sequence[int], int] = 1):
+        """
+        Create a Residual Block with independent normalization layers.
+
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps.
+        :param activation: The activation function that will be used.
+        :param bias: The bias parameter of the convolution.
+        :param drop_rate: The hyperparameter of the Dropout3D module.
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
+        :param norm: The normalization layer name that will be used in the model.
+        :param strides: Convolution strides.
+        """
+        super().__init__()
+
+        if type(strides) == int and strides == 1:
+            self.__subsample = False
+        elif type(strides) == Sequence and np.sum(strides) == 3:
+            self.__subsample = False
+        else:
+            self.__subsample = True
+            self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=bias)
+
+        if type(kernel) == int:
+            padding = int((kernel - 1)/2)
+        else:
+            padding = [int((ker - 1)/2) for ker in kernel]
+
+        # We initialize the PReLU with the LeakyReLU default parameter.
+        if activation == "PReLU":
+            _, args = split_args((activation, {"init": 0.01}))
+        else:
+            _, args = split_args(activation)
+
+        self.conv1 = nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides, padding=padding, bias=bias)
+        self.norm1 = nn.ModuleDict({task: Norm[norm, 3](fmap_out) for task in task_list})
+        self.act1 = Act[activation](**args)
+        self.drop1 = nn.Dropout3d(drop_rate) if drop_rate > 0 else nn.Identity
+
+        self.conv2 = nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1, padding=padding, bias=bias)
+        self.norm2 = nn.ModuleDict({task: Norm[norm, 3](fmap_out) for task in task_list})
+        self.act2 = Act[activation](**args)
+        self.drop2 = nn.Dropout3d(drop_rate) if drop_rate > 0 else nn.Identity()
+
+    def forward(self, task: str, x: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Residual layer
+
+        :param task: The task name. Will be used to define witch normalization layer will be used.
+        :param x: Input tensor of the convolutional layer
+        :return: Output tensor of the residual block
+        """
+
+        if self.__subsample:
+            shortcut = self.sub_conv(x)
+        else:
+            shortcut = x
+        res1 = self.norm1[task](self.conv1(x))
+        res1 = self.act1(self.drop1(res1))
+        res2 = self.norm2[task](self.conv2(res1))
+        res2 = self.act2(self.drop2(res2))
+
+        return res2 + shortcut
+
+
 class PreResBlock(nn.Module):
     """
     A 3D version of the preactivation residual bottleneck block as described in Ref 1).
