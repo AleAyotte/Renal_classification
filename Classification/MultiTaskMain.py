@@ -88,6 +88,7 @@ if __name__ == "__main__":
 
     in_shape = tuple(trainset[0]["sample"].size()[1:])
     net = HardSharedResNet(tasks=task_list,
+                           backend_tasks=[Tasks.MALIGNANCY],
                            num_classes=num_classes,
                            commun_depth=commun_depth,
                            task_depth=depth_config,
