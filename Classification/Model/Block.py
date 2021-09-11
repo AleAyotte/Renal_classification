@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 08/2021
+    @Last modification: 09/2021
 
     @Description:       This file contain some generic module used to create several model like the ResNet,
                         MultiLevelResNet and CapsNet. The module are DynamicHighCapsule, PrimaryCapsule, Resblock and
@@ -13,6 +13,7 @@
                         2) CBAM: Convolutional Block Attention Module, Woo, S et al., ECCV 2018
                         3) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
                         4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
+                        5) Rethinking Hard-Parameter Sharing in Multi-Task Learning, Zhang, L. et al., arXiv 2021
 """
 from Model.Module import GumbelSoftmax
 from monai.networks.blocks.convolutions import ResidualUnit
@@ -273,17 +274,26 @@ class BranchingBlock(nn.Module):
 class IndPreResBlock(nn.Module):
     """
     A 3D version of the preactivation residual block but with independent normalization layers.
+    Inspired by ref 5).
     (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
 
     ...
     Attributes
     ----------
-    first_activation: nn.module
-        The non linear activation function that is applied before the forward pass in the residual mapping.
-    first_normalization: nn.module
-        The normalization layer that is applied before the forward pass in the residual mapping.
-    residual_layer: nn.Sequential
-        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+    act1 : nn.Module
+        The first non linear activation function
+    act2 : nn.Module
+        The second non linear activation function
+    conv1 : nn.Module
+        the first convolution layer.
+    conv2 : nn.Module
+        The second convolution layer.
+    drop : nn.Module
+        The dropout module if drop_rate > 0 else identity
+    norm1 : nn.Module
+        The first normalization layer.
+    norm2 : nn.Module
+        The second normalization layer.
     sub_conv: nn.Sequential
         A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
         with the dimension of the residual mapping.
@@ -379,12 +389,33 @@ class IndPreResBlock(nn.Module):
 class IndResBlock(nn.Module):
     """
         A 3D version of the residual block as described in Ref 1) but with independent normalization layers.
-        (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+        Inspired by ref 5).
+        (Conv(kernel), Norm, Dropout, Act, Conv(kernel), Norm, Dropout, Act, Add)
 
         ...
         Attributes
         ----------
-
+        act1 : nn.Module
+            The first non linear activation function
+        act2 : nn.Module
+            The second non linear activation function
+        conv1 : nn.Module
+            the first convolution layer.
+        conv2 : nn.Module
+            The second convolution layer.
+        drop1 : nn.Module
+            The first dropout module if drop_rate > 0 else identity
+        drop2 : nn.Module
+            The first dropout module if drop_rate > 0 else identity
+        norm1 : nn.Module
+            The first normalization layer.
+        norm2 : nn.Module
+            The second normalization layer.
+        sub_conv: nn.Sequential
+            A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+            with the dimension of the residual mapping.
+        __subsample: boolean
+            A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
         """
     expansion = 1
 
