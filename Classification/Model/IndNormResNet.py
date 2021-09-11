@@ -1,13 +1,15 @@
 """
-    @file:              HardSharedResNet.py
+    @file:              IndNormResNet.py
     @Author:            Alexandre Ayotte
 
-    @Creation Date:     03/2021
-    @Last modification: 07/2021
+    @Creation Date:     09/2021
+    @Last modification: 09/2021
 
-    @Description:       This file contain the classe HardSharedResNet that inherit from the NeuralNet class.
+    @Description:       This file contain the class of the IndNormResNet that inherit from the NeuralNet class.
+                        The IndNormResNet is a form of Hard Sharing ResNet where the normalization layers are
+                        task specific.
 
-    @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
+    @Reference:         1) Rethinking Hard-Parameter Sharing in Multi-Task Learning, Zhang, L. et al., arXiv 2021
 """
 
 from Constant import BlockType, DropType, Loss, Tasks
@@ -28,32 +30,30 @@ SHARED: Final = "shared"
 
 class IndNormResNet(NeuralNet):
     """
-    A hard shared 3D Residual Network implementation for multi task learning.
+    A hard shared 3D Residual Network implementation for multi task learning where the normalization layers are
+    task-specific. Inspired by ref 1).
 
     ...
     Attributes
     ----------
 
-    __backend_tasks : List[str]
-        The list of tasks on which the shared layers of the model will be train.
+    fc_layers : nn.ModuleDict[str, Module]
+        A dictionary that contain the classifier of each task.
+    first_conv : nn.ModuleDict
     __in_channels : int
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
         The last series of residual block.
-    loss: Union[UncertaintyLoss, UniformLoss]
+    loss : Union[UncertaintyLoss, UniformLoss]
         A torch.module that will be used to compute the multi-task loss during the training.
     __num_flat_features : int
         Number of features at the output of the last convolution.
-    shared_layers : nn.Sequentiel
+    shared_layers : nn.ModuleList
         A sequence of neurat network layer that will used for every task.
-    __split : int
-        Indicate where the network will be split to a multi-task network. Should be an integer between 1 and 5.
-        1 indicate that the network will be split before the first series of residual block.
-        5 indicate that the network will be split after the last series of residual block.
     __tasks : List[str]
         The list of tasks on which the model will be train.
-    tasks_layers : nn.ModuleDict[str, nn.Sequential]
-        A dictionnary of Sequential module where the key is a task name and the value is a sequence of layer that will
+    tasks_layers : nn.ModuleDict[str, nn.ModuleList]
+        A dictionary of ModuleList module where the key is a task name and the value is a sequence of layer that will
         be used only for this task.
     Methods
     -------
@@ -69,7 +69,7 @@ class IndNormResNet(NeuralNet):
     """
     def __init__(self,
                  num_classes: Dict[str, int],
-                 tasks: Sequence[str],
+                 tasks: List[str],
                  act: str = "ReLU",
                  commun_block: Union[BlockType, List[BlockType]] = BlockType.PREACT,
                  commun_depth: int = 18,
@@ -95,7 +95,6 @@ class IndNormResNet(NeuralNet):
                             the num_class shoule be equal to one.
         :param tasks: A list of tasks on which the model will be train.
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
-        :param backend_tasks: The list of tasks on which the shared layers of the model will be train.
         :param commun_block: A string or a sequence of string that indicate which type of block will be use to
                              create the shared layers of the network. If it is a list, it should be equal in length to
                              split_level - 1.
@@ -133,7 +132,6 @@ class IndNormResNet(NeuralNet):
         """
         assert len(tasks) > 0, "You should specify the name of each task"
         super().__init__()
-        self.__split = split_level
         self.__in_channels = first_channels
         self.__tasks = tasks
 
@@ -309,9 +307,9 @@ class IndNormResNet(NeuralNet):
                      task_list: List[str],
                      act: str = "ReLU",
                      norm: str = "batch",
-                     strides: Union[Sequence[int], int] = 1) -> nn.Sequential:
+                     strides: Union[Sequence[int], int] = 1) -> List:
         """
-        Create a sequence of layer of a given class and of lenght num_block.
+        Create a sequence of layer of a given class and of length num_block.
 
         :param block: A class type that indicate which block should be create in the sequence.
         :param drop_rate: A sequence of float that indicate the drop_rate for each block.
