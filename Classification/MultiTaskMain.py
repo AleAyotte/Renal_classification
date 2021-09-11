@@ -27,7 +27,7 @@ MIXED_PRECISION: Final = True
 MODEL_NAME: Final = "HardSharing"
 PIN_MEMORY: Final = False
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME: Final = "jul-2021-hardsharing2"
+PROJECT_NAME: Final = "sep-2021-backend"
 SAVE_PATH: Final = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
 
