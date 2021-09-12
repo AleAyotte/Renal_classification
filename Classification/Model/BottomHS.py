@@ -27,7 +27,7 @@ NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
 
 
-class IndNormResNet(NeuralNet):
+class BottomHS(NeuralNet):
     """
     A hard shared 3D Residual Network implementation for multi task learning where bottom layers and the normalization
     layers are task specific. Inspired by ref 1).
