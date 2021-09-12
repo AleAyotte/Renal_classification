@@ -14,6 +14,7 @@ from comet_ml import Experiment
 from Constant import BlockType, DatasetName, DropType, Experimentation, SubNetDepth, Tasks
 from Data_manager.DatasetBuilder import build_datasets
 from Model.IndNormResNet import IndNormResNet
+from Model.BottomHS import BottomHS
 import torch
 from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     if args.subtype:
         task_list.append(Tasks.SUBTYPE)
         num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
-        task_block[Tasks.SUBTYPE] = BlockType.POSTACT
+        task_block[Tasks.SUBTYPE] = BlockType.POSTACT if not args.bottom else BlockType.PREACT
         if args.malignancy:
             conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
 
@@ -87,17 +88,31 @@ if __name__ == "__main__":
         depth_config: Final = SubNetDepth.CONFIG3
 
     in_shape = tuple(trainset[0]["sample"].size()[1:])
-    net = IndNormResNet(tasks=task_list,
-                        num_classes=num_classes,
-                        commun_depth=commun_depth,
-                        task_depth=depth_config,
-                        split_level=args.split_level,
-                        in_shape=in_shape,
-                        first_channels=args.in_channels,
-                        drop_rate=args.drop_rate,
-                        drop_type=DropType[args.drop_type.upper()],
-                        task_block=task_block,
-                        act=args.activation).to(args.device)
+
+    if args.bottom:
+        net = BottomHS(tasks=task_list,
+                       num_classes=num_classes,
+                       commun_block=BlockType.POSTACT,
+                       depth=commun_depth,
+                       merge_level=args.split_level,
+                       in_shape=in_shape,
+                       first_channels=args.in_channels,
+                       drop_rate=args.drop_rate,
+                       drop_type=DropType[args.drop_type.upper()],
+                       task_block=task_block,
+                       act=args.activation).to(args.device)
+    else:
+        net = IndNormResNet(tasks=task_list,
+                            num_classes=num_classes,
+                            commun_depth=commun_depth,
+                            task_depth=depth_config,
+                            split_level=args.split_level,
+                            in_shape=in_shape,
+                            first_channels=args.in_channels,
+                            drop_rate=args.drop_rate,
+                            drop_type=DropType[args.drop_type.upper()],
+                            task_block=task_block,
+                            act=args.activation).to(args.device)
 
     # summary(net, tuple(trainset[0]["sample"].size()))
 
@@ -167,7 +182,8 @@ if __name__ == "__main__":
         experiment.log_code("MultiTaskMain.py")
         experiment.log_code("Trainer/Trainer.py")
         experiment.log_code("Trainer/MultiTaskTrainer.py")
-        experiment.log_code("Model/HardSharedResNet.py")
+        experiment.log_code("Model/IndNormResNet.py")
+        experiment.log_code("Model/BottomHS.py")
 
         csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
         train_csv_path, valid_csv_path, test_csv_path = csv_path

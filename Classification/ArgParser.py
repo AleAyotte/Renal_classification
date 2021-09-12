@@ -125,6 +125,8 @@ def argument_parser(experiment: Experimentation) -> argparse.Namespace:
         parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+        parser.add_argument('--bottom', type=bool, default=False, nargs='?', const=True,
+                            help="If true, a bottom task-specific model will be train.")
         parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                             help="The config used to determine the depth of each sub-network. The depth of the shared "
                                  "layers is determined by the most commun depth (see Constant.py SubNetDepth).")
