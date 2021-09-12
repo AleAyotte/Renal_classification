@@ -465,7 +465,7 @@ class IndResBlock(nn.Module):
         self.conv1 = nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides, padding=padding, bias=bias)
         self.norm1 = nn.ModuleDict({task: Norm[norm, 3](fmap_out) for task in task_list})
         self.act1 = Act[activation](**args)
-        self.drop1 = nn.Dropout3d(drop_rate) if drop_rate > 0 else nn.Identity
+        self.drop1 = nn.Dropout3d(drop_rate) if drop_rate > 0 else nn.Identity()
 
         self.conv2 = nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1, padding=padding, bias=bias)
         self.norm2 = nn.ModuleDict({task: Norm[norm, 3](fmap_out) for task in task_list})
