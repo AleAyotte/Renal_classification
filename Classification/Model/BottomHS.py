@@ -233,8 +233,9 @@ class BottomHS(NeuralNet):
         for i in range(NB_LEVELS):
             strides = [2, 2, 1] if i == 0 else [2, 2, 2]
 
-            if merge_level < i + 1:
-                temp_layers = self.__make_layer(shared_blocks[i],
+            if merge_level <= i + 1:
+                idx = i - (merge_level - 1)
+                temp_layers = self.__make_layer(shared_blocks[idx],
                                                 act=act,
                                                 drop_rate=dropout[i],
                                                 fmap_out=first_channels * (2**i),
@@ -248,9 +249,8 @@ class BottomHS(NeuralNet):
             else:
                 in_channels = self.__in_channels
                 for task in tasks:
-                    idx = i
                     self.__in_channels = in_channels
-                    temp_layers = self.__make_layer(task_block_list[task][idx],
+                    temp_layers = self.__make_layer(task_block_list[task][i],
                                                     act=act,
                                                     drop_rate=dropout[i],
                                                     fmap_out=first_channels * (2**i),
