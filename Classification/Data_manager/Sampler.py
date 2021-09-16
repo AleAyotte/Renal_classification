@@ -1,3 +1,14 @@
+"""
+    @file:              Sampler.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     09/2021
+    @Last modification: 09/2021
+
+    @Description:       This file contain the Sampler class. The sampler can split a dataset where there is multiple
+                        data (ex: brain tumors) and labels per patient. This class will be used by the BrainDataset.
+"""
+
 import math
 import numpy as np
 from typing import Dict, Final, List, Optional, Tuple, Union
@@ -12,38 +23,79 @@ POS_RATE: Final = "pos_rate"
 
 
 class Sampler:
+    """
+    Renal classification dataset.
+
+    ...
+    Attributes
+    ----------
+    __data : Dict[str, Dict[str, Dict[str, int]]]
+        A dictionary of patient where the item is a dictionary of target where the item is a dictionary of label.
+    __labels : List[str]
+        A list of string that contain the labels name.
+    __data_stats : Dict[str, Dict[str, Union[float, int]]]
+        A dictionary that contain, per label, the number of data, the number of positive data and the positive rate
+        (num_pos/num_data).
+    __patient_stats : Dict[str, Dict[str, Dict[str, Union[float, int]]]]
+        A dictionary that indicate the following stats per patient and per label: number of data, number of positive
+        data and positive rate (num_pos/num_data).
+    __rate_status :  Dict[str, Dict[str, List[str]]]
+        A dictionary that indicate per label, a list of patient that have a greater positive rate than the average and
+        a list that indicate the patient that have a lower positive rate than the average.
+    Methods
+    -------
+    get_split_stats(pat_list)
+
+    sample(tol, seed, split_size)
+
+    """
     def __init__(self,
                  data: dict,
-                 labels_name: List[str]):
+                 labels_name: List[str]) -> None:
         self.__data = data
         self.__labels = labels_name
         self.__data_stats, self.__patient_stats = self.__compute_data_stats()
         self.__rate_status = self.__compute_rate_status()
 
     def __compute_data_stats(self) -> Tuple[dict, dict]:
+        """
+        Compute the patient statistics (number of data, number of positive and positive rate, per label) and the
+        data statistics (total number of data, total number of positive and global positive rate, per label).
+
+        :return: A dictionary that contain the following stats per label: the number of data, the number of positive
+                 data and the positive rate and a dictionary that contain the same stats by per patient and per label.
+        """
         data_stats = {label: {NUM_TARGET: 0, NUM_POS: 0, POS_RATE: 0} for label in self.__labels}
         pat_stats = {pat_id: {label: {} for label in self.__labels}
                      for pat_id in list(self.__data.keys())}
 
-        for pat_id, target_list in list(self.__data.items()):
-            for label in self.__labels:
+        for label in self.__labels:
+            for pat_id, target_list in list(self.__data.items()):
                 num_target, num_pos = 0, 0
+
                 for target in target_list:
                     num_target += 1 if target[label] != -1 else 0
                     num_pos += 1 if target[label] == 1 else 0
 
-                pat_stats[label][NUM_TARGET] = num_target
-                pat_stats[label][NUM_POS] = num_pos
-                pat_stats[label][POS_RATE] = num_pos / num_target
+                pat_stats[pat_id][label][NUM_TARGET] = num_target
+                pat_stats[pat_id][label][NUM_POS] = num_pos
+                pat_stats[pat_id][label][POS_RATE] = num_pos / num_target
 
                 data_stats[label][NUM_TARGET] += num_target
                 data_stats[label][NUM_POS] += num_pos
 
-        for label in self.__labels:
             data_stats[label][POS_RATE] = data_stats[label][NUM_POS] / data_stats[label][NUM_TARGET]
+
         return data_stats, pat_stats
 
     def __compute_rate_status(self):
+        """
+        Create two list of patient. The first one indicate the patients with a greater positive rate then the
+        average and the second one the patients with lower positive rate then the average.
+
+        :return: A dictionary that contain per label a list with patients with positive rate greater than the average
+                 and a list with patients with positive rate lower than the average.
+        """
         rate_status = {label: {GREATER: [], LOWER: []} for label in self.__labels}
         for pat_id, pat_stat in list(self.__patient_stats.items()):
             for label in self.__labels:
@@ -56,22 +108,43 @@ class Sampler:
 
     def __compute_threshold_limit(self,
                                   split_size: float,
-                                  tol: float) -> Dict[str, Dict[str, Union[float, int]]]:
-        tol_dict = {}
+                                  tol_dict: Dict[str, float]) -> Dict[str, Dict[str, Union[float, int]]]:
+        """
+        Calculate the threshold limit for the number of target and the positive that should be respect in the
+        test set for each labels.
+
+        :param split_size: A float that indicate the aimed proportion of data that should be use to create the test set.
+        :param tol_dict: A dictionary of float that indicate the maximum deviation in percentage per labels. Ex:
+                         if split_size=0.15 and tol_dict[labelA] = 0.02. Then the test set should contain between 13%
+                         and 17% of the data.
+        :return: A dictionary that indicate the threshold limit per label for the number of data (int) and for the
+                 positive rate in percentage (float), but also the aimed number of data and the aimed positive rate.
+        """
+        thresh_dict = {}
         for label in self.__labels:
             stats = self.__data_stats[label]
-
-            tol_dict[label] = {
+            tol = tol_dict[label]
+            thresh_dict[label] = {
                 NUM_TARGET: math.floor((np.array([-tol, tol]) + split_size) * stats[NUM_TARGET]),
                 POS_RATE: np.array([-tol, tol]) + stats[POS_RATE],
                 AIM_TARGET: math.floor(split_size * stats[NUM_TARGET]),
                 AIM_RATE: stats[POS_RATE]
             }
 
-        return tol_dict
+        return thresh_dict
 
     def get_split_stats(self,
                         pat_list: np.array) -> Dict[str, Dict[str, Union[float, int]]]:
+        """
+        Get statistic about a set of data per label. Those statistic include the number of data, the number of positive
+        examples and the positive rate.
+
+        :param pat_list: A numpy array that contain the patient_id of each patient in the set.
+        :return: Return a dictionary of dictionary that contain the mentioned stats. The keys of the first dictionary
+                 are the labels and the keys of the embedded dictionary is the name of the stats. The stats are the
+                 number of data (int) (because one patient can attached to multiple data), the number of positive data
+                 (int) and the positive rate (float).
+        """
         stats = {label: {} for label in self.__labels}
 
         for label in self.__labels:
@@ -84,10 +157,22 @@ class Sampler:
         return stats
 
     def __is_split_valid(self,
-                         split_stats: dict,
-                         tol_dict: dict) -> Union[Tuple[bool, str], bool]:
+                         split_stats: Dict[str, Dict[str, Union[float, int]]],
+                         thresh_dict: dict) -> Union[Tuple[bool, str], bool]:
+        """
+        Verify if a set of data, according to the given set statistics, respect a given set of threshold limit for each
+        label.
+
+        :param split_stats: A dictionary that give per label (keys of the first dictionary) the stats (keys of the
+                            embedded dictionary) that will be used to verify if the dataset respect the minimum and
+                            maximum number of target and positive rate.
+        :param thresh_dict: A dictionary that give per label (keys of the first dictionary) the threshold limits for
+                            the number of target and the positive rate (keys of the embedded dictionary).
+        :return: A boolean that indicate if the set can be used has test set and, in the negative case, a string that
+                 indicate the first label for which the conditions are not respect.
+        """
         for label in self.__labels:
-            lim = tol_dict[label]
+            lim = thresh_dict[label]
             stats = split_stats[label]
             if not lim[NUM_TARGET][0] <= stats[NUM_TARGET] <= lim[NUM_TARGET][1]:
                 return False, label
@@ -98,7 +183,13 @@ class Sampler:
         return True
 
     def __init_split(self,
-                     split_size: float = 0.5) -> Tuple[np.array, np.array]:
+                     split_size: float) -> Tuple[np.array, np.array]:
+        """
+        Randomly split the list of patient with no regard to the number of target per patient.
+
+        :param split_size: A float that indicate the proportion of patient that will be present in the test set.
+        :return: Two numpy array (string) that represent the list of patient for the train set and the test set.
+        """
         pat_list = np.array(list(self.__data.keys()))
         np.random.shuffle(pat_list)
         num_patient = len(pat_list)
@@ -106,19 +197,21 @@ class Sampler:
         return pat_list[num_test:], pat_list[:num_test]
 
     def sample(self,
-               tol: float,
+               tol_dict: Dict[str, float],
                seed: Optional[int] = None,
                split_size: float = 0.15) -> List[str]:
+        """
 
+        """
         np.random.seed(seed) if seed is not None else None
         train_list, test_list = self.__init_split(split_size)
-        tol_dict = self.__compute_threshold_limit(split_size, tol)
+        thresh_dict = self.__compute_threshold_limit(split_size, tol_dict)
         split_stats = self.get_split_stats(test_list)
-        is_valid, label = self.__is_split_valid(split_stats, tol_dict)
+        is_valid, label = self.__is_split_valid(split_stats, thresh_dict)
 
         while not is_valid:
             label_stats = split_stats[label]
-            tol_lim = tol_dict[label]
+            tol_lim = thresh_dict[label]
 
             if label_stats[NUM_TARGET] < tol_lim[AIM_TARGET]:
                 if label_stats[POS_RATE] < tol_lim[AIM_RATE]:
@@ -136,16 +229,23 @@ class Sampler:
                     test_list, train_list = self.__transfer_patient(test_list, train_list, label, True)
 
             split_stats = self.get_split_stats(test_list)
-            is_valid, label = self.__is_split_valid(split_stats, tol_dict)
+            is_valid, label = self.__is_split_valid(split_stats, thresh_dict)
 
         return test_list
 
     def __transfer_patient(self,
                            giver: np.array,
-                           receiver: np.array,
+                           greater_rate: bool,
                            label: str,
-                           greater_rate: bool) -> Tuple[np.array, np.array]:
-
+                           receiver: np.array) -> Tuple[np.array, np.array]:
+        """
+        
+        :param giver: A list of patient from
+        :param greater_rate:
+        :param label:
+        :param receiver:
+        :return:
+        """
         candidate = set(self.__rate_status[label][GREATER if greater_rate else LOWER])
         candidate = np.array(list(candidate & set(giver)))
         np.random.shuffle(candidate)
