@@ -72,14 +72,13 @@ class Sampler:
         for label in self.__labels:
             for pat_id, target_list in list(self.__data.items()):
                 num_target, num_pos = 0, 0
-
-                for target in target_list:
+                for target in list(target_list.values()):
                     num_target += 1 if target[label] != -1 else 0
                     num_pos += 1 if target[label] == 1 else 0
 
                 pat_stats[pat_id][label][NUM_TARGET] = num_target
                 pat_stats[pat_id][label][NUM_POS] = num_pos
-                pat_stats[pat_id][label][POS_RATE] = num_pos / num_target
+                pat_stats[pat_id][label][POS_RATE] = num_pos / num_target if num_target != 0 else 0
 
                 data_stats[label][NUM_TARGET] += num_target
                 data_stats[label][NUM_POS] += num_pos
@@ -125,7 +124,7 @@ class Sampler:
             stats = self.__data_stats[label]
             tol = tol_dict[label]
             thresh_dict[label] = {
-                NUM_TARGET: math.floor((np.array([-tol, tol]) + split_size) * stats[NUM_TARGET]),
+                NUM_TARGET: np.floor((np.array([-tol, tol]) + split_size) * stats[NUM_TARGET]),
                 POS_RATE: np.array([-tol, tol]) + stats[POS_RATE],
                 AIM_TARGET: math.floor(split_size * stats[NUM_TARGET]),
                 AIM_RATE: stats[POS_RATE]
@@ -180,7 +179,7 @@ class Sampler:
             if not lim[POS_RATE][0] <= stats[POS_RATE] <= lim[POS_RATE][1]:
                 return False, label
 
-        return True
+        return True, ""
 
     def __init_split(self,
                      split_size: float) -> Tuple[np.array, np.array]:
@@ -198,38 +197,55 @@ class Sampler:
 
     def sample(self,
                tol_dict: Dict[str, float],
+               max_iter: int = 100,
                seed: Optional[int] = None,
-               split_size: float = 0.15) -> List[str]:
+               split_size: float = 0.15) -> np.array:
         """
+        Sample from the list of patient a subset that can be used has a test set according to a tolerance factor per
+        label.
 
+        :param tol_dict:
+        :param max_iter: Maximum number of iteration
+        :param seed: The seed that will be used to split to sample the set of patient.
+        :param split_size: A float that represent the proportion of data that will be use to create the test set.
+        :return: A list of patient name that represent the test set.
         """
         np.random.seed(seed) if seed is not None else None
         train_list, test_list = self.__init_split(split_size)
         thresh_dict = self.__compute_threshold_limit(split_size, tol_dict)
         split_stats = self.get_split_stats(test_list)
         is_valid, label = self.__is_split_valid(split_stats, thresh_dict)
+        for _ in range(max_iter):
+            if is_valid:
+                break
 
-        while not is_valid:
             label_stats = split_stats[label]
             tol_lim = thresh_dict[label]
 
             if label_stats[NUM_TARGET] < tol_lim[AIM_TARGET]:
                 if label_stats[POS_RATE] < tol_lim[AIM_RATE]:
                     # get patient with greater rate
-                    train_list, test_list = self.__transfer_patient(train_list, test_list, label, True)
+                    train_list, test_list = self.__transfer_patient(giver=train_list, receiver=test_list,
+                                                                    label=label, greater_rate=True)
                 else:
                     # get patient with lower rate
-                    train_list, test_list = self.__transfer_patient(train_list, test_list, label, False)
+                    train_list, test_list = self.__transfer_patient(giver=train_list, receiver=test_list,
+                                                                    label=label, greater_rate=False)
+                    split_stats = self.get_split_stats(test_list)
             else:
                 if label_stats[POS_RATE] < tol_lim[AIM_RATE]:
                     # give patient with lower rate
-                    test_list, train_list = self.__transfer_patient(test_list, train_list, label, False)
+                    test_list, train_list = self.__transfer_patient(giver=test_list, receiver=train_list,
+                                                                    label=label, greater_rate=False)
                 else:
                     # give patient with greater rate
-                    test_list, train_list = self.__transfer_patient(test_list, train_list, label, True)
+                    test_list, train_list = self.__transfer_patient(giver=test_list, receiver=train_list,
+                                                                    label=label, greater_rate=True)
 
             split_stats = self.get_split_stats(test_list)
             is_valid, label = self.__is_split_valid(split_stats, thresh_dict)
+        else:
+            raise Exception("The sampler has not been able to create a test set according the given tolerance factor.")
 
         return test_list
 
@@ -239,15 +255,19 @@ class Sampler:
                            label: str,
                            receiver: np.array) -> Tuple[np.array, np.array]:
         """
-        
-        :param giver: A list of patient from
-        :param greater_rate:
-        :param label:
-        :param receiver:
-        :return:
+        Transfer a patient from giver set to receiver set. The patient is choose randomly from those that has a
+        greater (lower) positive rate that the average for a given label.
+
+        :param giver: A list of patient that represent the giver set.
+        :param greater_rate: If true, a patient with greater positive rate than the average will be transfer to the
+                             new set. Else, a patient with a lower positive rate will be transfer.
+        :param label: A string that indicate the label for which we want a greater (or lower) positive rate
+        :param receiver: A list of patient from which the new patient will be append.
+        :return: Two numpy array, the first one represent the giver set with the removed patient and the second one
+                 represent the receiver with the new patient.
         """
         candidate = set(self.__rate_status[label][GREATER if greater_rate else LOWER])
         candidate = np.array(list(candidate & set(giver)))
         np.random.shuffle(candidate)
 
-        return np.delete(giver, -1), np.append(receiver, candidate[-1])
+        return np.delete(giver, np.argwhere(giver == candidate[-1])), np.append(receiver, candidate[-1])
