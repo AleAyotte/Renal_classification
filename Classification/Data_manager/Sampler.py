@@ -204,8 +204,8 @@ class Sampler:
         Sample from the list of patient a subset that can be used has a test set according to a tolerance factor per
         label.
 
-        :param tol_dict:
-        :param max_iter: Maximum number of iteration
+        :param tol_dict: A dictionary that indicate the tolerance factor (float) per label.
+        :param max_iter: Maximum number of iteration.
         :param seed: The seed that will be used to split to sample the set of patient.
         :param split_size: A float that represent the proportion of data that will be use to create the test set.
         :return: A list of patient name that represent the test set.
@@ -217,7 +217,7 @@ class Sampler:
         is_valid, label = self.__is_split_valid(split_stats, thresh_dict)
         for _ in range(max_iter):
             if is_valid:
-                break
+                return test_list
 
             label_stats = split_stats[label]
             tol_lim = thresh_dict[label]
@@ -231,7 +231,6 @@ class Sampler:
                     # get patient with lower rate
                     train_list, test_list = self.__transfer_patient(giver=train_list, receiver=test_list,
                                                                     label=label, greater_rate=False)
-                    split_stats = self.get_split_stats(test_list)
             else:
                 if label_stats[POS_RATE] < tol_lim[AIM_RATE]:
                     # give patient with lower rate
@@ -246,8 +245,6 @@ class Sampler:
             is_valid, label = self.__is_split_valid(split_stats, thresh_dict)
         else:
             raise Exception("The sampler has not been able to create a test set according the given tolerance factor.")
-
-        return test_list
 
     def __transfer_patient(self,
                            giver: np.array,
