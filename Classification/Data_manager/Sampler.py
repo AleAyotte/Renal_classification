@@ -45,9 +45,11 @@ class Sampler:
     Methods
     -------
     get_split_stats(pat_list)
-
+        Get statistic about a set of data per label. Those statistic include the number of data, the number of positive
+        examples and the positive rate.
     sample(tol, seed, split_size)
-
+        Sample from the list of patient a subset that can be used has a test set according to a tolerance factor per
+        label.
     """
     def __init__(self,
                  data: dict,
