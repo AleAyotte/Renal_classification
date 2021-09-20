@@ -211,7 +211,7 @@ class BrainDataset(HDF5Dataset):
         for pat_id, patient in list(self.__patients_data.items()):
             for target in list(patient.values()):
                 data.append(target[IMAGES])
-                labels.append({target[task] for task in self._tasks})
+                labels.append({task: target[task] for task in self._tasks})
                 patients_id.append(pat_id)
                 if self._with_clinical:
                     clinical_data.append([target[clin] for clin in self.__features_name])
@@ -222,7 +222,7 @@ class BrainDataset(HDF5Dataset):
 
         self._data = np.array(data)
         self._labels = np.array(labels)
-        self._patients_id = np.array(patients_id)
+        self._patient_id = np.array(patients_id)
         if self._with_clinical:
             self._clinical_data = np.array(clinical_data)
 
@@ -243,10 +243,11 @@ class BrainDataset(HDF5Dataset):
         """
         f = h5py.File(filepath, 'r')
         dtset = f[split]
-        self.__patient_id = np.array([key for key in list(dtset.keys()) if key not in to_exclude])
+        self._patient_id = np.array([key for key in list(dtset.keys()) if key not in to_exclude])
+        self.__patients_data = {}
         self.__patients_labels = {}
 
-        for pat_id in self.__patient_id:
+        for pat_id in self._patient_id:
             patient = dtset[pat_id]
             self.__patients_data[pat_id] = {}
             self.__patients_labels[pat_id] = {}
@@ -256,12 +257,12 @@ class BrainDataset(HDF5Dataset):
                 self.__patients_labels[pat_id][target] = {}
 
                 imgs = {}
-                for img_key in list(self.__imgs_keys):
+                for img_key in list(self._imgs_keys):
                     imgs[img_key] = patient[target][img_key][:]
 
                 self.__patients_data[pat_id][target][IMAGES] = imgs
 
-                for task in self.__tasks:
+                for task in self._tasks:
                     self.__patients_data[pat_id][target][task] = patient[target].attrs[task]
                     self.__patients_labels[pat_id][target][task] = patient[target].attrs[task]
 
