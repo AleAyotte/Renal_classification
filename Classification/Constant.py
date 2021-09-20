@@ -33,11 +33,10 @@ CS_CONFIG: Final = [
 ]
 
 
-class SplitName:
-    TRAIN: Final = "TRAIN"
-    VALIDATION: Final = "VALIDATION"
-    TEST: Final = "TEST"
-    HOLDOUT: Final = "HOLD_OUT"
+@unique
+class DatasetName(Enum):
+    BMETS: Final = 1
+    RCC: Final = 2
 
 
 @unique
@@ -79,6 +78,13 @@ class ModelType(Enum):
 class SharingUnits(Enum):
     CROSS_STITCH: Final = 1
     SLUICE: Final = 2
+
+
+class SplitName:
+    TRAIN: Final = "TRAIN"
+    VALIDATION: Final = "VALIDATION"
+    TEST: Final = "TEST"
+    HOLDOUT: Final = "HOLD_OUT"
 
 
 class SubNetDepth:
