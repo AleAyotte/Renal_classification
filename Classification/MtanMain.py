@@ -104,14 +104,14 @@ if __name__ == "__main__":
     #                SANITY CHECK
     # --------------------------------------------
     print_data_distribution(SplitName.TRAIN,
-                            task_list,
-                            trainset.labels_bincount())
+                            trainset.labels_bincount(),
+                            [args.task])
     print_data_distribution(SplitName.VALIDATION,
-                            task_list,
-                            validset.labels_bincount())
+                            validset.labels_bincount(),
+                            [args.task])
     print_data_distribution(args.testset.upper(),
-                            task_list,
-                            testset.labels_bincount())
+                            testset.labels_bincount(),
+                            [args.task])
     print("\n")
 
     # --------------------------------------------
@@ -169,7 +169,7 @@ if __name__ == "__main__":
         experiment.log_code("Model/MTAN.py")
         experiment.log_code("Model/Block.py")
 
-        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, "_".join(task_list), args.testset)
         train_csv_path, valid_csv_path, test_csv_path = csv_path
     else:
         experiment = None
