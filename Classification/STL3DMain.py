@@ -26,7 +26,7 @@ from Utils import get_predict_csv_path, print_score, print_data_distribution, re
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MODEL_NAME: Final = "STL3D_"
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME: Final = "may-2021-hybrid"
+PROJECT_NAME: Final = "sep-2021-bmets"
 SAVE_PATH: Final = "save/STL3D_NET"  # Save path of the single task learning with ResNet3D experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
 
