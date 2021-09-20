@@ -33,7 +33,7 @@ CS_CONFIG: Final = [
 ]
 
 
-class DatasetName:
+class SplitName:
     TRAIN: Final = "TRAIN"
     VALIDATION: Final = "VALIDATION"
     TEST: Final = "TEST"

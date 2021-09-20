@@ -12,7 +12,7 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, DropType, Experimentation
+from Constant import BlockType, SplitName, DropType, Experimentation
 from DataManager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 import os
@@ -76,10 +76,10 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution(DatasetName.TRAIN,
+    print_data_distribution(SplitName.TRAIN,
                             [args.task],
                             trainset.labels_bincount())
-    print_data_distribution(DatasetName.VALIDATION,
+    print_data_distribution(SplitName.VALIDATION,
                             [args.task],
                             validset.labels_bincount())
     print_data_distribution(args.testset.upper(),
@@ -161,14 +161,14 @@ if __name__ == "__main__":
         train_csv_path = ""
 
     conf, auc = trainer.score(trainset, save_path=train_csv_path)
-    print_score(dataset_name=DatasetName.TRAIN,
+    print_score(dataset_name=SplitName.TRAIN,
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name=DatasetName.VALIDATION,
+    print_score(dataset_name=SplitName.VALIDATION,
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],

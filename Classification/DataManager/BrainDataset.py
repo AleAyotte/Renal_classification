@@ -16,7 +16,7 @@ from monai.transforms import Compose
 import numpy as np
 from typing import Dict, Final, List, Optional, Sequence, Set, Tuple, Union
 
-from Constant import DatasetName
+from Constant import SplitName
 from DataManager.HDF5Dataset import HDF5Dataset
 from DataManager.Sampler import Sampler
 
@@ -86,7 +86,7 @@ class BrainDataset(HDF5Dataset):
                  clinical_features: Optional[Union[List[str], str]] = None,
                  exclude_list: Optional[List[str]] = None,
                  hdf5_filepath: Optional[str] = None,
-                 split: Optional[str] = DatasetName.TRAIN,
+                 split: Optional[str] = SplitName.TRAIN,
                  transform: Optional[Compose] = None) -> None:
         """
         Create a dataset by loading the renal image at the given path.

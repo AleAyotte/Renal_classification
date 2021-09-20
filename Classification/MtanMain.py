@@ -9,7 +9,7 @@
 """
 from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import AttentionBlock, BlockType, DatasetName, DropType, Experimentation, Loss, Tasks
+from Constant import AttentionBlock, BlockType, SplitName, DropType, Experimentation, Loss, Tasks
 from DataManager.DatasetBuilder import build_datasets
 from Model.MTAN import MTAN
 import torch
@@ -92,10 +92,10 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution(DatasetName.TRAIN,
+    print_data_distribution(SplitName.TRAIN,
                             task_list,
                             trainset.labels_bincount())
-    print_data_distribution(DatasetName.VALIDATION,
+    print_data_distribution(SplitName.VALIDATION,
                             task_list,
                             validset.labels_bincount())
     print_data_distribution(args.testset.upper(),
@@ -165,14 +165,14 @@ if __name__ == "__main__":
         train_csv_path = valid_csv_path = test_csv_path = ""
 
     conf, auc = trainer.score(trainset, save_path=train_csv_path)
-    print_score(dataset_name=DatasetName.TRAIN,
+    print_score(dataset_name=SplitName.TRAIN,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
                 experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name=DatasetName.VALIDATION,
+    print_score(dataset_name=SplitName.VALIDATION,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),

@@ -15,9 +15,9 @@ from monai.transforms import Compose
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import List, Optional, Sequence, Set, Tuple, Union
 
-from Constant import DatasetName
+from Constant import SplitName
 
 
 class HDF5Dataset(ABC, Dataset):
@@ -68,7 +68,7 @@ class HDF5Dataset(ABC, Dataset):
                  tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
                  clinical_features: Optional[Union[List[str], str]] = None,
-                 split: Optional[str] = DatasetName.TRAIN,
+                 split: Optional[str] = SplitName.TRAIN,
                  transform: Optional[Compose] = None) -> None:
         """
         Create a dataset by loading the renal image at the given path.
@@ -81,7 +81,7 @@ class HDF5Dataset(ABC, Dataset):
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
         if split is not None:
-            assert split.upper() in [DatasetName.TRAIN, DatasetName.HOLDOUT]
+            assert split.upper() in [SplitName.TRAIN, SplitName.HOLDOUT]
         super(ABC).__init__()
 
         self.transform = transform
@@ -201,7 +201,7 @@ class HDF5Dataset(ABC, Dataset):
 
             if unlabeled_task == num_tasks:
                 unlabeled_idx.append(i)
-        self.extract_data(idx=unlabeled_idx, pop=True)
+        self._extract_data(idx=unlabeled_idx, pop=True)
 
     @abstractmethod
     def split(self,
