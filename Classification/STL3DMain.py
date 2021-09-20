@@ -10,18 +10,18 @@
 
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
-from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, SplitName, DropType, Experimentation
-from DataManager.DatasetBuilder import build_datasets
-from Model.ResNet import ResNet
 import os
 import torch
 from torchsummary import summary
-from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from typing import Final
-from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
+from ArgParser import argument_parser
+from Constant import BlockType, DropType, Experimentation, SplitName
+from DataManager.DatasetBuilder import build_datasets
+from Model.ResNet import ResNet
+from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
+from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MODEL_NAME: Final = "STL3D_"

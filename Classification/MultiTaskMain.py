@@ -9,17 +9,18 @@
 
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
-from ArgParser import argument_parser
+
 from comet_ml import Experiment
-from Constant import BlockType, SplitName, DropType, Experimentation, SubNetDepth, Tasks
-from DataManager.DatasetBuilder import build_datasets
-from Model.HardSharedResNet import HardSharedResNet
 import torch
 from torchsummary import summary
-from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from typing import Final
-from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
+from ArgParser import argument_parser
+from Constant import BlockType, DropType, Experimentation, SplitName, SubNetDepth, Tasks
+from DataManager.DatasetBuilder import build_datasets
+from Model.HardSharedResNet import HardSharedResNet
+from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
+from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimun number of tasks.
@@ -30,6 +31,7 @@ PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU act
 PROJECT_NAME: Final = "jul-2021-hardsharing2"
 SAVE_PATH: Final = "save/HS_NET.pth"  # Save path of the Hard Sharing experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
+
 
 if __name__ == "__main__":
     args = argument_parser(Experimentation.HARD_SHARING)

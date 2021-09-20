@@ -17,13 +17,13 @@
                            and Semantics. IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2018
                         4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
-
 import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from Trainer.Utils import to_one_hot
 from typing import Optional, Sequence, Tuple
+
+from Trainer.Utils import to_one_hot
 
 
 class CrossStitchUnit(torch.nn.Module):

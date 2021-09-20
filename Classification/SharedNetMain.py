@@ -9,19 +9,20 @@
 
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
-from ArgParser import argument_parser
+
 from comet_ml import Experiment
-from Constant import BlockType, CS_CONFIG, SplitName, DropType, \
-    Experimentation, ModelType, SharingUnits, SubNetDepth, Tasks
+import torch
+from torchsummary import summary
+from typing import Final
+
+from ArgParser import argument_parser
+from Constant import BlockType, CS_CONFIG, DropType, Experimentation,\
+    ModelType, SharingUnits, SplitName, SubNetDepth, Tasks
 from DataManager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 from Model.SharedNet import SharedNet
-import torch
-from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
-from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
-
 
 DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
 LOAD_PATH: Final = "save/STL3D_NET/"  # Loading path of the single task model.

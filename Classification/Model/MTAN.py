@@ -10,15 +10,15 @@
 
     @Reference:         1) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
 """
+import torch
+import torch.nn as nn
+from typing import Dict, Final, List, Sequence, Tuple, Union
 
 from Constant import AttentionBlock, BlockType, DropType, Loss, Tasks
 from Model.Block import CBAM, ChannelAttBlock, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck, SpatialAttBlock
 from Model.Module import UncertaintyLoss, UniformLoss
 from Model.NeuralNet import NeuralNet, init_weights
 from Model.ResNet import ResNet
-import torch
-import torch.nn as nn
-from typing import Dict, Final, List, Sequence, Tuple, Union
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4

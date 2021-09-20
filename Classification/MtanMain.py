@@ -7,17 +7,18 @@
 
     @Description:       Contain the main function to train Multi-Task Attention Network for multitask learning.
 """
-from ArgParser import argument_parser
+
 from comet_ml import Experiment
-from Constant import AttentionBlock, BlockType, SplitName, DropType, Experimentation, Loss, Tasks
-from DataManager.DatasetBuilder import build_datasets
-from Model.MTAN import MTAN
 import torch
 from torchsummary import summary
-from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from typing import Final
-from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
+from ArgParser import argument_parser
+from Constant import AttentionBlock, BlockType, DropType, Experimentation, Loss, SplitName, Tasks
+from DataManager.DatasetBuilder import build_datasets
+from Model.MTAN import MTAN
+from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
+from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimun number of tasks.

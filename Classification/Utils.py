@@ -12,8 +12,9 @@ from comet_ml import Experiment
 from datetime import datetime
 import numpy as np
 import os
-from Trainer.Utils import compute_recall, get_mean_accuracy
 from typing import Optional, Sequence, Union
+
+from Trainer.Utils import compute_recall, get_mean_accuracy
 
 API_KEY_FILEPATH = "comet_api_key.txt"  # path to the file that contain the API KEY for comet.ml
 CSV_PATH = "save/"

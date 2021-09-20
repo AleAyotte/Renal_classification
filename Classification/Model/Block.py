@@ -14,7 +14,6 @@
                         3) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
                         4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
-from Model.Module import GumbelSoftmax
 from monai.networks.blocks.convolutions import ResidualUnit
 from monai.networks.layers import split_args
 from monai.networks.layers.factories import Act, Norm
@@ -22,6 +21,8 @@ import numpy as np
 import torch
 from torch import nn
 from typing import Final, List, NewType, Optional, Sequence, Tuple, Type, Union
+
+from Model.Module import GumbelSoftmax
 
 
 class CBAM(nn.Module):

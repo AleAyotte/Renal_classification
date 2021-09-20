@@ -9,16 +9,16 @@
                         (malignancy, subtype and grade prediction).
 """
 
-from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import SplitName, Experimentation
+import torch
+from typing import Final
+
+from ArgParser import argument_parser
+from Constant import Experimentation, SplitName
 from DataManager.DatasetBuilder import build_datasets
 from Model.ResNet_2D import ResNet2D
-import torch
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
-from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
-
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MODEL_NAME: Final = "STL_2D"

@@ -9,17 +9,16 @@
 
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
-from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import SplitName, DropType, Experimentation, LTBConfig, ModelType, Tasks
+import torch
+from typing import Final
+
+from ArgParser import argument_parser
+from Constant import DropType, Experimentation, LTBConfig, ModelType, SplitName, Tasks
 from DataManager.DatasetBuilder import build_datasets
 from Model.LTBResNet import LTBResNet
-import torch
-from torchsummary import summary
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
-from typing import Final
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
-
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimun number of tasks.
@@ -30,6 +29,7 @@ PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU act
 PROJECT_NAME: Final = "aug-2021-ltb"
 SAVE_PATH: Final = "save/LTB_NET.pth"  # Save path of the Hard Sharing experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
+
 
 if __name__ == "__main__":
     args = argument_parser(Experimentation.LTB_RESNET)

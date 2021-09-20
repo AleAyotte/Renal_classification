@@ -10,11 +10,7 @@
 """
 
 from abc import ABC, abstractmethod
-from Constant import ModelType
 import csv
-from Data_manager.RenalDataset import RenalDataset
-from Model.NeuralNet import NeuralNet
-from Model.ResNet_2D import ResNet2D
 from monai.optimizers import Novograd
 import numpy as np
 import torch
@@ -25,9 +21,13 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-from Trainer.Utils import find_optimal_cutoff
 from typing import Dict, List, Sequence, Tuple, Union
 
+from Constant import ModelType
+from Data_manager.RenalDataset import RenalDataset
+from Model.NeuralNet import NeuralNet
+from Model.ResNet_2D import ResNet2D
+from Trainer.Utils import find_optimal_cutoff
 
 DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
 MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
