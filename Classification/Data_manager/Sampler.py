@@ -54,6 +54,19 @@ class Sampler:
     def __init__(self,
                  data: dict,
                  labels_name: List[str]) -> None:
+        """
+        Create a sampler object with a given data dictionary that indicate the labels per target per patient and a
+        given list of labels name.
+
+        :param data: A dictionary that contain the labels per target and per patient. The dictionary should look like
+                     this: {"PatientName1": {"Target1": {"Label1": value1, "Label2": value2, ...},
+                                             "Target2": {"Label1": value1, "Label2": value2, ...},
+                                             ...},
+                            "PatientName2": {"Target1": ...},
+                            ...}
+                     The value of the label should one of those -1: No label, 0: Negative, 1: Positive.
+        :param labels_name: A list that contain the name of the labels.
+        """
         self.__data = data
         self.__labels = labels_name
         self.__data_stats, self.__patient_stats = self.__compute_data_stats()
