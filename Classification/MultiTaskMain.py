@@ -16,7 +16,7 @@ from torchsummary import summary
 from typing import Final
 
 from ArgParser import argument_parser
-from Constant import BlockType, DropType, Experimentation, SplitName, SubNetDepth, Tasks
+from Constant import BlockType, DatasetName, DropType, Experimentation, SplitName, SubNetDepth, Tasks
 from DataManager.DatasetBuilder import build_datasets
 from Model.HardSharedResNet import HardSharedResNet
 from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
@@ -35,7 +35,7 @@ TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 if __name__ == "__main__":
     args = argument_parser(Experimentation.HARD_SHARING)
-
+    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMets
     # --------------------------------------------
     #                SETUP TASK
     # --------------------------------------------
@@ -44,24 +44,32 @@ if __name__ == "__main__":
     task_block = {}
     conditional_prob = []
 
-    if args.malignancy:
-        task_list.append(Tasks.MALIGNANCY)
-        num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
-        task_block[Tasks.MALIGNANCY] = BlockType.PREACT
-
-    if args.subtype:
-        task_list.append(Tasks.SUBTYPE)
-        num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
-        task_block[Tasks.SUBTYPE] = BlockType.POSTACT
+    if dataset_name is DatasetName.RCC:
+        assert not(args.are or args.lrf), "ARE and LRF tasks can't be select when RCC dataset is choose"
         if args.malignancy:
-            conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+            task_list.append(Tasks.MALIGNANCY)
+            num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
+            task_block[Tasks.MALIGNANCY] = BlockType.PREACT
 
-    if args.grade:
-        task_list.append(Tasks.GRADE)
-        num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
-        task_block[Tasks.GRADE] = BlockType.PREACT
-        if args.malignancy:
-            conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
+        if args.subtype:
+            task_list.append(Tasks.SUBTYPE)
+            num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
+            task_block[Tasks.SUBTYPE] = BlockType.POSTACT
+            if args.malignancy:
+                conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+
+        if args.grade:
+            task_list.append(Tasks.GRADE)
+            num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
+            task_block[Tasks.GRADE] = BlockType.PREACT
+            if args.malignancy:
+                conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
+    else:
+        assert args.are and args.lrf, "ARE and LRF tasks must be select when RCC dataset is choose"
+        for task in [Tasks.ARE, Tasks.LRF]:
+            task_list.append(task)
+            num_classes[task] = Tasks.CLASSIFICATION
+            task_block[task] = BlockType.PREACT
 
     if len(task_list) < MIN_NUM_TASKS:
         raise Exception("You have to select at least two task.")
@@ -69,7 +77,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=task_list,
+    trainset, validset, testset = build_datasets(dataset_name=dataset_name,
+                                                 tasks=task_list,
                                                  testset_name=args.testset,
                                                  num_chan=args.num_chan_data,
                                                  split_seed=args.seed)

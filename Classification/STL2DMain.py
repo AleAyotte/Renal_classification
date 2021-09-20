@@ -14,7 +14,7 @@ import torch
 from typing import Final
 
 from ArgParser import argument_parser
-from Constant import Experimentation, SplitName
+from Constant import DatasetName, Experimentation, SplitName
 from DataManager.DatasetBuilder import build_datasets
 from Model.ResNet_2D import ResNet2D
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
@@ -36,7 +36,8 @@ if __name__ == "__main__":
         clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis", "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
     else:
         clin_features = ["Age", "Sex", "size"]
-    trainset, validset, testset = build_datasets(tasks=[args.task],
+    trainset, validset, testset = build_datasets(dataset_name=DatasetName.RCC,
+                                                 tasks=[args.task],
                                                  testset_name=args.testset,
                                                  clin_features=clin_features,
                                                  num_dimension=2)

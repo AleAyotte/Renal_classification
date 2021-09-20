@@ -17,7 +17,7 @@ from torchsummary import summary
 from typing import Final
 
 from ArgParser import argument_parser
-from Constant import BlockType, DropType, Experimentation, SplitName
+from Constant import BlockType, DatasetName, DropType, Experimentation, SplitName, Tasks
 from DataManager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
@@ -33,11 +33,18 @@ TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 if __name__ == "__main__":
     args = argument_parser(experiment=Experimentation.SINGLE_TASK_3D)
+    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMets
+
+    if dataset_name is DatasetName.RCC:
+        assert args.task in [Tasks.GRADE, Tasks.MALIGNANCY, Tasks.SUBTYPE], "Incorrect task choice"
+    else:
+        assert args.task in [Tasks.ARE, Tasks.LRF], "Incorrect task choice"
 
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=[args.task],
+    trainset, validset, testset = build_datasets(dataset_name=dataset_name,
+                                                 tasks=[args.task],
                                                  testset_name=args.testset,
                                                  num_chan=args.num_chan_data,
                                                  split_seed=args.seed)

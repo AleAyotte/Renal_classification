@@ -94,8 +94,10 @@ class SubNetDepth:
 
 
 class Tasks:
+    ARE: Final = "are"
+    GRADE: Final = "grade"
+    LRF: Final = "lrf"
     MALIGNANCY: Final = "malignancy"
     SUBTYPE: Final = "subtype"
-    GRADE: Final = "grade"
-    REGRESSION: Final = 1
     CLASSIFICATION: Final = 2
+    REGRESSION: Final = 1
