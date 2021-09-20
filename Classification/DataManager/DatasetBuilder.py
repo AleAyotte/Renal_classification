@@ -3,17 +3,18 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 07/2021
+    @Last modification: 09/2021
 
     @Description:       This file contain a function that build the training, validation and testing set for both 2D
                         and 3D datasets.
 """
 
-from Data_manager.RenalDataset import RenalDataset
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 from random import randint
 from typing import Final, Optional, Sequence, Tuple, Union
+
+from DataManager.RenalDataset import RenalDataset
 
 
 BMETS_A: Final = "Data/BrainMetsA.hdf5"
@@ -22,7 +23,7 @@ RCC_2D: Final = "Data/2D_with_N4"
 RCC_4CHAN: Final = "Data/RCC_4chan.hdf5"
 RCC_3CHAN: Final = "Data/RCC_3chan.hdf5"
 PAD_MODE: Final = "constant"  # choices=["constant", "edge", "reflect", "symmetric"]
-REJECT_FILE: Final = "Data_manager/reject_list.txt"
+REJECT_FILE: Final = "DataManager/reject_list.txt"
 SPLIT_SIZE: Final = 0.2
 RCC_STRATIFICATION_KEYS: Final = ["malignancy", "subtype", "grade"]
 
@@ -181,6 +182,3 @@ def get_data_augmentation(num_chan: int = 4,
         ])
 
     return transform, test_transform
-
-
-def get_dataset()
