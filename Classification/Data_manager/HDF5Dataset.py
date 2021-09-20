@@ -2,13 +2,14 @@
     @file:              HDF5Dataset.py
     @Author:            Alexandre Ayotte
 
-    @Creation Date:     12/2020
+    @Creation Date:     09/2021
     @Last modification: 09/2021
 
-    @Description:       This file contain the RenalDataset class, which is used to load and preprocess both 2D and 3D
-                        data to train a model. It also contain the split_trainset function which is used to create the
-                        train/validation split.
+    @Description:       This file contain the HDF5Dataset class, which is used to load an HDF5 dataset and to
+                        preprocess 2D and 3D images.
 """
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import h5py
 from monai.transforms import Compose
@@ -19,21 +20,24 @@ import torch
 from torch.utils.data import Dataset
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
+from Constant import DatasetName
+
 
 class HDF5Dataset(ABC, Dataset):
     """
-    Renal classification dataset.
+    The HDF5Dataset can load data from an HDF5 file and the prepare the data to train a model.
 
     ...
     Attributes
     ----------
-    transform: Union[compose, None]
-    _clinical_data: Union[np.array, None]
+    _clinical_data : Union[np.array, None]
         If __with_clinical is True, then it will be a numpy array that contain the clinical of each patient in the
         dataset.
-    _data: np.array
+    _data : np.array
         A numpy array that contain the dataset medical images.
-    _imgs_keys: Union[Sequence[string], string]
+    _features_name : Union[List[str], str]
+        A list of string that indicate which clinical features will be used to train the model.
+    _imgs_keys : Union[Sequence[string], string]
         A string or a list of string that indicate The images name in the hdf5 file that will be load in the dataset
         (Exemple: "t1").
     _labels : np.array
@@ -42,7 +46,9 @@ class HDF5Dataset(ABC, Dataset):
         A list of string that indicate the patient id of each data in the dataset.
     _tasks : Sequence[string]
         A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
-    _with_clinical: bool
+    transform : Union[compose, None]
+        A function/transform that will be applied on the images and the ROI.
+    _with_clinical : bool
         Indicate if the dataset should also store the clinical data.
     Methods
     -------
@@ -51,18 +57,22 @@ class HDF5Dataset(ABC, Dataset):
     extract_data(idx, pop):
         Extract data without applying transformation on the images. If pop is true, then the data are removed from
         the current dataset.
+    labels_bincount():
+        Count the number of data per class for each task.
     normalize_clinical_data(mean, std, get_norm_param):
         Normalize the clinical substracting them the given mean and divide them by the given std. If no mean or std
         is given, the they will defined with current dataset clinical data.
-    labels_bincount():
-        Count the number of data per class for each task.
+    remove_unlabeled_data():
+        Remove the data that has no label for every task.
+    split(pop, random_seed, sample_size, transform):
+        Split the current dataset and return a new dataset with the data.
     """
     def __init__(self,
                  tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
                  clinical_features: Optional[Union[List[str], str]] = None,
-                 split: Optional[str] = "train",
-                 transform: Optional[Compose] = None):
+                 split: Optional[str] = DatasetName.TRAIN,
+                 transform: Optional[Compose] = None) -> None:
         """
         Create a dataset by loading the renal image at the given path.
 
@@ -70,14 +80,21 @@ class HDF5Dataset(ABC, Dataset):
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
-        :param split: A string that indicate which subset will be load. (Option: train, test). (Default="train")
+        :param split: A string that indicate which subset will be load. (Default=DatasetName.TRAIN)
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
-        assert split in ['train', 'test', None]
+        if split is not None:
+            assert split.upper() in [DatasetName.TRAIN, DatasetName.HOLDOUT]
+        super(ABC).__init__()
+
         self.transform = transform
         self._imgs_keys = imgs_keys
         self._tasks = tasks
         self._with_clinical = clinical_features is not None
+        if self._with_clinical and type(clinical_features) is not list:
+            self._features_name = [clinical_features]
+        else:
+            self._features_name = clinical_features
 
         self._data = np.array([])
         self._labels = np.array([])
@@ -88,39 +105,17 @@ class HDF5Dataset(ABC, Dataset):
             self._clinical_data = np.empty(shape=(0, len(clinical_features)))
 
     @abstractmethod
-    def add_data(self,
-                 data: Sequence[dict],
-                 label: Union[Sequence[dict], Sequence[int]],
-                 patient_id: Sequence[str],
-                 stratum_keys: Sequence[str],
-                 clinical_data: Sequence[Sequence[int]] = None) -> None:
-        """
-        Add data to the dataset.
-
-        :param data: A sequence of dictionary that contain the images.
-        :param label: A sequence of dictionary or a sequence of int that contain the labels.
-        :param patient_id: The patient id of each data that we want to add in the dataset.
-        :param stratum_keys: A list of string that indicate to which stratum the data is associated.
-        :param clinical_data: A sequence of sequence of int that contain the clinical data.
-        """
-        raise NotImplementedError("Must override add_data.")
-
-    @abstractmethod
-    def extract_data(self,
-                     idx: Sequence[int],
-                     pop: bool = True) -> Tuple[Sequence[dict],
-                                                Union[Sequence[dict], Sequence[int]],
-                                                Sequence[str],
-                                                Sequence[str],
-                                                Sequence[Sequence[int]]]:
+    def _extract_data(self,
+                      idx: Sequence[int],
+                      pop: bool = True):
         """
         Extract data without applying transformation on the images.
 
         :param idx: The index of the data to extract.
         :param pop: If True, the extracted data are removed from the dataset. (Default: True)
-        :return: A tuple that contain the data (images), the labels, the stratum_keys and the clinical data.
+        :return: See the overrided method.
         """
-        raise NotImplementedError("Must override extract_data.")
+        raise NotImplementedError("Must override _extract_data.")
 
     def get_patient_id(self) -> Sequence[str]:
         """
@@ -178,12 +173,12 @@ class HDF5Dataset(ABC, Dataset):
             return mean, std
 
     @abstractmethod
-    def __read_hdf5(self,
-                    to_exclude: Set[str],
-                    features_names: Sequence[str],
-                    filepath: str,
-                    split: str,
-                    stratification_keys: List[str]) -> None:
+    def _read_hdf5(self,
+                   to_exclude: Set[str],
+                   features_names: Sequence[str],
+                   filepath: str,
+                   split: str,
+                   stratification_keys: List[str]) -> None:
         """
         Read the images and ROI from a given hdf5 filepath and store it in memory
 
@@ -198,7 +193,7 @@ class HDF5Dataset(ABC, Dataset):
 
     def remove_unlabeled_data(self) -> None:
         """
-        Remove the data that has no label for every task. This should be done after the validation and test splits.
+        Remove the data that has no label for every task.
         """
         num_tasks = len(self._tasks)
         unlabeled_idx = []
@@ -209,22 +204,25 @@ class HDF5Dataset(ABC, Dataset):
 
             if unlabeled_task == num_tasks:
                 unlabeled_idx.append(i)
-        _, _, _, _, _ = self.extract_data(idx=unlabeled_idx, pop=True)
+        self.extract_data(idx=unlabeled_idx, pop=True)
 
     @abstractmethod
     def split(self,
               pop: bool = True,
               random_seed: int = 0,
-              sample_size: float = 0.1):
+              sample_size: float = 0.1,
+              transform: Optional[Compose] = None,
+              **kwargs) -> HDF5Dataset:
         """
-        Split the current dataset and return a stratified portion of it.
+        Split the current dataset and return a new dataset with the data.
 
         :param pop: If True, the extracted data are removed from the dataset. (Default: True)
         :param random_seed: The seed that will be used to split the data.
         :param sample_size: Proportion of the current set that will be used to create the new stratified set.
-        :return: A tuple that contain the data (images), the labels, the encoding_keys, the patients id
-                and the clinical data.
+        :param transform: A function/transform that will be applied on the images and the ROI.
+        :return: A Dataset that contain the subset of data
         """
+        raise NotImplementedError("Must override split.")
 
     def __len__(self) -> int:
         return len(self._data)

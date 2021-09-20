@@ -21,6 +21,7 @@ DATA_PATH_3D_4CHAN = "final_dtset/dataset_3D.hdf5"
 DATA_PATH_3D_3CHAN = "final_dtset/dataset_3_channel.hdf5"
 PAD_MODE = "constant"  # choices=["constant", "edge", "reflect", "symmetric"]
 REJECT_FILE = "Data_manager/reject_list.txt"
+SPLIT_SIZE = 0.2
 STRATIFICATION_KEYS = ["malignancy", "subtype", "grade"]
 
 
@@ -139,27 +140,28 @@ def build_datasets(tasks: Sequence[str],
                             tasks=tasks,
                             exclude_list=exclude_list,
                             stratification_keys=STRATIFICATION_KEYS)
-    validset = RenalDataset(data_path,
-                            transform=test_transform,
-                            imgs_keys=imgs_keys,
-                            clinical_features=clin_features,
-                            tasks=tasks,
-                            split=None,
-                            stratification_keys=STRATIFICATION_KEYS)
-    testset = RenalDataset(data_path,
-                           transform=test_transform,
-                           imgs_keys=imgs_keys,
-                           clinical_features=clin_features,
-                           tasks=tasks,
-                           split=None if testset_name == "test" else testset_name,
-                           stratification_keys=STRATIFICATION_KEYS)
 
     seed_valid = randint(0, 10000) if split_seed is None else split_seed
     seed_test = randint(0, 10000) if split_seed is None else split_seed
-    if testset_name == "test":
-        trainset, testset = split_trainset(trainset, testset, validation_split=0.2, random_seed=seed_test)
 
-    trainset, validset = split_trainset(trainset, validset, validation_split=0.2, random_seed=seed_valid)
+    if testset_name == "test":
+        testset = trainset.split(pop=True,
+                                 sample_size=SPLIT_SIZE,
+                                 random_seed=seed_test,
+                                 transform=test_transform)
+    else:
+        testset = RenalDataset(data_path,
+                               transform=test_transform,
+                               imgs_keys=imgs_keys,
+                               clinical_features=clin_features,
+                               tasks=tasks,
+                               split=testset_name,
+                               stratification_keys=STRATIFICATION_KEYS)
+
+    validset = trainset.split(pop=True,
+                              sample_size=SPLIT_SIZE,
+                              random_seed=seed_valid,
+                              transform=test_transform)
 
     # --------------------------------------------
     #             NORMALIZE THE DATA
@@ -177,25 +179,3 @@ def build_datasets(tasks: Sequence[str],
     testset.remove_unlabeled_data()
 
     return trainset, validset, testset
-
-
-def split_trainset(trainset: RenalDataset,
-                   validset: RenalDataset,
-                   validation_split: float = 0.2,
-                   random_seed: int = 0) -> Tuple[RenalDataset, RenalDataset]:
-    """
-    Transfer a part of the trainset into the validation set.
-
-    :param trainset: A RenalDataset that contain the training and the validation data.
-    :param validset: A empty RenalDataset with split = None that will be used to stock the validation data.
-    :param validation_split: Proportion of the training set that will be used to create the validation set.
-    :param random_seed: The random seed that will be used shuffle and split the data.
-    :return: Two RenalDataset that will represent the trainset and the validation set respectively
-    """
-
-    data, label, patient_id, stratum_keys, clin = trainset.stratified_split(pop=True,
-                                                                            sample_size=validation_split,
-                                                                            random_seed=random_seed)
-    validset.add_data(data, label, patient_id, stratum_keys, clin)
-
-    return trainset, validset
