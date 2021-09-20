@@ -12,7 +12,7 @@
 from ArgParser import argument_parser
 from comet_ml import Experiment
 from Constant import BlockType, DatasetName, DropType, Experimentation, SubNetDepth, Tasks
-from Data_manager.DatasetBuilder import build_datasets
+from DataManager.DatasetBuilder import build_datasets
 from Model.HardSharedResNet import HardSharedResNet
 import torch
 from torchsummary import summary

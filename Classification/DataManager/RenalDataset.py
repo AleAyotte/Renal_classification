@@ -16,8 +16,6 @@ from monai.transforms import Compose
 import numpy as np
 import random
 from sklearn.model_selection import train_test_split
-import torch
-from torch.utils.data import Dataset
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from Constant import DatasetName
@@ -72,23 +70,23 @@ class RenalDataset(HDF5Dataset):
         Calculate the number of data per encoding key.
     """
     def __init__(self,
-                 hdf5_filepath: str,
-                 tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
+                 tasks: Sequence[str],
                  clinical_features: Optional[Union[List[str], str]] = None,
                  exclude_list: Optional[List[str]] = None,
+                 hdf5_filepath: Optional[str] = None,
                  split: Optional[str] = DatasetName.TRAIN,
                  stratification_keys: Optional[List[str]] = None,
                  transform: Optional[Compose] = None) -> None:
         """
         Create a dataset by loading the renal image at the given path.
 
-        :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
-        :param tasks: A list of clinical_features that will be used has labels for tasks.
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
+        :param tasks: A list of clinical_features that will be used has labels for tasks.
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
         :param exclude_list: A list of patient_id to exclude in this dataset.
+        :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
         :param split: A string that indicate which subset will be load. (Option: train, test, test2). (Default="train")
         :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
         :param transform: A function/transform that will be applied on the images and the ROI.

@@ -12,7 +12,7 @@
 from ArgParser import argument_parser
 from comet_ml import Experiment
 from Constant import DatasetName, Experimentation
-from Data_manager.DatasetBuilder import build_datasets
+from DataManager.DatasetBuilder import build_datasets
 from Model.ResNet_2D import ResNet2D
 import torch
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer

@@ -13,7 +13,7 @@
 from ArgParser import argument_parser
 from comet_ml import Experiment
 from Constant import BlockType, DatasetName, DropType, Experimentation
-from Data_manager.DatasetBuilder import build_datasets
+from DataManager.DatasetBuilder import build_datasets
 from Model.ResNet import ResNet
 import os
 import torch

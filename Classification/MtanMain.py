@@ -10,7 +10,7 @@
 from ArgParser import argument_parser
 from comet_ml import Experiment
 from Constant import AttentionBlock, BlockType, DatasetName, DropType, Experimentation, Loss, Tasks
-from Data_manager.DatasetBuilder import build_datasets
+from DataManager.DatasetBuilder import build_datasets
 from Model.MTAN import MTAN
 import torch
 from torchsummary import summary

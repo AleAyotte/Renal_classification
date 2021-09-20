@@ -11,12 +11,9 @@
 """
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import h5py
 from monai.transforms import Compose
 import numpy as np
-import random
-import torch
 from typing import Dict, Final, List, Optional, Sequence, Set, Tuple, Union
 
 from Constant import DatasetName
@@ -84,22 +81,22 @@ class BrainDataset(HDF5Dataset):
     """
 
     def __init__(self,
-                 hdf5_filepath: str,
-                 tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
+                 tasks: Sequence[str],
                  clinical_features: Optional[Union[List[str], str]] = None,
                  exclude_list: Optional[List[str]] = None,
+                 hdf5_filepath: Optional[str] = None,
                  split: Optional[str] = DatasetName.TRAIN,
                  transform: Optional[Compose] = None) -> None:
         """
         Create a dataset by loading the renal image at the given path.
 
-        :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
-        :param tasks: A list of clinical_features that will be used has labels for tasks.
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
+        :param tasks: A list of clinical_features that will be used has labels for tasks.
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
         :param exclude_list: A list of patient_id to exclude in this dataset.
+        :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
         :param split: A string that indicate which subset will be load. (Default=DatasetName.TRAIN)
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
@@ -192,6 +189,8 @@ class BrainDataset(HDF5Dataset):
             if pop:
                 del self.__patients_data[patient]
                 del self.__patients_labels[patient]
+                self.__data_spliter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
+
         return patients_data, patients_labels
 
     @property
@@ -271,7 +270,7 @@ class BrainDataset(HDF5Dataset):
                         self.__patients_data[pat_id][target][feat_name] = patient[target].attrs[feat_name]
         f.close()
 
-        self.data_spliter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
+        self.__data_spliter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
 
     def split(self,
               tol_dict: Dict[str, float],

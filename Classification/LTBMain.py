@@ -12,7 +12,7 @@
 from ArgParser import argument_parser
 from comet_ml import Experiment
 from Constant import DatasetName, DropType, Experimentation, LTBConfig, ModelType, Tasks
-from Data_manager.DatasetBuilder import build_datasets
+from DataManager.DatasetBuilder import build_datasets
 from Model.LTBResNet import LTBResNet
 import torch
 from torchsummary import summary
