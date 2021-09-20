@@ -87,7 +87,7 @@ class RenalDataset(HDF5Dataset):
                                   to train the model.
         :param exclude_list: A list of patient_id to exclude in this dataset.
         :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
-        :param split: A string that indicate which subset will be load. (Option: train, test, test2). (Default="train")
+        :param split: A string that indicate which subset will be load. (Default="train")
         :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
