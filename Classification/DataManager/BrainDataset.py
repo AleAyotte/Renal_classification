@@ -107,8 +107,8 @@ class BrainDataset(HDF5Dataset):
                          transform=transform)
         self.__data_spliter = None
         self.__is_ready = False
-        self.__patients_data = None
-        self.__patients_labels = None
+        self.__patients_data = {}
+        self.__patients_labels = {}
 
         if split is not None:
             to_exclude = set() if exclude_list is None else set(exclude_list)  # set because we do not care about order
@@ -183,8 +183,8 @@ class BrainDataset(HDF5Dataset):
         patients_labels = {}
 
         for patient in patients_list:
-            patients_data = self.__patients_data[patient]
-            patients_labels = self.__patients_labels[patient]
+            patients_data[patient] = self.__patients_data[patient]
+            patients_labels[patient] = self.__patients_labels[patient]
 
             if pop:
                 del self.__patients_data[patient]
@@ -308,5 +308,6 @@ class BrainDataset(HDF5Dataset):
                                    split=None,
                                    transform=transform)
 
-        new_dataset.add_patient(patients_data, patients_labels)
+        new_dataset.add_patient(patients_data=patients_data,
+                                patients_labels=patients_labels)
         return new_dataset

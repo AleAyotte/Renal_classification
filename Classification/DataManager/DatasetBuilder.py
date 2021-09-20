@@ -21,7 +21,7 @@ from DataManager.RenalDataset import RenalDataset
 
 BMETS_A: Final = "Data/BrainMetsA.hdf5"
 BMETS_B: Final = "Data/BrainMetsB.hdf5"
-BMETS_TOL_DICT = {"are": 0.1, "lrf": 0.2}
+BMETS_TOL_DICT = {"are": 0.01, "lrf": 0.02}
 RCC_2D: Final = "Data/2D_with_N4"
 RCC_4CHAN: Final = "Data/RCC_4chan.hdf5"
 RCC_3CHAN: Final = "Data/RCC_3chan.hdf5"
@@ -142,15 +142,19 @@ def get_data_augmentation(dataset_name: DatasetName,
     :param num_dimension: The number of dimension of the images in the dataset.
     :return: A tuple of Compose object that list the transformation that will be applied on the images.
     """
-    if num_dimension == 3 and dataset_name is DatasetName.RCC:
+    if num_dimension == 3:
         if dataset_name is DatasetName.RCC:
             all_imgs_keys = ["t1", "t2", "roi_t1", "roi_t2"] if num_chan == 4 else ["t1", "t2", "roi"]
             partial_imgs_key = ["t1", "t2"]
+            crop_size = [64, 64, 24]
             intensity_factor = 0.2
+            pad_size = [96, 96, 32]
         else:
             all_imgs_keys = ["t1ce", "dose", "roi"]
-            partial_imgs_key = ["t1", "t2"]
+            partial_imgs_key = ["t1ce"]
+            crop_size = [48, 48, 24]
             intensity_factor = 0.1
+            pad_size = [64, 64, 32]
 
         transform = Compose([
             AddChanneld(keys=all_imgs_keys),
@@ -158,10 +162,10 @@ def get_data_augmentation(dataset_name: DatasetName,
             RandScaleIntensityd(keys=partial_imgs_key, factors=intensity_factor, prob=0.5),
             RandAffined(keys=all_imgs_keys, prob=0.5, shear_range=[0.4, 0.4, 0],
                         rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
-            RandSpatialCropd(keys=all_imgs_keys, roi_size=[64, 64, 24], random_center=False),
+            RandSpatialCropd(keys=all_imgs_keys, roi_size=crop_size, random_center=False),
             RandZoomd(keys=all_imgs_keys, prob=0.5, min_zoom=0.77, max_zoom=1.23,
                       keep_size=False, mode="trilinear", align_corners=True),
-            ResizeWithPadOrCropd(keys=all_imgs_keys, spatial_size=[96, 96, 32], mode=PAD_MODE),
+            ResizeWithPadOrCropd(keys=all_imgs_keys, spatial_size=pad_size, mode=PAD_MODE),
             ToTensord(keys=all_imgs_keys)
         ])
 

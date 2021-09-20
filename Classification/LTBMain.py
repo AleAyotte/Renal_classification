@@ -33,7 +33,7 @@ TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 if __name__ == "__main__":
     args = argument_parser(Experimentation.LTB_RESNET)
-    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMets
+    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMETS
 
     # --------------------------------------------
     #                SETUP TASK

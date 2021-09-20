@@ -33,8 +33,7 @@ TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 if __name__ == "__main__":
     args = argument_parser(experiment=Experimentation.SINGLE_TASK_3D)
-    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMets
-
+    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMETS
     if dataset_name is DatasetName.RCC:
         assert args.task in [Tasks.GRADE, Tasks.MALIGNANCY, Tasks.SUBTYPE], "Incorrect task choice"
     else:
