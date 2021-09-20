@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from Constant import DatasetName
-from Data_manager.HDF5Dataset import HDF5Dataset
+from DataManager.HDF5Dataset import HDF5Dataset
 
 
 class RenalDataset(HDF5Dataset):

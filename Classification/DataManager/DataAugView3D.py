@@ -3,20 +3,21 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 02/2021
+    @Last modification: 09/2021
 
     @Description:       This file is used to visualize the transformation on the 3D data. Usefull to the determine the
                         DataAugmentation hyperparameter that should be used during the training.
 """
 
-from RenalDataset import RenalDataset
 from matplotlib import pyplot as plt
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand3DElasticd
 
+from RenalDataset import RenalDataset
+
 
 if __name__ == "__main__":
-    DATA_PATH = "final_dtset/all.hdf5"
+    DATA_PATH = "Data/RCC_4chan.hdf5"
 
     # --------------------------------------------
     #              DATA AUGMENTATION
@@ -41,8 +42,10 @@ if __name__ == "__main__":
         ToTensord(keys=["t1", "t2", "roi"])
     ])
 
-    trainset = RenalDataset(DATA_PATH, transform=transform, imgs_keys=["t1", "t2", "roi"], tasks=["malignancy"])
-    testset = RenalDataset(DATA_PATH, transform=test_transform, imgs_keys=["t1", "t2", "roi"], tasks=["malignancy"])
+    trainset = RenalDataset(hdf5_filepath=DATA_PATH, transform=transform,
+                            imgs_keys=["t1", "t2", "roi"], tasks=["malignancy"])
+    testset = RenalDataset(hdf5_filepath=DATA_PATH, transform=test_transform,
+                           imgs_keys=["t1", "t2", "roi"], tasks=["malignancy"])
 
     for i in range(len(trainset)):
         trans_images = trainset[i]["sample"][:, :, :, :].numpy()

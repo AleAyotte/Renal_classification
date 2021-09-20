@@ -7,7 +7,7 @@
 
     @Description:       This file contain the BrainDataset class that inherit from HDF5Dataset. The BrainDataset will
                         be used to 1) load an HDF5 file that contain the BrainMets dataset, 2) split the dataset by
-                        using a Sampler object (See Data_manager/Sampler.py) and 3) preprocess the images.
+                        using a Sampler object (See DataManager/Sampler.py) and 3) preprocess the images.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ import numpy as np
 from typing import Dict, Final, List, Optional, Sequence, Set, Tuple, Union
 
 from Constant import DatasetName
-from Data_manager.HDF5Dataset import HDF5Dataset
-from Data_manager.Sampler import Sampler
+from DataManager.HDF5Dataset import HDF5Dataset
+from DataManager.Sampler import Sampler
 
 IMAGES: Final = "images"
 MAX_ITER: Final = "max_iter"
@@ -281,7 +281,7 @@ class BrainDataset(HDF5Dataset):
               transform: Optional[Compose] = None,
               *args) -> BrainDataset:
         """
-        Split the current dataset by sampling subset by using a sampler (see Data_manager/Sampler.py) and return
+        Split the current dataset by sampling subset by using a sampler (see DataManager/Sampler.py) and return
         a BrainDataset object that contain the subset of patient. The new BrainDataset is not ready and the method
         prepare_dataset must be called.
 
