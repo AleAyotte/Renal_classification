@@ -11,16 +11,16 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
                         2) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
-
-from Constant import BlockType, DropType, Loss, Tasks
-from Model.Block import BranchingBlock, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
-from Model.Module import Mixup, UncertaintyLoss, UniformLoss
 from monai.networks.blocks.convolutions import Convolution
-from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
 from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
+
+from Constant import BlockType, DropType, Loss, Tasks
+from Model.Block import BranchingBlock, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
+from Model.Module import Mixup, UncertaintyLoss, UniformLoss
+from Model.NeuralNet import NeuralNet, init_weights
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4

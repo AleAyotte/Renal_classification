@@ -10,34 +10,40 @@
 
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
-from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import BlockType, DatasetName, DropType, Experimentation
-from Data_manager.DatasetBuilder import build_datasets
-from Model.ResNet import ResNet
 import os
 import torch
 from torchsummary import summary
-from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
 from typing import Final
-from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
+from ArgParser import argument_parser
+from Constant import BlockType, DatasetName, DropType, Experimentation, SplitName, Tasks
+from DataManager.DatasetBuilder import build_datasets
+from Model.ResNet import ResNet
+from Trainer.SingleTaskTrainer import SingleTaskTrainer as Trainer
+from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MODEL_NAME: Final = "STL3D_"
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME: Final = "may-2021-hybrid"
+PROJECT_NAME: Final = "sep-2021-bmets"
 SAVE_PATH: Final = "save/STL3D_NET"  # Save path of the single task learning with ResNet3D experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 
 if __name__ == "__main__":
     args = argument_parser(experiment=Experimentation.SINGLE_TASK_3D)
+    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMETS
+    if dataset_name is DatasetName.RCC:
+        assert args.task in [Tasks.GRADE, Tasks.MALIGNANCY, Tasks.SUBTYPE], "Incorrect task choice"
+    else:
+        assert args.task in [Tasks.ARE, Tasks.LRF], "Incorrect task choice"
 
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=[args.task],
+    trainset, validset, testset = build_datasets(dataset_name=dataset_name,
+                                                 tasks=[args.task],
                                                  testset_name=args.testset,
                                                  num_chan=args.num_chan_data,
                                                  split_seed=args.seed)
@@ -76,15 +82,15 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution(DatasetName.TRAIN,
-                            [args.task],
-                            trainset.labels_bincount())
-    print_data_distribution(DatasetName.VALIDATION,
-                            [args.task],
-                            validset.labels_bincount())
+    print_data_distribution(SplitName.TRAIN,
+                            trainset.labels_bincount(),
+                            [args.task])
+    print_data_distribution(SplitName.VALIDATION,
+                            validset.labels_bincount(),
+                            [args.task])
     print_data_distribution(args.testset.upper(),
-                            [args.task],
-                            testset.labels_bincount())
+                            testset.labels_bincount(),
+                            [args.task])
     print("\n")
 
     # --------------------------------------------
@@ -151,7 +157,7 @@ if __name__ == "__main__":
         experiment.log_code("Model/ResNet.py")
         experiment.log_code("Model/Block.py")
 
-        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, args.task)
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME,  args.task, args.testset)
         train_csv_path, valid_csv_path, test_csv_path = csv_path
 
     else:
@@ -161,14 +167,14 @@ if __name__ == "__main__":
         train_csv_path = ""
 
     conf, auc = trainer.score(trainset, save_path=train_csv_path)
-    print_score(dataset_name=DatasetName.TRAIN,
+    print_score(dataset_name=SplitName.TRAIN,
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],
                 experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name=DatasetName.VALIDATION,
+    print_score(dataset_name=SplitName.VALIDATION,
                 task_list=[args.task],
                 conf_mat_list=[conf],
                 auc_list=[auc],

@@ -9,19 +9,20 @@
 
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
-from ArgParser import argument_parser
+
 from comet_ml import Experiment
-from Constant import BlockType, CS_CONFIG, DatasetName, DropType, \
-    Experimentation, ModelType, SharingUnits, SubNetDepth, Tasks
-from Data_manager.DatasetBuilder import build_datasets
-from Model.ResNet import ResNet
-from Model.SharedNet import SharedNet
 import torch
 from torchsummary import summary
-from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from typing import Final
-from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
+from ArgParser import argument_parser
+from Constant import BlockType, CS_CONFIG, DatasetName, DropType, Experimentation,\
+    ModelType, SharingUnits, SplitName, SubNetDepth, Tasks
+from DataManager.DatasetBuilder import build_datasets
+from Model.ResNet import ResNet
+from Model.SharedNet import SharedNet
+from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
+from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0
 LOAD_PATH: Final = "save/STL3D_NET/"  # Loading path of the single task model.
@@ -37,7 +38,7 @@ TOL: Final = 1.0  # The tolerance factor use by the trainer
 
 if __name__ == "__main__":
     args = argument_parser(Experimentation.SOFT_SHARING)
-
+    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMETS
     # --------------------------------------------
     #                SETUP TASK
     # --------------------------------------------
@@ -54,29 +55,37 @@ if __name__ == "__main__":
     else:
         config: Final = SubNetDepth.CONFIG3
 
-    if args.malignancy:
-        task_list.append(Tasks.MALIGNANCY)
-        num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
-        blocks_lists[Tasks.MALIGNANCY] = BlockType.PREACT
-
-    if args.subtype:
-        task_list.append(Tasks.SUBTYPE)
-        num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
-
-        if config[Tasks.SUBTYPE] == 34:
-            blocks_lists[Tasks.SUBTYPE] = BlockType.POSTACT
-        else:
-            blocks_lists[Tasks.SUBTYPE] = [BlockType.PREACT, BlockType.PREACT,
-                                           BlockType.POSTACT, BlockType.POSTACT]
+    if dataset_name is DatasetName.RCC:
+        assert not(args.are or args.lrf), "ARE and LRF tasks can't be select when RCC dataset is choose"
         if args.malignancy:
-            conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+            task_list.append(Tasks.MALIGNANCY)
+            num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
+            blocks_lists[Tasks.MALIGNANCY] = BlockType.PREACT
 
-    if args.grade:
-        task_list.append(Tasks.GRADE)
-        num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
-        blocks_lists[Tasks.GRADE] = BlockType.PREACT
-        if args.malignancy:
-            conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
+        if args.subtype:
+            task_list.append(Tasks.SUBTYPE)
+            num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
+
+            if config[Tasks.SUBTYPE] == 34:
+                blocks_lists[Tasks.SUBTYPE] = BlockType.POSTACT
+            else:
+                blocks_lists[Tasks.SUBTYPE] = [BlockType.PREACT, BlockType.PREACT,
+                                               BlockType.POSTACT, BlockType.POSTACT]
+            if args.malignancy:
+                conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+
+        if args.grade:
+            task_list.append(Tasks.GRADE)
+            num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
+            blocks_lists[Tasks.GRADE] = BlockType.PREACT
+            if args.malignancy:
+                conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
+    else:
+        assert args.are and args.lrf, "ARE and LRF tasks must be select when RCC dataset is choose"
+        for task in [Tasks.ARE, Tasks.LRF]:
+            task_list.append(task)
+            num_classes[task] = Tasks.CLASSIFICATION
+            blocks_lists[task] = BlockType.PREACT
 
     if len(task_list) < MIN_NUM_TASKS:
         raise Exception("You have to select at least two task.")
@@ -84,7 +93,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=task_list,
+    trainset, validset, testset = build_datasets(dataset_name=dataset_name,
+                                                 tasks=task_list,
                                                  testset_name=args.testset,
                                                  num_chan=args.num_chan_data,
                                                  split_seed=args.seed)
@@ -128,15 +138,15 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution(DatasetName.TRAIN,
-                            task_list,
-                            trainset.labels_bincount())
-    print_data_distribution(DatasetName.VALIDATION,
-                            task_list,
-                            validset.labels_bincount())
+    print_data_distribution(SplitName.TRAIN,
+                            trainset.labels_bincount(),
+                            [args.task])
+    print_data_distribution(SplitName.VALIDATION,
+                            validset.labels_bincount(),
+                            [args.task])
     print_data_distribution(args.testset.upper(),
-                            task_list,
-                            testset.labels_bincount())
+                            testset.labels_bincount(),
+                            [args.task])
     print("\n")
 
     # --------------------------------------------
@@ -200,21 +210,21 @@ if __name__ == "__main__":
         experiment.log_code("Trainer/MultiTaskTrainer.py")
         experiment.log_code("Model/SharedNet.py")
 
-        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, "_".join(task_list), args.testset)
         train_csv_path, valid_csv_path, test_csv_path = csv_path
     else:
         experiment = None
         train_csv_path = valid_csv_path = test_csv_path = ""
 
     conf, auc = trainer.score(trainset, save_path=train_csv_path)
-    print_score(dataset_name=DatasetName.TRAIN,
+    print_score(dataset_name=SplitName.TRAIN,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
                 experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name=DatasetName.VALIDATION,
+    print_score(dataset_name=SplitName.VALIDATION,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),

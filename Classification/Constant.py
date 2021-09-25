@@ -33,11 +33,10 @@ CS_CONFIG: Final = [
 ]
 
 
-class DatasetName:
-    TRAIN: Final = "TRAIN"
-    VALIDATION: Final = "VALIDATION"
-    TEST: Final = "TEST"
-    HOLDOUT: Final = "HOLD_OUT"
+@unique
+class DatasetName(Enum):
+    BMETS: Final = 1
+    RCC: Final = 2
 
 
 @unique
@@ -81,6 +80,13 @@ class SharingUnits(Enum):
     SLUICE: Final = 2
 
 
+class SplitName:
+    TRAIN: Final = "TRAIN"
+    VALIDATION: Final = "VALIDATION"
+    TEST: Final = "TEST"
+    HOLDOUT: Final = "HOLD_OUT"
+
+
 class SubNetDepth:
     CONFIG1: Final = {"malignancy": 18, "subtype": 18, "grade": 18}
     CONFIG2: Final = {"malignancy": 34, "subtype": 34, "grade": 34}
@@ -88,8 +94,10 @@ class SubNetDepth:
 
 
 class Tasks:
+    ARE: Final = "are"
+    GRADE: Final = "grade"
+    LRF: Final = "lrf"
     MALIGNANCY: Final = "malignancy"
     SUBTYPE: Final = "subtype"
-    GRADE: Final = "grade"
-    REGRESSION: Final = 1
     CLASSIFICATION: Final = 2
+    REGRESSION: Final = 1

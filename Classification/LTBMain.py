@@ -9,17 +9,16 @@
 
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
-from ArgParser import argument_parser
 from comet_ml import Experiment
-from Constant import DatasetName, DropType, Experimentation, LTBConfig, ModelType, Tasks
-from Data_manager.DatasetBuilder import build_datasets
-from Model.LTBResNet import LTBResNet
 import torch
-from torchsummary import summary
-from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
 from typing import Final
-from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
+from ArgParser import argument_parser
+from Constant import DatasetName, DropType, Experimentation, LTBConfig, ModelType, SplitName, Tasks
+from DataManager.DatasetBuilder import build_datasets
+from Model.LTBResNet import LTBResNet
+from Trainer.MultiTaskTrainer import MultiTaskTrainer as Trainer
+from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2  # Minimun number of tasks.
@@ -31,8 +30,10 @@ PROJECT_NAME: Final = "aug-2021-ltb"
 SAVE_PATH: Final = "save/LTB_NET.pth"  # Save path of the Hard Sharing experiment
 TOL: Final = 1.0  # The tolerance factor use by the trainer
 
+
 if __name__ == "__main__":
     args = argument_parser(Experimentation.LTB_RESNET)
+    dataset_name = DatasetName.RCC if args.dataset == "rcc" else DatasetName.BMETS
 
     # --------------------------------------------
     #                SETUP TASK
@@ -40,22 +41,28 @@ if __name__ == "__main__":
     task_list = []
     num_classes = {}
     conditional_prob = []
-
-    if args.malignancy:
-        task_list.append(Tasks.MALIGNANCY)
-        num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
-
-    if args.subtype:
-        task_list.append(Tasks.SUBTYPE)
-        num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
+    if dataset_name is DatasetName.RCC:
+        assert not(args.are or args.lrf), "ARE and LRF tasks can't be select when RCC dataset is choose"
         if args.malignancy:
-            conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+            task_list.append(Tasks.MALIGNANCY)
+            num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
 
-    if args.grade:
-        task_list.append(Tasks.GRADE)
-        num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
-        if args.malignancy:
-            conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
+        if args.subtype:
+            task_list.append(Tasks.SUBTYPE)
+            num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
+            if args.malignancy:
+                conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
+
+        if args.grade:
+            task_list.append(Tasks.GRADE)
+            num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
+            if args.malignancy:
+                conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
+    else:
+        assert args.are and args.lrf, "ARE and LRF tasks must be select when RCC dataset is choose"
+        for task in [Tasks.ARE, Tasks.LRF]:
+            task_list.append(task)
+            num_classes[task] = Tasks.CLASSIFICATION
 
     if args.config == 1:
         block_config = LTBConfig.CONFIG1
@@ -70,7 +77,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(tasks=task_list,
+    trainset, validset, testset = build_datasets(dataset_name=dataset_name,
+                                                 tasks=task_list,
                                                  testset_name=args.testset,
                                                  num_chan=args.num_chan_data,
                                                  split_seed=args.seed)
@@ -91,20 +99,18 @@ if __name__ == "__main__":
                     num_classes=num_classes,
                     tasks=task_list).to(args.device)
 
-    # summary(net, tuple(trainset[0]["sample"].size()))
-
     # --------------------------------------------
     #                SANITY CHECK
     # --------------------------------------------
-    print_data_distribution(DatasetName.TRAIN,
-                            task_list,
-                            trainset.labels_bincount())
-    print_data_distribution(DatasetName.VALIDATION,
-                            task_list,
-                            validset.labels_bincount())
+    print_data_distribution(SplitName.TRAIN,
+                            trainset.labels_bincount(),
+                            [args.task])
+    print_data_distribution(SplitName.VALIDATION,
+                            validset.labels_bincount(),
+                            [args.task])
     print_data_distribution(args.testset.upper(),
-                            task_list,
-                            testset.labels_bincount())
+                            testset.labels_bincount(),
+                            [args.task])
     print("\n")
 
     # --------------------------------------------
@@ -201,21 +207,21 @@ if __name__ == "__main__":
         experiment.log_code("Model/LTBResNet.py")
         experiment.log_code("Model/Module.py")
 
-        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, args.testset, "_".join(task_list))
+        csv_path = get_predict_csv_path(MODEL_NAME, PROJECT_NAME, "_".join(task_list), args.testset)
         train_csv_path, valid_csv_path, test_csv_path = csv_path
     else:
         experiment = None
         train_csv_path = valid_csv_path = test_csv_path = ""
     print(f"{parents_list=}")
     conf, auc = trainer.score(trainset, save_path=train_csv_path)
-    print_score(dataset_name=DatasetName.TRAIN,
+    print_score(dataset_name=SplitName.TRAIN,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),
                 experiment=experiment)
 
     conf, auc = trainer.score(validset, save_path=valid_csv_path)
-    print_score(dataset_name=DatasetName.VALIDATION,
+    print_score(dataset_name=SplitName.VALIDATION,
                 task_list=list(auc.keys()),
                 conf_mat_list=list(conf.values()),
                 auc_list=list(auc.values()),

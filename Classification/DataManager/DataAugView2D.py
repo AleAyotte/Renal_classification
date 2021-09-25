@@ -3,20 +3,21 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 02/2021
+    @Last modification: 09/2021
 
     @Description:       This file is used to visualize the transformation on the 2D data. Usefull to the determine the
                         DataAugmentation hyperparameter that should be used during the training.
 """
 
-from RenalDataset import RenalDataset
 from matplotlib import pyplot as plt
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand2DElasticd
 
+from RenalDataset import RenalDataset
+
 
 if __name__ == "__main__":
-    DATA_PATH = "dataset_2D/Data_with_N4/grade.hdf5"
+    DATA_PATH = "DATA/2D_with_N4/grade.hdf5"
     # --------------------------------------------
     #              DATA AUGMENTATION
     # --------------------------------------------
@@ -38,8 +39,8 @@ if __name__ == "__main__":
         ToTensord(keys=["t1", "t2"])
     ])
 
-    trainset = RenalDataset(DATA_PATH, transform=transform, imgs_keys=["t1", "t2"], tasks=["outcome"])
-    testset = RenalDataset(DATA_PATH, transform=test_transform, imgs_keys=["t1", "t2"], tasks=["outcome"])
+    trainset = RenalDataset(hdf5_filepath=DATA_PATH, transform=transform, imgs_keys=["t1", "t2"], tasks=["outcome"])
+    testset = RenalDataset(hdf5_filepath=DATA_PATH, transform=test_transform, imgs_keys=["t1", "t2"], tasks=["outcome"])
 
     for i in range(len(trainset)):
         fig = plt.figure(figsize=(24, 30))

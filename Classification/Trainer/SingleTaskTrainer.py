@@ -14,8 +14,6 @@ from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
 from sklearn.metrics import auc, confusion_matrix, roc_curve
-from Trainer.Trainer import Trainer
-from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 import torch
 from torch import nn
 from torch.cuda import amp
@@ -25,8 +23,10 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
+from Trainer.Trainer import Trainer
+from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 
-ALL_TASK = ["malignancy", "subtype", "grade", "ssign"]
+ALL_TASK = ["malignancy", "subtype", "grade", "are", "lrf"]
 
 
 class SingleTaskTrainer(Trainer):
@@ -101,7 +101,7 @@ class SingleTaskTrainer(Trainer):
                            at each iteration. (Default=all)
         """
         assert task.lower() in ALL_TASK, "Task should be one of those options: " \
-                                         "'malignancy', 'subtype', 'grade', 'ssign'"
+                                         "'malignancy', 'subtype', 'grade', 'are', 'lrf'"
 
         super().__init__(tasks=[task],
                          num_classes={task: num_classes},

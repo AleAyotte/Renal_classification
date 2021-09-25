@@ -10,11 +10,7 @@
 """
 
 from abc import ABC, abstractmethod
-from Constant import ModelType
 import csv
-from Data_manager.RenalDataset import RenalDataset
-from Model.NeuralNet import NeuralNet
-from Model.ResNet_2D import ResNet2D
 from monai.optimizers import Novograd
 import numpy as np
 import torch
@@ -25,9 +21,14 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-from Trainer.Utils import find_optimal_cutoff
 from typing import Dict, List, Sequence, Tuple, Union
 
+from Constant import ModelType
+from DataManager.BrainDataset import BrainDataset
+from DataManager.RenalDataset import RenalDataset
+from Model.NeuralNet import NeuralNet
+from Model.ResNet_2D import ResNet2D
+from Trainer.Utils import find_optimal_cutoff
 
 DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
 MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
@@ -176,8 +177,8 @@ class Trainer(ABC):
 
     def fit(self,
             model: Union[NeuralNet, ResNet2D],
-            trainset: RenalDataset,
-            validset: RenalDataset,
+            trainset: Union[BrainDataset, RenalDataset],
+            validset: Union[BrainDataset, RenalDataset],
             batch_size: int = 32,
             device: str = "cuda:0",
             eps: float = 1e-4,
@@ -331,7 +332,7 @@ class Trainer(ABC):
         self.__get_threshold(train_loader)
 
     def score(self,
-              testset: RenalDataset,
+              testset: Union[BrainDataset, RenalDataset],
               save_path: str = "") -> Union[Tuple[Sequence[np.array], float],
                                             Tuple[Sequence[np.array], Sequence[float]],
                                             Tuple[np.array, float]]:
@@ -356,7 +357,7 @@ class Trainer(ABC):
         """
         Take a data loader and compute the prediction for every data in the dataloader.
 
-        :param dt_loader: A torch.Dataloader that use a RenalDataset object.
+        :param dt_loader: A torch.Dataloader that use a BrainDataset or a RenalDataset object.
         :return: A dictionnary that contain a list of prediction per task and a dictionnary that contain a
                  list of labels per task.
         """
@@ -469,10 +470,10 @@ class Trainer(ABC):
 
     def __prepare_dataloarder(self,
                               batch_size: int,
-                              trainset: RenalDataset,
-                              validset: RenalDataset) -> Tuple[DataLoader, DataLoader]:
+                              trainset: Union[BrainDataset, RenalDataset],
+                              validset: Union[BrainDataset, RenalDataset]) -> Tuple[DataLoader, DataLoader]:
         """
-        Transform the RenalDataset into dataloader.
+        Transform a BrainDataset or a RenalDataset into dataloader.
 
         :param batch_size: The batch size that will be used during the training. (Default=32).
         :param trainset: The dataset that will be used to train the model.

@@ -10,17 +10,16 @@
 
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
-
-from Constant import BlockType, DropType
-from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
-from Model.Module import Mixup, UncertaintyLoss
 from monai.networks.blocks.convolutions import Convolution
-from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
 from typing import Final, List, Sequence, Tuple, Type, Union
 
+from Constant import BlockType, DropType
+from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
+from Model.Module import Mixup, UncertaintyLoss
+from Model.NeuralNet import NeuralNet, init_weights
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
