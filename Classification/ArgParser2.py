@@ -1,0 +1,310 @@
+"""
+    @file:              ArgParser.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     06/2021
+    @Last modification: 09/2021
+
+    @Description:       Contain the argument parser that will be used by every Main file.
+"""
+
+import argparse
+
+
+def argument_parser() -> argparse.Namespace:
+    """
+    Get a list of argument for a experiment.
+
+    :return: An Namespace that contain the main argument for the experimentation.
+    """
+
+    # --------------------------------------------
+    #             COMMUN PARAMETERS
+    # --------------------------------------------
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--b_size', type=int, default=32,
+                        help="The batch size.")
+    parser.add_argument('--device', type=str, default="cuda:0",
+                        help="The device on which the model will be trained.")
+    parser.add_argument('--drop_rate', type=float, default=0,
+                        help="The drop rate hyperparameter used to configure the dropout layer. See drop_type")
+    parser.add_argument('--early_stopping', type=bool, default=False, nargs='?', const=True,
+                        help="If true, the training will be stop after the third of the training if the model did not "
+                             "achieve at least 50% validation accuracy for at least one epoch.")
+    parser.add_argument('--eps', type=float, default=1e-3,
+                        help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
+    parser.add_argument('--eta_min', type=float, default=1e-6,
+                        help="The minimal value of the learning rate.")
+    parser.add_argument('--grad_clip', type=float, default=0,
+                        help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
+                             "the training.")
+    parser.add_argument('--loss', type=str, default="ce",
+                        help="The loss that will be use to train the model. 'ce' == cross entropy loss, "
+                             "'bce' == binary cross entropoy, 'focal' = focal loss",
+                        choices=["ce", "bce", "focal"])
+    parser.add_argument('--lr', type=float, default=1e-3,
+                        help="The initial learning rate")
+    parser.add_argument('--l2', type=float, default=1e-4,
+                        help="The l2 regularization parameters.")
+    parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True,
+                        help="If true, the model will be trained with mixed precision. "
+                             "Mixed precision reduce memory consumption on GPU but reduce training speed.")
+    parser.add_argument('--num_cumu_batch', type=int, default=1,
+                        help="The number of batch that will be cumulated before updating the weight of the model.")
+    parser.add_argument('--num_epoch', type=int, default=100,
+                        help="The number of training epoch.")
+    parser.add_argument('--optim', type=str, default="adam",
+                        help="The optimizer that will be used to train the model.",
+                        choices=["adam", "novograd", "sgd"])
+    parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
+                        help="If true, load the last saved model and continue the training.")
+    parser.add_argument('--seed', type=int, default=None,
+                        help="The seed that will be used to split the data.")
+    parser.add_argument('--testset', type=str, default="test",
+                        help="The name of the testset. If testset=='test' then a random stratified testset will be "
+                             "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
+                             "be loaded",
+                        choices=["test", "hold_out"])
+    parser.add_argument('--track_mode', type=str, default="all",
+                        help="Determine the quantity of training statistics that will be saved with tensorboard. "
+                             "If low, the training loss will be saved only at each epoch and not at each iteration.",
+                        choices=["all", "low", "none"])
+    parser.add_argument('--weights', type=str, default="balanced",
+                        help="The weight that will be applied on each class in the training loss. If balanced, "
+                             "The classes weights will be ajusted in the training.",
+                        choices=["flat", "balanced"])
+    parser.add_argument('--worker', type=int, default=0,
+                        help="Number of worker that will be used to preprocess data.")
+
+    subparser = parser.add_subparsers(help="The experiment that we want to do.")
+
+    # --------------------------------------------
+    #                SINGLE TASK 2D
+    # --------------------------------------------
+    stl2d_parser = subparser.add_parser("stl_2d", help="Parser of the STL 2D experimentation")
+    stl2d_parser.add_argument('--task', type=str, default="malignancy",
+                              help="The task on which the model will be train.",
+                              choices=["malignancy", "subtype", "grade"])
+
+    # --------------------------------------------
+    #                SINGLE TASK 3D
+    # --------------------------------------------
+    stl3d_parser = subparser.add_parser("stl_3d", help="Parser of the STL 3D experimentation")
+
+    stl3d_parser.add_argument('--activation', type=str, default='ReLU',
+                              help="The activation function use in the NeuralNet.",
+                              choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+    stl3d_parser.add_argument('--config', type=int, default=0, choices=[0, 1, 2, 3, 4])
+    stl3d_parser.add_argument('--dataset', type=str, default="rcc", choices=["bmets", "rcc"],
+                              help="The dataset that will be load.")
+    stl3d_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
+                              help="The number of layer in the ResNet.")
+    stl3d_parser.add_argument('--drop_type', type=str, default="linear",
+                              help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                                   "Else if, drop_type == 'linear' the drop rate will grow linearly "
+                                   "at each dropout layer from 0 to 'drop_rate'.",
+                              choices=["flat", "linear"])
+    stl3d_parser.add_argument('--groups', type=int, default=1)
+    stl3d_parser.add_argument('--in_channels', type=int, default=16,
+                              help="Number of channels after the first convolution.")
+    stl3d_parser.add_argument('--mixup', type=float, action='store', nargs="*", default=[0, 2, 2, 0],
+                              help="The alpha parameter of each mixup module. Those alpha parameter are used to sample "
+                                   "the dristribution Beta(alpha, alpha).")
+    stl3d_parser.add_argument('--mode', type=str, default="standard",
+                              help="If 'mode' == 'Mixup', the model will be train with manifold mixup. Else no mixup.",
+                              choices=["standard", "Mixup"])
+    stl3d_parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                              help="The number of channels of the input images.")
+    stl3d_parser.add_argument('--task', type=str, default="malignancy",
+                              help="The task on which the model will be train.",
+                              choices=["are", "grade", "lrf", "malignancy", "subtype"])
+    stl3d_parser.add_argument('--warm_up', type=int, default=0,
+                              help="Number of epoch before activating the mixup if 'mode' == mixup")
+
+    # --------------------------------------------
+    #               HARD SHARED 3D
+    # --------------------------------------------
+    hs_parser = subparser.add_parser("hard_sharing", help="Parser of the hard sharing experimentation")
+    hs_parser.add_argument('--activation', type=str, default='ReLU',
+                           help="The activation function use in the NeuralNet.",
+                           choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+    hs_parser.add_argument('--are', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the are task.")
+    hs_parser.add_argument('--dataset', type=str, default="rcc", choices=["bmets", "rcc"],
+                           help="The dataset that will be load.")
+    hs_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
+                           help="The config used to determine the depth of each sub-network. The depth of the shared "
+                                "layers is determined by the most commun depth (see Constant.py SubNetDepth).")
+    hs_parser.add_argument('--drop_type', type=str, default="linear",
+                           help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                                "Else if, drop_type == 'linear' the drop rate will grow linearly  "
+                                "at each dropout layer from 0 to 'drop_rate'.",
+                           choices=["flat", "linear"])
+    hs_parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the grade task.")
+    hs_parser.add_argument('--in_channels', type=int, default=16,
+                           help="Number of channels after the first convolution.")
+    hs_parser.add_argument('--lrf', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the lrf task.")
+    hs_parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the malignancy task.")
+    hs_parser.add_argument('--mtl_loss', type=str, default="uncertainty",
+                           help="Indicate the multi-task loss that will be used to train the network."
+                                " Options = (uncertainty, uniform).",
+                           choices=["uncertainty", "uniform"])
+    hs_parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                           help="The number of channels of the input images.")
+    hs_parser.add_argument('--split_level', type=int, default=4,
+                           help="At which level the multi level resnet should split into sub net.\n"
+                                "1: After the first convolution, \n2: After the first residual level, \n"
+                                "3: After the second residual level, \n4: After the third residual level, \n"
+                                "5: After the last residual level so just before the fully connected layers.")
+    hs_parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the subtype task.")
+
+    # --------------------------------------------
+    #               SOFT SHARING 3D
+    # --------------------------------------------
+    ss_parser = subparser.add_parser("soft_sharing", help="Parser of the soft_sharing experimentation")
+    ss_parser.add_argument('--activation', type=str, default='ReLU',
+                           help="The activation function use in the NeuralNet.",
+                           choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+    ss_parser.add_argument('--are', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the are task.")
+    ss_parser.add_argument('--c', type=float, default=0.85,
+                           help="The conservation parameter of the Cross-Stich Unit")
+    ss_parser.add_argument('--cs_config', type=int, default=1, choices=[0, 1, 2, 3],
+                           help="The config used to the position of the cross-stitch module if sharing_unit = "
+                                "cross_stitch (see Constant.py CS_CONFIG).")
+    ss_parser.add_argument('--dataset', type=str, default="rcc", choices=["bmets", "rcc"],
+                           help="The dataset that will be load.")
+    ss_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
+                           help="The config used to determine the depth of each sub-network "
+                                "(see Constant.py SubNetDepth).")
+    ss_parser.add_argument('--drop_type', type=str, default="linear",
+                           help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                                "Else if, drop_type == 'linear' the drop rate will grow linearly  "
+                                "at each dropout layer from 0 to 'drop_rate'.",
+                           choices=["flat", "linear"])
+    ss_parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the grade task.")
+    ss_parser.add_argument('--groups', type=int, default=1)
+    ss_parser.add_argument('--in_channels', type=int, default=16,
+                           help="Number of channels after the first convolution.")
+    ss_parser.add_argument('--lrf', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the lrf task.")
+    ss_parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the malignancy task.")
+    ss_parser.add_argument('--mtl_loss', type=str, default="uncertainty",
+                           help="Indicate the multi-task loss that will be used to train the network."
+                                " Options = (uncertainty, uniform).",
+                           choices=["uncertainty", "uniform"])
+    ss_parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                           help="The number of channels of the input images.")
+    ss_parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
+                           help="If True, then the SharedNet will be create with two subnet that has been pretrained "
+                                "on their corresponding task. Also, the shared_lr will be equal to lr * 100 and "
+                                "shared_eta_min will be equal to eta_min * 100.")
+    ss_parser.add_argument('--sharing_l2', type=float, default=3e-6,
+                           help="The l2 penalty coefficient applied to the shared module.")
+    ss_parser.add_argument('--sharing_unit', type=str, default="cross_stitch",
+                           help="The sharing unit that will be used to create the SharedNet. The shared unit allow "
+                                "information transfer between multiple subnets",
+                           choices=["sluice", "cross_stitch"])
+    ss_parser.add_argument('--spread', type=float, default=0.10,
+                           help="The spread parameter of the Cross-Stitch Units.")
+    ss_parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
+                           help="Train the model on the subtype task.")
+
+    # --------------------------------------------
+    #                   MTAN 3D
+    # --------------------------------------------
+    mtan_parser = subparser.add_parser("mtan", help="Parser of the MTAN experimentation")
+    mtan_parser.add_argument('--activation', type=str, default='ReLU',
+                             help="The activation function use in the NeuralNet.",
+                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+    mtan_parser.add_argument('--are', type=bool, default=False, nargs='?', const=True,
+                             help="Train the model on the are task.")
+    mtan_parser.add_argument('--att_block', type=str, default="spatial",
+                             help="Indicate the attention block type that will be used during training."
+                                  " Options = (channel, spatialm cbam).",
+                             choices=["channel", "spatial", "cbam"])
+    mtan_parser.add_argument('--dataset', type=str, default="rcc", choices=["bmets", "rcc"],
+                             help="The dataset that will be load.")
+    mtan_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
+                             help="The number of layer in the ResNet.")
+    mtan_parser.add_argument('--drop_type', type=str, default="linear",
+                             help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                                  "Else if, drop_type == 'linear' the drop rate will grow linearly  "
+                                  "at each dropout layer from 0 to 'drop_rate'.",
+                             choices=["flat", "linear"])
+    mtan_parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                             help="Train the model on the grade task.")
+    mtan_parser.add_argument('--in_channels', type=int, default=16,
+                             help="Number of channels after the first convolution.")
+    mtan_parser.add_argument('--lrf', type=bool, default=False, nargs='?', const=True,
+                             help="Train the model on the lrf task.")
+    mtan_parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                             help="Train the model on the malignancy task.")
+    mtan_parser.add_argument('--mtl_loss', type=str, default="uncertainty",
+                             help="Indicate the multi-task loss that will be used to train the network."
+                                  " Options = (uncertainty, uniform).",
+                             choices=["uncertainty", "uniform"])
+    mtan_parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                             help="The number of channels of the input images.")
+    mtan_parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
+                             help="Train the model on the subtype task.")
+
+    # --------------------------------------------
+    #               LTB RESNET 3D
+    # --------------------------------------------
+    ltb_parser = subparser.add_parser("ltb", help="Parser of the ltb experimentation")
+    ltb_parser.add_argument('--activation', type=str, default='ReLU',
+                            help="The activation function use in the NeuralNet.",
+                            choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
+    ltb_parser.add_argument('--are', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the are task.")
+    ltb_parser.add_argument('--branch_eta', type=float, default=1e-6,
+                            help="The filnal learning rate parameter of the gumbel softmax block.")
+    ltb_parser.add_argument('--branch_lr', type=float, default=1e-4,
+                            help="The learning rate parameter of the gumbel softmax block.")
+    ltb_parser.add_argument('--branch_l2', type=float, default=0,
+                            help="The l2 penalty of the gumbel softmax block.")
+    ltb_parser.add_argument('--config', type=int, default=2, choices=[1, 2, 3],
+                            help="The config used to determine the that will be used in the LTBResNet "
+                                 "(see Constant.py LTBConfig).")
+    ltb_parser.add_argument('--dataset', type=str, default="rcc", choices=["bmets", "rcc"],
+                            help="The dataset that will be load.")
+    ltb_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
+                            help="The number of layer in the ResNet.")
+    ltb_parser.add_argument('--drop_type', type=str, default="linear",
+                            help="If drop_type == 'flat' every dropout layer will have the same drop rate. "
+                                 "Else if, drop_type == 'linear' the drop rate will grow linearly  "
+                                 "at each dropout layer from 0 to 'drop_rate'.",
+                            choices=["flat", "linear"])
+    ltb_parser.add_argument('--grade', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the grade task.")
+    ltb_parser.add_argument('--in_channels', type=int, default=16,
+                            help="Number of channels after the first convolution.")
+    ltb_parser.add_argument('--lrf', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the lrf task.")
+    ltb_parser.add_argument('--malignancy', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the malignancy task.")
+    ltb_parser.add_argument('--mtl_loss', type=str, default="uncertainty",
+                            help="Indicate the multi-task loss that will be used to train the network."
+                                 " Options = (uncertainty, uniform).",
+                            choices=["uncertainty", "uniform"])
+    ltb_parser.add_argument('--num_chan_data', type=int, default=4, choices=[3, 4],
+                            help="The number of channels of the input images.")
+    ltb_parser.add_argument('--branch_num_epoch', type=int, default=200,
+                            help="The number of training epoch that is use to find the optimal architecture.")
+    ltb_parser.add_argument('--subtype', type=bool, default=False, nargs='?', const=True,
+                            help="Train the model on the subtype task.")
+    ltb_parser.add_argument('--tau', type=float, default=0.1,
+                            help="The tau parameter of the gumbel softmax block.")
+    ltb_parser.add_argument('--warm_up', type=int, default=5,
+                            help="Number of epoch before training the branching unit.")
+    ltb_parser.add_argument('--width', type=int, default=2, choices=[2, 3, 4],
+                            help="The number of parallel layers (possible path) in the Learn-To-Branch model.")
+
+    return parser.parse_args()
