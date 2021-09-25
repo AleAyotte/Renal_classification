@@ -22,66 +22,71 @@ def argument_parser() -> argparse.Namespace:
     #             COMMUN PARAMETERS
     # --------------------------------------------
     parser = argparse.ArgumentParser()
-    parser.add_argument('--b_size', type=int, default=32,
-                        help="The batch size.")
-    parser.add_argument('--device', type=str, default="cuda:0",
-                        help="The device on which the model will be trained.")
-    parser.add_argument('--drop_rate', type=float, default=0,
-                        help="The drop rate hyperparameter used to configure the dropout layer. See drop_type")
-    parser.add_argument('--early_stopping', type=bool, default=False, nargs='?', const=True,
-                        help="If true, the training will be stop after the third of the training if the model did not "
-                             "achieve at least 50% validation accuracy for at least one epoch.")
-    parser.add_argument('--eps', type=float, default=1e-3,
-                        help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
-    parser.add_argument('--eta_min', type=float, default=1e-6,
-                        help="The minimal value of the learning rate.")
-    parser.add_argument('--grad_clip', type=float, default=0,
-                        help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient during "
-                             "the training.")
-    parser.add_argument('--loss', type=str, default="ce",
-                        help="The loss that will be use to train the model. 'ce' == cross entropy loss, "
-                             "'bce' == binary cross entropoy, 'focal' = focal loss",
-                        choices=["ce", "bce", "focal"])
-    parser.add_argument('--lr', type=float, default=1e-3,
-                        help="The initial learning rate")
-    parser.add_argument('--l2', type=float, default=1e-4,
-                        help="The l2 regularization parameters.")
-    parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True,
-                        help="If true, the model will be trained with mixed precision. "
-                             "Mixed precision reduce memory consumption on GPU but reduce training speed.")
-    parser.add_argument('--num_cumu_batch', type=int, default=1,
-                        help="The number of batch that will be cumulated before updating the weight of the model.")
-    parser.add_argument('--num_epoch', type=int, default=100,
-                        help="The number of training epoch.")
-    parser.add_argument('--optim', type=str, default="adam",
-                        help="The optimizer that will be used to train the model.",
-                        choices=["adam", "novograd", "sgd"])
-    parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
-                        help="If true, load the last saved model and continue the training.")
-    parser.add_argument('--seed', type=int, default=None,
-                        help="The seed that will be used to split the data.")
-    parser.add_argument('--testset', type=str, default="test",
-                        help="The name of the testset. If testset=='test' then a random stratified testset will be "
-                             "sampled from the training set. Else if hold_out_set is choose, a predefined testset will"
-                             "be loaded",
-                        choices=["test", "hold_out"])
-    parser.add_argument('--track_mode', type=str, default="all",
-                        help="Determine the quantity of training statistics that will be saved with tensorboard. "
-                             "If low, the training loss will be saved only at each epoch and not at each iteration.",
-                        choices=["all", "low", "none"])
-    parser.add_argument('--weights', type=str, default="balanced",
-                        help="The weight that will be applied on each class in the training loss. If balanced, "
-                             "The classes weights will be ajusted in the training.",
-                        choices=["flat", "balanced"])
-    parser.add_argument('--worker', type=int, default=0,
-                        help="Number of worker that will be used to preprocess data.")
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument('--b_size', type=int, default=32,
+                               help="The batch size.")
+    parent_parser.add_argument('--device', type=str, default="cuda:0",
+                               help="The device on which the model will be trained.")
+    parent_parser.add_argument('--drop_rate', type=float, default=0,
+                               help="The drop rate hyperparameter used to configure the dropout layer. See drop_type")
+    parent_parser.add_argument('--early_stopping', type=bool, default=False, nargs='?', const=True,
+                               help="If true, the training will be stop after the third of the training if the model"
+                                    " did not achieve at least 50%% validation accuracy for at least one epoch.")
+    parent_parser.add_argument('--eps', type=float, default=1e-3,
+                               help="The epsilon hyperparameter of the Adam optimizer and the Novograd optimizer.")
+    parent_parser.add_argument('--eta_min', type=float, default=1e-6,
+                               help="The minimal value of the learning rate.")
+    parent_parser.add_argument('--grad_clip', type=float, default=0,
+                               help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient"
+                                    " during the training.")
+    parent_parser.add_argument('--loss', type=str, default="ce",
+                               help="The loss that will be use to train the model. 'ce' == cross entropy loss, "
+                                    "'bce' == binary cross entropoy, 'focal' = focal loss",
+                               choices=["ce", "bce", "focal"])
+    parent_parser.add_argument('--lr', type=float, default=1e-3,
+                               help="The initial learning rate")
+    parent_parser.add_argument('--l2', type=float, default=1e-4,
+                               help="The l2 regularization parameters.")
+    parent_parser.add_argument('--mixed_precision', type=bool, default=False, nargs='?', const=True,
+                               help="If true, the model will be trained with mixed precision. "
+                                    "Mixed precision reduce memory consumption on GPU but reduce training speed.")
+    parent_parser.add_argument('--num_cumu_batch', type=int, default=1,
+                               help="The number of batch that will be cumulated before updating the weight of "
+                                    "the model.")
+    parent_parser.add_argument('--num_epoch', type=int, default=100,
+                               help="The number of training epoch.")
+    parent_parser.add_argument('--optim', type=str, default="adam",
+                               help="The optimizer that will be used to train the model.",
+                               choices=["adam", "novograd", "sgd"])
+    parent_parser.add_argument('--retrain', type=bool, default=False, nargs='?', const=True,
+                               help="If true, load the last saved model and continue the training.")
+    parent_parser.add_argument('--seed', type=int, default=None,
+                               help="The seed that will be used to split the data.")
+    parent_parser.add_argument('--testset', type=str, default="test",
+                               help="The name of the testset. If testset=='test' then a random stratified testset "
+                                    "will be sampled from the training set. Else if hold_out_set is choose, a "
+                                    "predefined testset will be loaded",
+                               choices=["test", "hold_out"])
+    parent_parser.add_argument('--track_mode', type=str, default="all",
+                               help="Determine the quantity of training statistics that will be saved with "
+                                    "tensorboard. If low, the training loss will be saved only at each epoch and not "
+                                    "at each iteration.",
+                               choices=["all", "low", "none"])
+    parent_parser.add_argument('--weights', type=str, default="balanced",
+                               help="The weight that will be applied on each class in the training loss. If balanced, "
+                                    "The classes weights will be ajusted in the training.",
+                               choices=["flat", "balanced"])
+    parent_parser.add_argument('--worker', type=int, default=0,
+                               help="Number of worker that will be used to preprocess data.")
 
-    subparser = parser.add_subparsers(help="The experiment that we want to do.")
+    subparser = parser.add_subparsers(title="experiment", dest="experiment",
+                                      help="The experiment that will be done.",  required=True)
 
     # --------------------------------------------
     #                SINGLE TASK 2D
     # --------------------------------------------
-    stl2d_parser = subparser.add_parser("stl_2d", help="Parser of the STL 2D experimentation")
+    stl2d_parser = subparser.add_parser("stl_2d", help="Parser of the STL 2D experimentation",
+                                        parents=[parent_parser])
     stl2d_parser.add_argument('--task', type=str, default="malignancy",
                               help="The task on which the model will be train.",
                               choices=["malignancy", "subtype", "grade"])
@@ -89,7 +94,8 @@ def argument_parser() -> argparse.Namespace:
     # --------------------------------------------
     #                SINGLE TASK 3D
     # --------------------------------------------
-    stl3d_parser = subparser.add_parser("stl_3d", help="Parser of the STL 3D experimentation")
+    stl3d_parser = subparser.add_parser("stl_3d", help="Parser of the STL 3D experimentation",
+                                        parents=[parent_parser])
 
     stl3d_parser.add_argument('--activation', type=str, default='ReLU',
                               help="The activation function use in the NeuralNet.",
@@ -124,7 +130,9 @@ def argument_parser() -> argparse.Namespace:
     # --------------------------------------------
     #               HARD SHARED 3D
     # --------------------------------------------
-    hs_parser = subparser.add_parser("hard_sharing", help="Parser of the hard sharing experimentation")
+    hs_parser = subparser.add_parser("hard_sharing", help="Parser of the hard sharing experimentation",
+                                     parents=[parent_parser])
+
     hs_parser.add_argument('--activation', type=str, default='ReLU',
                            help="The activation function use in the NeuralNet.",
                            choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
@@ -165,7 +173,9 @@ def argument_parser() -> argparse.Namespace:
     # --------------------------------------------
     #               SOFT SHARING 3D
     # --------------------------------------------
-    ss_parser = subparser.add_parser("soft_sharing", help="Parser of the soft_sharing experimentation")
+    ss_parser = subparser.add_parser("soft_sharing", help="Parser of the soft_sharing experimentation",
+                                     parents=[parent_parser])
+
     ss_parser.add_argument('--activation', type=str, default='ReLU',
                            help="The activation function use in the NeuralNet.",
                            choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
@@ -219,7 +229,9 @@ def argument_parser() -> argparse.Namespace:
     # --------------------------------------------
     #                   MTAN 3D
     # --------------------------------------------
-    mtan_parser = subparser.add_parser("mtan", help="Parser of the MTAN experimentation")
+    mtan_parser = subparser.add_parser("mtan", help="Parser of the MTAN experimentation",
+                                       parents=[parent_parser])
+
     mtan_parser.add_argument('--activation', type=str, default='ReLU',
                              help="The activation function use in the NeuralNet.",
                              choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
@@ -258,7 +270,9 @@ def argument_parser() -> argparse.Namespace:
     # --------------------------------------------
     #               LTB RESNET 3D
     # --------------------------------------------
-    ltb_parser = subparser.add_parser("ltb", help="Parser of the ltb experimentation")
+    ltb_parser = subparser.add_parser("ltb", help="Parser of the ltb experimentation",
+                                      parents=[parent_parser])
+
     ltb_parser.add_argument('--activation', type=str, default='ReLU',
                             help="The activation function use in the NeuralNet.",
                             choices=['ReLU', 'PReLU', 'LeakyReLU', 'Swish', 'ELU'])
