@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 08/2021
+    @Last modification: 09/2021
 
     @Description:       Contain the class SingleTaskTrainer which inherit from the class Trainer. This class is used
                         to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
@@ -76,7 +76,7 @@ class SingleTaskTrainer(Trainer):
                  classes_weights: str = "balanced",
                  save_path: str = "",
                  track_mode: str = "all",
-                 task="malignancy"):
+                 task: str = "malignancy"):
         """
         The constructor of the trainer class. 
 
