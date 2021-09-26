@@ -45,14 +45,18 @@ class DropType(Enum):
     LINEAR: Final = 2
 
 
-@unique
+# Some of
 class Experimentation(Enum):
     SINGLE_TASK_2D: Final = 1
+    STL_2D: Final = 1
     SINGLE_TASK_3D: Final = 2
+    STL_3D: Final = 2
     HARD_SHARING: Final = 3
+    HS: Final = 3
     SOFT_SHARING: Final = 4
+    SS: Final = 4
     MTAN: Final = 5
-    LTB_RESNET: Final = 6
+    LTB: Final = 6
 
 
 @unique
