@@ -17,12 +17,15 @@ def argument_parser() -> argparse.Namespace:
 
     :return: An Namespace that contain the main argument for the experimentation.
     """
+    parser = argparse.ArgumentParser()
+    subparser = parser.add_subparsers(title="experiment", dest="experiment",
+                                      help="The experiment that will be done.", required=True)
 
     # --------------------------------------------
     #             COMMUN PARAMETERS
     # --------------------------------------------
-    parser = argparse.ArgumentParser()
     parent_parser = argparse.ArgumentParser(add_help=False)
+    
     parent_parser.add_argument('--b_size', type=int, default=32,
                                help="The batch size.")
     parent_parser.add_argument('--device', type=str, default="cuda:0",
@@ -78,9 +81,6 @@ def argument_parser() -> argparse.Namespace:
                                choices=["flat", "balanced"])
     parent_parser.add_argument('--worker', type=int, default=0,
                                help="Number of worker that will be used to preprocess data.")
-
-    subparser = parser.add_subparsers(title="experiment", dest="experiment",
-                                      help="The experiment that will be done.",  required=True)
 
     # --------------------------------------------
     #                SINGLE TASK 2D
