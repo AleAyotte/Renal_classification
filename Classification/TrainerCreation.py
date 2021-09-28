@@ -1,7 +1,15 @@
+"""
+    @file:              TrainerCreation.py
+    @Author:            Alexandre Ayotte
+
+    @Creation Date:     09/2021
+    @Last modification: 09/2021
+
+    @Description:       Contain the functions that will build the trainers for the different experiments.
+"""
 import argparse
 import os
-import torch
-from typing import Dict, Final, List, Optional, Tuple, Union
+from typing import Dict, Final, List, Optional, Union
 
 from Constant import Experimentation, ModelType
 from Trainer.SingleTaskTrainer import SingleTaskTrainer as STLTrainer
@@ -19,7 +27,18 @@ def create_trainer(args: argparse.Namespace,
                    num_classes: Dict[str, int],
                    tasks_list: List[str],
                    conditional_prob: Optional[List[List[str]]] = None) -> Union[STLTrainer, MTLTrainer]:
+    """
+    Create a SingleTaskTrainer or a MultiTaskTrainer according to the given argument and the experimentation type.
 
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param experimentation: Indicate the type of experimentation that will be run. (See Constant.py)
+    :param model_type: The model type that will be train. (See Constant.py)
+    :param num_classes: A dictionary that indicate the number of classes for each task.
+    :param tasks_list: A list of every task on which the model will be train.
+    :param conditional_prob: A list of pairs, where the pair A, B represent the name of task from which we want
+                             to compute the conditional probability P(A|B).
+    :return: A trainer that can be use to train a model.
+    """
     # Single task experimentation
     if experimentation in [Experimentation.STL_2D, Experimentation.STL_3D]:
 

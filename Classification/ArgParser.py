@@ -15,7 +15,7 @@ def argument_parser() -> argparse.Namespace:
     """
     Get a list of argument for a experiment.
 
-    :return: An Namespace that contain the main argument for the experimentation.
+    :return: A Namespace that contain the main argument for the experimentation.
     """
     parser = argparse.ArgumentParser()
     subparser = parser.add_subparsers(title="experiment", dest="experiment",

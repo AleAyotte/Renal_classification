@@ -6,8 +6,6 @@
     @Last modification: 09/2021
 
     @Description:       Contain the functions that will build the models for the different experiments.
-                        (malignancy, subtype and grade prediction).
-
 """
 import argparse
 import torch
@@ -36,11 +34,11 @@ def build_hardshared(args: argparse.Namespace,
     """
     Build an Hard Shared ResNet
 
-    :param args:
-    :param in_shape:
-    :param num_classes:
-    :param tasks_list:
-    :return:
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
+    :param num_classes: A dictionary that indicate the number of classes for each task.
+    :param tasks_list: A list of every task on which the model will be train.
+    :return: An HardSharedResNet that represent the network to train.
     """
     task_block = {}
 
@@ -84,11 +82,11 @@ def build_ltb(args: argparse.Namespace,
     """
     Build a Learn-To-Branch ResNet
 
-    :param args:
-    :param in_shape:
-    :param num_classes:
-    :param tasks_list:
-    :return:
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
+    :param num_classes: A dictionary that indicate the number of classes for each task.
+    :param tasks_list: A list of every task on which the model will be train.
+    :return: A LTBResNET that represent the network to train.
     """
     if args.config == 1:
         block_config = LTBConfig.CONFIG1
@@ -116,11 +114,11 @@ def build_mtan(args: argparse.Namespace,
     """
     Build a Multi-Task Attention Network
 
-    :param args:
-    :param in_shape:
-    :param num_classes:
-    :param tasks_list:
-    :return:
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
+    :param num_classes: A dictionary that indicate the number of classes for each task.
+    :param tasks_list: A list of every task on which the model will be train.
+    :return: a MTAN that represent the network to train.
     """
     if args.subtype:
         blocks_type = [BlockType.PREACT, BlockType.PREACT,
@@ -147,9 +145,9 @@ def build_resnet2d(args: argparse.Namespace,
     """
     Load a pretrain ResNet2D and change the last layer for binary classification.
 
-    :param args:
-    :param num_clin_features:
-    :return:
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param num_clin_features: The number of clinical features that will be used to classify the images.
+    :return: A ResNet2D that represent the network to train.
     """
     return ResNet2D(drop_rate=args.drop_rate, nb_clinical_data=num_clin_features).to(args.device)
 
@@ -157,11 +155,11 @@ def build_resnet2d(args: argparse.Namespace,
 def build_resnet3d(args: argparse.Namespace,
                    in_shape: Tuple[int, int, int]) -> ResNet:
     """
-    Build a ResNet 2D
+    Build a ResNet 3D
 
-    :param args:
-    :param in_shape:
-    :return:
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
+    :return: A ResNet3D that represent the network to train.
     """
     if args.config == 0:
         blocks_type = [BlockType.PREACT for _ in range(RESNET_NB_LEVEL)]
@@ -200,10 +198,10 @@ def build_sharednet(args: argparse.Namespace,
     """
     Build a Shared Net
 
-    :param args:
-    :param in_shape:
-    :param tasks_list:
-    :return:
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
+    :param tasks_list: A list of every task on which the model will be train.
+    :return: A SharedNet that represent the network to train.
     """
     blocks_lists = {}
 
@@ -274,13 +272,15 @@ def create_model(args: argparse.Namespace,
                                                  Dict[str, int],
                                                  List[List[str]]]:
     """
+    Create the corresponding neural network according to the experimentation type and a given namespace of argument.
 
-    :param args:
-    :param experimentation:
-    :param in_shape:
-    :param num_clin_features:
-    :param tasks_list:
-    :return:
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param experimentation: Indicate the type of experimentation that will be run. (See Constant.py)
+    :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
+    :param num_clin_features: The number of clinical features that will be used to classify the images.
+    :param tasks_list: A list of every task on which the model will be train.
+    :return: The NeuralNetwork to train, a dictionary that contain the number of classes for each task and a list
+             of list that represent the conditional that we want to measure during the training.
     """
     num_classes = {}
     conditional_prob = []

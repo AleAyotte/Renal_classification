@@ -5,15 +5,13 @@
     @Creation Date:     09/2021
     @Last modification: 09/2021
 
-    @Description:       Contain the main function to train a 3D ResNet on one of the three tasks
-                        (malignancy, subtype and grade prediction).
+    @Description:       Contain the main function to train a neural network on one of those two dataset: BrainMets
+                        and RCC.
 
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
 
 from comet_ml import Experiment
-import os
-import torch
 from torchsummary import summary
 from typing import Final
 
@@ -21,8 +19,6 @@ from ArgParser import argument_parser
 from Constant import DatasetName, Experimentation, ModelType, SplitName, Tasks
 from DataManager.DatasetBuilder import build_datasets
 from ModelCreation import create_model
-from Trainer.SingleTaskTrainer import SingleTaskTrainer as STLTrainer
-from Trainer.MultiTaskTrainer import MultiTaskTrainer as MTLTrainer
 from TrainerCreation import create_trainer
 from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
