@@ -3,13 +3,19 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     06/2021
-    @Last modification: 07/2021
+    @Last modification: 08/2021
 
     @Description:       Contain several class that group constant and enum.
 """
 
 from enum import Enum, unique
 from typing import Final
+
+
+class AttentionBlock(Enum):
+    CHANNEL: Final = 0
+    SPATIAL: Final = 1
+    CBAM: Final = 2
 
 
 @unique
@@ -27,17 +33,10 @@ CS_CONFIG: Final = [
 ]
 
 
-class AttentionBlock(Enum):
-    CHANNEL: Final = 0
-    SPATIAL: Final = 1
-    CBAM: Final = 2
-
-
-class DatasetName:
-    TRAIN: Final = "TRAIN"
-    VALIDATION: Final = "VALIDATION"
-    TEST: Final = "TEST"
-    HOLDOUT: Final = "HOLD_OUT"
+@unique
+class DatasetName(Enum):
+    BMETS: Final = 1
+    RCC: Final = 2
 
 
 @unique
@@ -46,13 +45,17 @@ class DropType(Enum):
     LINEAR: Final = 2
 
 
-@unique
 class Experimentation(Enum):
     SINGLE_TASK_2D: Final = 1
+    STL_2D: Final = 1
     SINGLE_TASK_3D: Final = 2
+    STL_3D: Final = 2
     HARD_SHARING: Final = 3
+    HS: Final = 3
     SOFT_SHARING: Final = 4
+    SS: Final = 4
     MTAN: Final = 5
+    LTB: Final = 6
 
 
 @unique
@@ -61,10 +64,30 @@ class Loss(Enum):
     UNIFORM: Final = 2
 
 
+class LTBConfig:
+    CONFIG1: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.PREACT, BlockType.PREACT]
+    CONFIG2: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
+    CONFIG3: Final = [BlockType.PREACT, BlockType.POSTACT]
+
+
+@unique
+class ModelType(Enum):
+    STANDARD: Final = 1
+    SHARED_NET: Final = 2
+    LTB_NET: Final = 3
+
+
 @unique
 class SharingUnits(Enum):
     CROSS_STITCH: Final = 1
     SLUICE: Final = 2
+
+
+class SplitName:
+    TRAIN: Final = "TRAIN"
+    VALIDATION: Final = "VALIDATION"
+    TEST: Final = "TEST"
+    HOLDOUT: Final = "HOLD_OUT"
 
 
 class SubNetDepth:
@@ -74,8 +97,10 @@ class SubNetDepth:
 
 
 class Tasks:
+    ARE: Final = "are"
+    GRADE: Final = "grade"
+    LRF: Final = "lrf"
     MALIGNANCY: Final = "malignancy"
     SUBTYPE: Final = "subtype"
-    GRADE: Final = "grade"
-    REGRESSION: Final = 1
     CLASSIFICATION: Final = 2
+    REGRESSION: Final = 1

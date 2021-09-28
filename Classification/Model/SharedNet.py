@@ -13,16 +13,15 @@
                         2) S. Ruder et al. Latent Multi-Task Architecture Learning. Proceedings of the AAAI
                            Conferenceon Artificial Intelligence, 2019
 """
-
-from Constant import Loss, SharingUnits
-from Model.Module import CrossStitchUnit, SluiceUnit, UncertaintyLoss, UniformLoss
-from Model.NeuralNet import NeuralNet
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn as nn
 from typing import Callable, Dict, Final, List, Optional, Sequence, Union
 
+from Constant import Loss, SharingUnits
+from Model.Module import CrossStitchUnit, SluiceUnit, UncertaintyLoss, UniformLoss
+from Model.NeuralNet import NeuralNet
 
 NB_LEVELS: Final = 4
 

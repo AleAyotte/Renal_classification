@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 07/2021
+    @Last modification: 08/2021
 
     @Description:       This file contain some generic module used to create several model like the ResNet,
                         MultiLevelResNet and CapsNet. The module are DynamicHighCapsule, PrimaryCapsule, Resblock and
@@ -12,14 +12,150 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
                         2) CBAM: Convolutional Block Attention Module, Woo, S et al., ECCV 2018
                         3) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
+                        4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
+from __future__ import annotations
+
 from monai.networks.blocks.convolutions import ResidualUnit
 from monai.networks.layers import split_args
 from monai.networks.layers.factories import Act, Norm
 import numpy as np
 import torch
 from torch import nn
-from typing import Optional, Sequence, Union
+from typing import Final, List, NewType, Optional, Sequence, Tuple, Type, Union
+
+from Model.Module import GumbelSoftmax
+
+
+class BranchingBlock(nn.Module):
+    """
+    The Branching block that will be used in the Learn-To-Branch model as described in ref 4)
+
+    ...
+    Attributes
+    ----------
+    __active_children : List[int]
+        A list of integer that indicate which children is use as parent in the next branching block.
+    __active_parents :  List[int]
+        A list of integer that indicate the index of the input that will be used by every children in the forward pass.
+    blocks : nn.ModuleList
+        A list of block that correspond to the children nodes.
+    __frozen : bool
+        A boolean that indicate if the architecture search is finish.
+    gumbel_softmax : GumbelSoftmax
+        The gumbel softmax layer that learn which parents should be connected to the childrens.
+    __layer_type : str
+        Indicate the type of layer that is use in the current block. Can be 'conv' or 'linear'.
+    __num_block : int
+        The number of children nodes.
+    Methods
+    -------
+    get_weights() -> Union[torch.nn.Parameter, Iterator[torch.nn.Parameter]]
+        Get the blocks or gumbel softmax parameters.
+    forward() -> torch.Tensor
+        The forward pass of the gumbel softmax layer.
+    """
+    BLOCK_LIST_TYPE: Final = Union[NewType("PreResBlock", type),
+                                   NewType("PreResBottleneck", type),
+                                   NewType("ResBlock", type),
+                                   NewType("ResBottleneck", type),
+                                   Type[nn.Linear]]
+
+    def __init__(self,
+                 block_list: Sequence[BLOCK_LIST_TYPE],
+                 num_input: int,
+                 tau: float = 1,
+                 **kwargs):
+        """
+        Create a gumbel softmax block
+
+        :param block_list: A list of block class to instantiate.
+        :param num_input: The number of parent nodes.
+        :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
+        :param kwargs: A dictionary of parameters that will be used to instantiate the blocks.
+        """
+        super().__init__()
+        self.__num_block = len(block_list)
+        self.__active_children = range(self.__num_block)
+        self.__active_parents = range(num_input)
+        self.__frozen = False
+        self.gumbel_softmax = GumbelSoftmax(num_input=num_input, num_output=self.__num_block, tau=tau)
+        self.blocks = nn.ModuleList()
+
+        for block in block_list:
+            if block is nn.modules.linear.Linear:
+                self.__layer_type = "linear"
+                self.blocks.append(block(in_features=kwargs["in_features"],
+                                         out_features=kwargs["out_features"]))
+            else:
+                self.__layer_type = "conv"
+                self.blocks.append(block(fmap_in=kwargs["fmap_in"],
+                                         fmap_out=kwargs["fmap_out"],
+                                         kernel=kwargs["kernel"],
+                                         strides=kwargs["strides"],
+                                         drop_rate=kwargs["drop_rate"],
+                                         activation=kwargs["activation"],
+                                         norm=kwargs["norm"]))
+
+    def get_weights(self, gumbel_softmax_weights: bool = False) -> Union[torch.nn.Parameter,
+                                                                         List[torch.nn.Parameter]]:
+        """
+        Get the blocks or gumbel softmax parameters.
+
+        :param gumbel_softmax_weights: If true, the gumbel softmax layer weights will be returned. Else, it will be
+                                       the blocks weights that will be returned.
+        :return: The parameters blocks parameters or the gumbel softmax parameters.
+        """
+
+        if gumbel_softmax_weights:
+            return list(self.gumbel_softmax.parameters())
+        else:
+            return list(self.blocks.parameters())
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the GumbelSoftmaxBlock
+
+        :param x: A torch.Tensor that represent the stacked output of the parent nodes.
+        :return: A torch.Tensor that represent the stacked output of the children nodes.
+        """
+        if not self.__frozen:
+            probs = self.gumbel_softmax()
+
+            if self.__layer_type == "linear":
+                # Output, Input, Batch, features
+                out = torch.mul(probs[:, :, None, None], x[None, :, :, :]).sum(1)
+            else:
+                # Output, Input, Batch, Channel, Depth, Width, Height
+                out = torch.mul(probs[:, :, None, None, None, None, None], x[None, :, :, :, :, :, :]).sum(1)
+            return torch.stack([self.blocks[i](out[i]) for i in range(self.__num_block)])
+        else:
+            out = []
+            for child, parent in zip(self.__active_children, self.__active_parents):
+                out.append(self.blocks[child](x[parent]))
+            return torch.stack(out)
+
+    def freeze_branch(self, children: Optional[List[int]] = None) -> Tuple[List[int], List[int]]:
+        """
+        Freeze the branching operation for an optimized forward pass and return a list that indicate the active parents.
+
+        :param children: A list of int that indicate the children that are use as parents
+                         by next block's active children.
+        :return: Return a list of int that indicate the parents that are used by the active children and the same list
+                 but without repetition of parents.
+        """
+        self.__active_children = children if children is not None else self.__active_children
+        self.__frozen = True
+        parents = torch.argmax(self.gumbel_softmax(), dim=-1).cpu().numpy()
+        active_parents = [parents[child] for child in self.__active_children]
+
+        # The parent's index of each child. Will be used in the forward pass.
+        # Ex: [1, 4, 2, 4] -> [0, 1, 2, 1]
+        self.__active_parents = [active_parents.index(x) for x in active_parents]
+
+        # Return the list of used parent without repetition. Ex: [1, 4, 2, 4] -> [1, 4, 2]
+        unique_parent, index = np.unique(np.array(active_parents), return_index=True)
+        return active_parents, list(unique_parent[index])
 
 
 class CBAM(nn.Module):
@@ -129,7 +265,7 @@ class ChannelAttBlock(nn.Module):
         :return: The downsampled masked input as torch.Tensor.
         """
         b, c = to_mask.size()[0:2]
-        out = self.cat((self.avg(x).unsqueeze(1), self.max(x).unsqueeze(1)), dim=1)
+        out = torch.cat((self.avg(x).unsqueeze(1), self.max(x).unsqueeze(1)), dim=1)
         out = self.att(out)
         out = self.sigmoid(torch.sum(out, dim=1)).view(b, c, 1, 1, 1)
         out = torch.mul(to_mask, out.expand_as(to_mask))

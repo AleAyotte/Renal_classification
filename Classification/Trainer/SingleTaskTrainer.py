@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 08/2021
+    @Last modification: 09/2021
 
     @Description:       Contain the class SingleTaskTrainer which inherit from the class Trainer. This class is used
                         to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
@@ -14,8 +14,6 @@ from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
 from sklearn.metrics import auc, confusion_matrix, roc_curve
-from Trainer.Trainer import Trainer
-from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 import torch
 from torch import nn
 from torch.cuda import amp
@@ -25,8 +23,10 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
+from Trainer.Trainer import Trainer
+from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
 
-ALL_TASK = ["malignancy", "subtype", "grade", "ssign"]
+ALL_TASK = ["malignancy", "subtype", "grade", "are", "lrf"]
 
 
 class SingleTaskTrainer(Trainer):
@@ -76,7 +76,7 @@ class SingleTaskTrainer(Trainer):
                  classes_weights: str = "balanced",
                  save_path: str = "",
                  track_mode: str = "all",
-                 task="malignancy"):
+                 task: str = "malignancy"):
         """
         The constructor of the trainer class. 
 
@@ -101,7 +101,7 @@ class SingleTaskTrainer(Trainer):
                            at each iteration. (Default=all)
         """
         assert task.lower() in ALL_TASK, "Task should be one of those options: " \
-                                         "'malignancy', 'subtype', 'grade', 'ssign'"
+                                         "'malignancy', 'subtype', 'grade', 'are', 'lrf'"
 
         super().__init__(tasks=[task],
                          num_classes={task: num_classes},
@@ -157,6 +157,9 @@ class SingleTaskTrainer(Trainer):
         sum_loss = 0
         n_iters = len(train_loader)
 
+        for optimizer in optimizers:
+            optimizer.zero_grad()
+
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
@@ -165,9 +168,6 @@ class SingleTaskTrainer(Trainer):
 
             if "features" in list(data.keys()):
                 features = data["features"].to(self._device)
-
-            for optimizer in optimizers:
-                optimizer.zero_grad()
 
             # training step
             with amp.autocast(enabled=self._mixed_precision):
@@ -239,6 +239,9 @@ class SingleTaskTrainer(Trainer):
         sum_loss = 0
         n_iters = len(train_loader)
 
+        for optimizer in optimizers:
+            optimizer.zero_grad()
+
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
@@ -247,9 +250,6 @@ class SingleTaskTrainer(Trainer):
 
             if "features" in list(data.keys()):
                 features = data["features"].to(self._device)
-
-            for optimizer in optimizers:
-                optimizer.zero_grad()
 
             # Mixup activation
             mixup_key, lamb, permut = self.model.activate_mixup()

@@ -9,17 +9,16 @@
 
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
-
-from Constant import BlockType, DropType, Loss, Tasks
-from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
-from Model.Module import Mixup, UncertaintyLoss, UniformLoss
 from monai.networks.blocks.convolutions import Convolution
-from Model.NeuralNet import NeuralNet, init_weights
 import numpy as np
 import torch
 import torch.nn as nn
 from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
 
+from Constant import BlockType, DropType, Loss, Tasks
+from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
+from Model.Module import Mixup, UncertaintyLoss, UniformLoss
+from Model.NeuralNet import NeuralNet, init_weights
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
@@ -33,8 +32,7 @@ class HardSharedResNet(NeuralNet):
     ...
     Attributes
     ----------
-    __tasks : List[str]
-        The list of tasks on which the model will be train.
+
     __backend_tasks : List[str]
         The list of tasks on which the shared layers of the model will be train.
     __in_channels : int
@@ -51,12 +49,14 @@ class HardSharedResNet(NeuralNet):
         Indicate where the network will be split to a multi-task network. Should be an integer between 1 and 5.
         1 indicate that the network will be split before the first series of residual block.
         5 indicate that the network will be split after the last series of residual block.
+    __tasks : List[str]
+        The list of tasks on which the model will be train.
     tasks_layers : nn.ModuleDict[str, nn.Sequential]
         A dictionnary of Sequential module where the key is a task name and the value is a sequence of layer that will
         be used only for this task.
     Methods
     -------
-    forward(x: torch.Tensor) -> torch.Tensor
+    forward(x: torch.Tensor) -> Dict[str, torch.Tensor]
         Execute the forward on a given torch.Tensor.
     set_mixup(b_size : int)
         Set the b_size parameter of each mixup module.
@@ -343,6 +343,13 @@ class HardSharedResNet(NeuralNet):
         return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """
+        Perform the forward pass on a given batch of 3D images
+
+        :param x: A torch.Tensor that represent a batch of 3D images.
+        :return: A dictionnary of torch.tensor that reprensent the output per task.
+                 The keys correspond to the tasks name.
+        """
         out = self.shared_layers(x)
 
         preds = {}

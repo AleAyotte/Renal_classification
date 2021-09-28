@@ -12,8 +12,9 @@ from comet_ml import Experiment
 from datetime import datetime
 import numpy as np
 import os
-from Trainer.Utils import compute_recall, get_mean_accuracy
 from typing import Optional, Sequence, Union
+
+from Trainer.Utils import compute_recall, get_mean_accuracy
 
 API_KEY_FILEPATH = "comet_api_key.txt"  # path to the file that contain the API KEY for comet.ml
 CSV_PATH = "save/"
@@ -21,15 +22,15 @@ CSV_PATH = "save/"
 
 def get_predict_csv_path(model_name: str,
                          project_name: str,
-                         testset_name: str,
-                         task_name: Optional[str]):
+                         task_name: Optional[str],
+                         testset_name: str):
     """
     Create the filepath that will be used to save the model prediction on each dataset.
 
     :param model_name: The name of the model that has been train
     :param project_name: The project name use in comet.ml
-    :param testset_name: The testset that has been used
     :param task_name: The task name if it was single_task_learning.
+    :param testset_name: The testset that has been used
     :return: The filepath of the prediction on the trainset, the valideset and the testset.
     """
     project_folder = os.path.join(CSV_PATH, project_name)
@@ -50,16 +51,16 @@ def get_predict_csv_path(model_name: str,
 
 
 def print_data_distribution(dataset_name: str,
-                            task_list: Sequence[str],
-                            labels_bincount_list: dict) -> None:
+                            labels_bincount_list: dict,
+                            task_list: Sequence[str]) -> None:
     """
     Print the number of data per class per task for a given dataset.
 
     :param dataset_name: A string that represent the name of the dataset on which the model has been assess.
-    :param task_list: A list of string that represent the name of each task. This list should be in the same
-                      order as labels_bincount_list.
     :param labels_bincount_list: A list of numpy array where each numpy array represent the number of data per class
                                  for a task.
+    :param task_list: A list of string that represent the name of each task. This list should be in the same
+                      order as labels_bincount_list.
     """
 
     line_sep = "+" + "-" * 12 + "+" + "-" * 12 + "+" + "-" * 12 + "+"
@@ -77,20 +78,20 @@ def print_data_distribution(dataset_name: str,
         print(line_sep)
 
 
-def print_score(dataset_name: str,
-                task_list: Sequence[str],
+def print_score(auc_list: Sequence[float],
                 conf_mat_list: Sequence[np.array],
-                auc_list: Sequence[float],
-                experiment: Union[Experiment, None] = None) -> None:
+                dataset_name: str,
+                task_list: Sequence[str],
+                experiment: Optional[Experiment] = None) -> None:
     """
     Print the recall and the AUC score per task for a given dataset on which the model has been assess.
 
+    :param auc_list: A list of float that represent the AUC score for each task.
+    :param conf_mat_list: A list of numpy array that represent the list of confusion matrix. There is one
+                          confusion per task.
     :param dataset_name: A string that represent the name of the dataset on which the model has been assess.
     :param task_list: A list of string that represent the name of each task. This list should be in the same
                       order as conf_mat_list and auc_list.
-    :param conf_mat_list: A list of numpy array that represent the list of confusion matrix. There is one
-                          confusion per task.
-    :param auc_list: A list of float that represent the AUC score for each task.
     :param experiment: A comet experiment object. If gived, then the confusion matrix and the metrics will
                        saved online. (Default=None)
     """
@@ -135,13 +136,13 @@ def read_api_key() -> str:
     return str(f.read())
 
 
-def save_hparam_on_comet(experiment: Experiment,
-                         args_dict: dict) -> None:
+def save_hparam_on_comet(args_dict: dict,
+                         experiment: Experiment) -> None:
     """
     Delete non hyperparameters arguments in the argparse and save the hyperparameters on comet.ml.
 
-    :param experiment: The comet_ml experiment object. Will be used to save the hyperparameters online.
     :param args_dict: The argsparse dictionnary.
+    :param experiment: The comet_ml experiment object. Will be used to save the hyperparameters online.
     """
 
     del args_dict["device"]

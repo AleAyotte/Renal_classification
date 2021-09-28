@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 07/2021
+    @Last modification: 08/2021
 
     @Description:       This file contain some generic module used to create several model like
                         MultiLevelResNet and SharedNet. The module are SluiceUnit, CrossStitchUnit, Mixup and
@@ -15,14 +15,15 @@
                            Conferenceon Artificial Intelligence, 2019
                         3) R. Cipolla et al. Multi-task Learning UsingUncertainty to Weigh Losses for Scene Geometry
                            and Semantics. IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2018
+                        4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
-
 import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
+from typing import Optional, Sequence, Tuple
+
 from Trainer.Utils import to_one_hot
-from typing import Sequence, Tuple
 
 
 class CrossStitchUnit(torch.nn.Module):
@@ -81,6 +82,66 @@ class CrossStitchUnit(torch.nn.Module):
         features_selection_penalty = torch.prod(torch.abs(self.alpha) + 1, dim=1)
         simplex_penalty = torch.square(torch.sum(self.alpha, dim=1) - 1)
         return torch.mean(features_selection_penalty + simplex_penalty)
+
+
+class GumbelSoftmax(nn.Module):
+    """
+    A gumbel softmax unit that has been adapted from pytorch to works with the LTB described in Ref 4).
+
+    ...
+    Attributes
+    ----------
+    __num_epoch : int
+        The number of completed epoch in the training.
+    __num_input : int
+        The number of parent nodes.
+    __tau : float
+        The non-negative scalar temperature argument that is used to compute the gumbel softmax.
+    weights : nn.Parameters
+        The logits weights that are used in the gumbel softmax
+    Methods
+    -------
+    forward() -> torch.Tensor
+        The forward pass of the gumbel softmax layer.
+    """
+    def __init__(self,
+                 num_input: int,
+                 num_output: int,
+                 tau: float = 1):
+        """
+        Create a gumbel softmax block
+
+        :param num_input: The number of parent nodes.
+        :param num_output: The number of children nodes.
+        :param tau: non-negative scalar temperature parameter of the gumble softmax operation.
+        """
+        super().__init__()
+        self.__num_epoch = 1
+        self.__num_input = num_input
+        self.__tau = tau
+
+        weights = torch.ones((num_output, num_input)) / num_input
+        self.weights = nn.Parameter(data=weights, requires_grad=True)
+
+    def forward(self) -> torch.Tensor:
+        """
+        Define the forward pass of the GumbelSoftmax
+
+        :return: The probability output of the gumbel softmax operation as a torch.Tensor.
+        """
+        if self.training:
+            probs = F.gumbel_softmax(self.weights, tau=self.__tau / self.__num_epoch, hard=False)
+        else:
+            probs = F.one_hot(torch.argmax(self.weights, dim=1), num_classes=self.__num_input)
+        return probs
+
+    def update_epoch(self, num_epoch: Optional[int] = None) -> None:
+        """
+        Update the attribute named num_epoch.
+
+        :param num_epoch: The current number of epoch as int. If None, self.__num_epoch will be incremented by 1.
+        """
+        self.__num_epoch = self.__num_epoch + 1 if num_epoch is None else num_epoch
 
 
 class MarginLoss(nn.Module):

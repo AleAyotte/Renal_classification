@@ -10,15 +10,16 @@
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
                         2) Capsule Networks with Max-Min Normalization, Zhao et al. arxiv 2019
 """
-from Model.CapsuleBlock import PrimaryCapsule, DynamicHighCapsule
-from Model.NeuralNet import NeuralNet
 from monai.networks.layers.factories import Act
 import numpy as np
-from Trainer.Utils import init_weights, to_one_hot
 import torch
 from torch import nn
 from torch.nn import functional as F
 from typing import Sequence, Union
+
+from Model.CapsuleBlock import PrimaryCapsule, DynamicHighCapsule
+from Model.NeuralNet import NeuralNet
+from Trainer.Utils import init_weights, to_one_hot
 
 
 class CapsNet2D(NeuralNet):

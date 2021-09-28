@@ -14,7 +14,6 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import roc_curve
 import torch
-from torch import nn
 from torch.autograd import Variable
 from typing import List, Sequence, Union
 
