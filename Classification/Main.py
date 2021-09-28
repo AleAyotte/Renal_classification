@@ -17,7 +17,7 @@ import torch
 from torchsummary import summary
 from typing import Final
 
-from ArgParser2 import argument_parser
+from ArgParser import argument_parser
 from Constant import DatasetName, Experimentation, ModelType, SplitName, Tasks
 from DataManager.DatasetBuilder import build_datasets
 from ModelCreation import create_model
