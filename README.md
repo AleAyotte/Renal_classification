@@ -78,7 +78,7 @@ Morever, the following package are required to execute our code.
   - [x] Add Learn-To-Branch (LTB) Model
 - [ ] Experiment Phase 3
   - [ ] Auxiliary tasks
-  - [ ] Base Test (LTB)
+  - [x] Base Test (LTB)
   - [ ] Multiple Layer Type (LTB)
 - [ ] Experiment Phase 4
   - [ ] Radiomics in self-supervising
@@ -98,17 +98,15 @@ Morever, the following package are required to execute our code.
  ```
 .
 ├── Classification
-│   ├── ArgParser.py                # ArgParser used by all Main files.
-│   │── comet_api_key.txt           # Contain the needed api key to use comet.ml
-│   ├── Constant.py                 # Several class of constant and enum.
-│   │
-│   ├── Data_manager                # Dataset and data visualisation related files.
+│   ├── DataManager                 # Dataset and data visualisation related files.
+│   │   ├── BrainDataset.py         # BrainDataset class (inherit from HDF5Dataset).
 │   │   ├── DataAugView2D.py        # Visualisation of the data augmentation on 2D images.
 │   │   ├── DataAugView3D.py        # Visualisation of the data augmentation on 3D images.
 │   │   ├── DatasetBuilder.py       # Build and split the training, validation and testing set.
-│   │   └── RenalDataset.py         # RenalDataset class.
-│   │
-│   ├── LTBMain.py                  # Main script for experimentation on the LTBResNet.
+│   │   ├── HDF5Dataset.py          # HDF5Dataset class.
+│   │   ├── RenalDataset.py         # RenalDataset class (inherit from HDF5Dataset).
+│   │   ├── Sampler.py              # Sampler class. Used to create split for BrainDataset.
+│   │   └── reject_list.txt         # List of patient id to reject in this project (RenalDataset).
 │   │
 │   ├── Model                       # Neural network model related files.
 │   │   ├── Block.py                # Commun ResNet, PreResNet and Attention block.
@@ -119,15 +117,9 @@ Morever, the following package are required to execute our code.
 │   │   ├── Module.py               # Commun module used to build NeuralNetwork.
 │   │   ├── MTAN.py                 # The MTAN class (MultiTask Attention Network).
 │   │   ├── NeuralNet.py            # Abstract class of all neural network classes (except ResNet2D).
-│   │   ├── ResNet_2D.py            # ResNet2D model class.
 │   │   ├── ResNet.py               # ResNet3D class.
+│   │   ├── ResNet_2D.py            # ResNet2D model class.
 │   │   └── SharedNet.py            # SharedNet model class.
-│   │
-│   ├── MtanMain.py                 # Main script for experimentation on the Mtan.
-│   ├── MultiTaskMain.py            # Main script for experimentation on the Hard-Sharing ResNet3D.
-│   ├── SharedNetMain.py            # Main script for experimentation on the SharedNet.
-│   ├── STL2DMain.py                # Main script for experimentation on the ResNet2D.
-│   ├── STL3DMain.py                # Main script for experimentation on the ResNet3D.
 │   │
 │   ├── Trainer                     # Neural Network training related files.
 │   │   ├── MultiTaskTrainer.py     # Training class for Multi-Task Learning.
@@ -135,6 +127,12 @@ Morever, the following package are required to execute our code.
 │   │   ├── Trainer.py              # Abstract class of all trainer classes.
 │   │   └── Utils.py                # Utils function for the trainers.
 │   │
+│   ├── ArgParser.py                # ArgParser used by all Main files.
+│   │── comet_api_key.txt           # Contain the needed api key to use comet.ml
+│   ├── Constant.py                 # Several class of constant and enum.
+│   ├── Main.py                     # Main script for all experimentation.
+│   ├── ModelCreation.py            # Script that create the different neural network.
+│   ├── TrainerCreation.py          # Script that intialize the trainer before training.
 │   └── Utils.py                    # Utils function for the main files.
 │
 ├── Normalization                   # Normalization and preprocessing of MRI images.
