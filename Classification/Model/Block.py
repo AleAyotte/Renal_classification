@@ -14,6 +14,8 @@
                         3) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
                         4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
 """
+from __future__ import annotations
+
 from monai.networks.blocks.convolutions import ResidualUnit
 from monai.networks.layers import split_args
 from monai.networks.layers.factories import Act, Norm
@@ -23,121 +25,6 @@ from torch import nn
 from typing import Final, List, NewType, Optional, Sequence, Tuple, Type, Union
 
 from Model.Module import GumbelSoftmax
-
-
-class CBAM(nn.Module):
-    """
-    A 3D version of the Convolutional Block Attention Module as described in Ref 2).
-
-    ...
-    Attributes
-    ----------
-    channel_att_block: ChannelAttBlock
-        A 3D version of the Channel Attention Block that will be applied before the Spatial Attention Block
-    spatial_att_block: SpatialAttBlock
-        A 3D version of the Spatial Attention Block
-    """
-
-    def __init__(self,
-                 fmap_in: int,
-                 fmap_out: int,
-                 kernel: Union[Sequence[int], int] = 1,
-                 norm: str = "batch",
-                 squeeze_factor: int = 8,
-                 subsample: Optional[nn.Module] = None):
-        """
-        Create a Convolutional Block Attention Module.
-
-        :param fmap_in: Number of input feature maps.
-        :param fmap_out: Number of output feature maps of the mask.
-        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
-        :param norm: The normalization layer name that will be used in the model.
-        :param squeeze_factor: A coefficient that will divide fmap_in to determine the number of intermediate feature
-                               maps.
-        :param subsample: A block or a torch.nn.module that will applied to the masked tensor to reduce the dimension
-                          of the output.
-        """
-        super().__init__()
-        self.channel_att_block = ChannelAttBlock(fmap_in=fmap_in, fmap_out=fmap_out,
-                                                 squeeze_factor=squeeze_factor)
-        self.spatial_att_block = SpatialAttBlock(fmap_in=fmap_out, fmap_out=fmap_out,
-                                                 kernel=kernel, norm=norm,
-                                                 squeeze_factor=squeeze_factor,
-                                                 subsample=subsample)
-
-    def forward(self,
-                x: torch.Tensor,
-                to_mask: torch.Tensor) -> torch.Tensor:
-        """
-        Define the forward pass of the Channel Attention Block.
-
-        :param x: Input tensor of the attention module.
-        :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
-        :return: The downsampled masked input as torch.Tensor.
-        """
-
-        out = self.channel_att_block(x, to_mask)
-        return self.spatial_att_block(out, out)
-
-
-class ChannelAttBlock(nn.Module):
-    """
-    A 3D version of the Channel Attention Block as described in Ref 2).
-
-    ...
-    Attributes
-    ----------
-    att: nn.Sequential
-        A Sequential module that contain all layer that form the spatial attention block.
-    subsample: nn.Module
-        A pytorch module or a block that reduce the dimension of the output tensor. If subsample block is given during
-        __init__, then an identity layer will be used.
-    """
-
-    def __init__(self,
-                 fmap_in: int,
-                 fmap_out: int,
-                 squeeze_factor: int,
-                 subsample: Optional[nn.Module] = None):
-        """
-        Create a Channel Attention Block
-
-        :param fmap_in: Number of input feature maps.
-        :param fmap_out: Number of output feature maps of the mask.
-        :param squeeze_factor: A coefficient that will divide fmap_in to determine the number of intermediate feature
-                               maps.
-        :param subsample: A block or a torch.nn.module that will applied to the masked tensor to reduce the dimension
-                          of the output.
-        """
-        super().__init__()
-
-        num_int_node = fmap_in // squeeze_factor
-        self.avg = nn.AdaptiveAvgPool3d(output_size=1)
-        self.max = nn.AdaptiveMaxPool3d(output_size=1)
-        self.att = nn.Sequential(nn.Flatten(start_dim=2),
-                                 nn.Linear(fmap_in, num_int_node),
-                                 nn.Linear(num_int_node, fmap_out))
-        self.sigmoid = nn.Sigmoid()
-
-        self.subsample = subsample if subsample is not None else nn.Identity()
-
-    def forward(self,
-                x: torch.Tensor,
-                to_mask: torch.Tensor) -> torch.Tensor:
-        """
-        Define the forward pass of the Channel Attention Block.
-
-        :param x: Input tensor of the attention module.
-        :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
-        :return: The downsampled masked input as torch.Tensor.
-        """
-        b, c = to_mask.size()[0:2]
-        out = self.cat((self.avg(x).unsqueeze(1), self.max(x).unsqueeze(1)), dim=1)
-        out = self.att(out)
-        out = self.sigmoid(torch.sum(out, dim=1)).view(b, c, 1, 1, 1)
-        out = torch.mul(to_mask, out.expand_as(to_mask))
-
-        return self.subsample(out)
 
 
 class BranchingBlock(nn.Module):
@@ -269,6 +156,121 @@ class BranchingBlock(nn.Module):
         # Return the list of used parent without repetition. Ex: [1, 4, 2, 4] -> [1, 4, 2]
         unique_parent, index = np.unique(np.array(active_parents), return_index=True)
         return active_parents, list(unique_parent[index])
+
+
+class CBAM(nn.Module):
+    """
+    A 3D version of the Convolutional Block Attention Module as described in Ref 2).
+
+    ...
+    Attributes
+    ----------
+    channel_att_block: ChannelAttBlock
+        A 3D version of the Channel Attention Block that will be applied before the Spatial Attention Block
+    spatial_att_block: SpatialAttBlock
+        A 3D version of the Spatial Attention Block
+    """
+
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 kernel: Union[Sequence[int], int] = 1,
+                 norm: str = "batch",
+                 squeeze_factor: int = 8,
+                 subsample: Optional[nn.Module] = None):
+        """
+        Create a Convolutional Block Attention Module.
+
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps of the mask.
+        :param kernel: Kernel size as integer. (Example: 3.  For a 3x3 kernel)
+        :param norm: The normalization layer name that will be used in the model.
+        :param squeeze_factor: A coefficient that will divide fmap_in to determine the number of intermediate feature
+                               maps.
+        :param subsample: A block or a torch.nn.module that will applied to the masked tensor to reduce the dimension
+                          of the output.
+        """
+        super().__init__()
+        self.channel_att_block = ChannelAttBlock(fmap_in=fmap_in, fmap_out=fmap_out,
+                                                 squeeze_factor=squeeze_factor)
+        self.spatial_att_block = SpatialAttBlock(fmap_in=fmap_out, fmap_out=fmap_out,
+                                                 kernel=kernel, norm=norm,
+                                                 squeeze_factor=squeeze_factor,
+                                                 subsample=subsample)
+
+    def forward(self,
+                x: torch.Tensor,
+                to_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Channel Attention Block.
+
+        :param x: Input tensor of the attention module.
+        :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
+        :return: The downsampled masked input as torch.Tensor.
+        """
+
+        out = self.channel_att_block(x, to_mask)
+        return self.spatial_att_block(out, out)
+
+
+class ChannelAttBlock(nn.Module):
+    """
+    A 3D version of the Channel Attention Block as described in Ref 2).
+
+    ...
+    Attributes
+    ----------
+    att: nn.Sequential
+        A Sequential module that contain all layer that form the spatial attention block.
+    subsample: nn.Module
+        A pytorch module or a block that reduce the dimension of the output tensor. If subsample block is given during
+        __init__, then an identity layer will be used.
+    """
+
+    def __init__(self,
+                 fmap_in: int,
+                 fmap_out: int,
+                 squeeze_factor: int,
+                 subsample: Optional[nn.Module] = None):
+        """
+        Create a Channel Attention Block
+
+        :param fmap_in: Number of input feature maps.
+        :param fmap_out: Number of output feature maps of the mask.
+        :param squeeze_factor: A coefficient that will divide fmap_in to determine the number of intermediate feature
+                               maps.
+        :param subsample: A block or a torch.nn.module that will applied to the masked tensor to reduce the dimension
+                          of the output.
+        """
+        super().__init__()
+
+        num_int_node = fmap_in // squeeze_factor
+        self.avg = nn.AdaptiveAvgPool3d(output_size=1)
+        self.max = nn.AdaptiveMaxPool3d(output_size=1)
+        self.att = nn.Sequential(nn.Flatten(start_dim=2),
+                                 nn.Linear(fmap_in, num_int_node),
+                                 nn.Linear(num_int_node, fmap_out))
+        self.sigmoid = nn.Sigmoid()
+
+        self.subsample = subsample if subsample is not None else nn.Identity()
+
+    def forward(self,
+                x: torch.Tensor,
+                to_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Channel Attention Block.
+
+        :param x: Input tensor of the attention module.
+        :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
+        :return: The downsampled masked input as torch.Tensor.
+        """
+        b, c = to_mask.size()[0:2]
+        out = torch.cat((self.avg(x).unsqueeze(1), self.max(x).unsqueeze(1)), dim=1)
+        out = self.att(out)
+        out = self.sigmoid(torch.sum(out, dim=1)).view(b, c, 1, 1, 1)
+        out = torch.mul(to_mask, out.expand_as(to_mask))
+
+        return self.subsample(out)
 
 
 class PreResBlock(nn.Module):
