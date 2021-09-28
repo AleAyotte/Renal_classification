@@ -104,14 +104,14 @@ class MultiTaskTrainer(Trainer):
                                           classes in the training set.
                                 (Default="balanced")
         :param conditional_prob: A list of pairs, where the pair A, B represent the name of task from which we want
-                                 to compute the conditionnal probability P(A|B).
+                                 to compute the conditional probability P(A|B).
         :param early_stopping: If true, the training will be stop after the third of the training if the model did
                                not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
-        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
-        :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on opmizers
+        :param mixed_precision: If true, mixed_precision will be used during training and inference. (Default=False)
+        :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on optimizers
                            and the training. See ModelType in Constant.py (Default=ModelType.STANDARD)
-        :param num_classes: A dictionnary that indicate the number of classes of each. For regression task, the number
+        :param num_classes: A dictionary that indicate the number of classes of each. For regression task, the number
                             of classes should be 1.
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0,
                             the main process will be used for the data augmentation. (Default=0)
@@ -120,7 +120,7 @@ class MultiTaskTrainer(Trainer):
         :param save_path: Indicate where the weights of the network and the result will be saved.
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
-        :param track_mode: Control information that are registred by tensorboard. none: no information will be saved.
+        :param track_mode: Control information that are registered by tensorboard. none: no information will be saved.
                            low: Only accuracy will be saved at each epoch. All: Accuracy at each epoch and training
                            at each iteration. (Default=all)
         """
