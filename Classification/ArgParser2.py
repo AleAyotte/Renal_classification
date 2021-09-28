@@ -92,7 +92,7 @@ def argument_parser() -> argparse.Namespace:
     stl2d_parser.add_argument('--task', type=str, default="malignancy",
                               help="The task on which the model will be train.",
                               choices=["malignancy", "subtype", "grade"])
-    stl2d_parser.set_defaults(dataset="rcc", num_chan_data=3)
+    stl2d_parser.set_defaults(dataset="rcc", num_chan_data=3, warm_up=0)
 
     # --------------------------------------------
     #            3D COMMUN PARAMETERS
@@ -173,6 +173,7 @@ def argument_parser() -> argparse.Namespace:
                                 "1: After the first convolution, \n2: After the first residual level, \n"
                                 "3: After the second residual level, \n4: After the third residual level, \n"
                                 "5: After the last residual level so just before the fully connected layers.")
+    hs_parser.set_defaults(warm_up=0)
 
     # --------------------------------------------
     #               SOFT SHARING 3D
@@ -202,6 +203,7 @@ def argument_parser() -> argparse.Namespace:
                            choices=["sluice", "cross_stitch"])
     ss_parser.add_argument('--spread', type=float, default=0.10,
                            help="The spread parameter of the Cross-Stitch Units.")
+    ss_parser.set_defaults(warm_up=0)
 
     # --------------------------------------------
     #                   MTAN 3D
@@ -216,6 +218,7 @@ def argument_parser() -> argparse.Namespace:
                              choices=["channel", "spatial", "cbam"])
     mtan_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                              help="The number of layer in the ResNet.")
+    mtan_parser.set_defaults(warm_up=0)
 
     # --------------------------------------------
     #               LTB RESNET 3D

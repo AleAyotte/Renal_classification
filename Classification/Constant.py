@@ -45,7 +45,6 @@ class DropType(Enum):
     LINEAR: Final = 2
 
 
-# Some of
 class Experimentation(Enum):
     SINGLE_TASK_2D: Final = 1
     STL_2D: Final = 1

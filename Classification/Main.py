@@ -62,9 +62,10 @@ if __name__ == "__main__":
                              "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
         else:
             clin_features = ["Age", "Sex", "size"]
+        num_clin_features = len(clin_features)
     else:
         clin_features = None
-
+        num_clin_features = 0
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     net, num_classes, conditional_prob = create_model(args,
                                                       experimentation=experimentation,
                                                       in_shape=in_shape,
-                                                      num_clin_features=len(clin_features),
+                                                      num_clin_features=num_clin_features,
                                                       tasks_list=tasks_list)
 
     if experimentation is not Experimentation.LTB:
@@ -188,23 +189,9 @@ if __name__ == "__main__":
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=False)
+                                log_code=True)
 
         experiment.set_name("LTBResNet" + "_" + "MultiTask")
-        experiment.log_code("ArgParser.py")
-        experiment.log_code("Main.py")
-        experiment.log_code("Model/Block.py")
-        experiment.log_code("Model/HardSharedResNet.py")
-        experiment.log_code("Model/LTBResNet.py")
-        experiment.log_code("Model/Module.py")
-        experiment.log_code("Model/MTAN.py")
-        experiment.log_code("Model/NeuralNet.py")
-        experiment.log_code("Model/ResNet.py")
-        experiment.log_code("Model/ResNet2D.py")
-        experiment.log_code("Model/SharedNet.py")
-        experiment.log_code("Trainer/MultiTaskTrainer.py")
-        experiment.log_code("Trainer/SingleTaskTrainer.py")
-        experiment.log_code("Trainer/Trainer.py")
 
         csv_path = get_predict_csv_path(experimentation.name, PROJECT_NAME, "_".join(tasks_list), args.testset)
         csv_path = list(csv_path)
@@ -223,7 +210,7 @@ if __name__ == "__main__":
         conf, auc = trainer.score(split_set, save_path=csv_file)
 
         if experimentation in [Experimentation.STL_2D, Experimentation.STL_3D]:
-            auc_list, conf_mat_list = auc, [conf]
+            auc_list, conf_mat_list = [auc], [conf]
             task_list = tasks_list
         else:
             auc_list, conf_mat_list = list(auc.values()), list(conf.values())

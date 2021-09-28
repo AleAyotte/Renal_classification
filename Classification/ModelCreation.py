@@ -44,17 +44,11 @@ def build_hardshared(args: argparse.Namespace,
     """
     task_block = {}
 
-    if args.malignancy:
-        task_block[Tasks.MALIGNANCY] = BlockType.PREACT
-
-    if args.subtype:
-        task_block[Tasks.SUBTYPE] = BlockType.POSTACT
-
-    if args.grade:
-        task_block[Tasks.GRADE] = BlockType.PREACT
-
-    for task in [Tasks.ARE, Tasks.LRF]:
-        task_block[task] = BlockType.PREACT
+    possible_tasks = [Tasks.ARE, Tasks.GRADE, Tasks.LRF, Tasks.MALIGNANCY, Tasks.SUBTYPE]
+    are_used = [args.are, args.grade, args.lrf, args.malignancy, args.subtype]
+    for task, is_used in zip(possible_tasks, are_used):
+        if is_used:
+            task_block[task] = BlockType.POSTACT if task is Tasks.SUBTYPE else BlockType.PREACT
 
     if args.depth_config == 1:
         commun_depth = 18
@@ -291,21 +285,17 @@ def create_model(args: argparse.Namespace,
     num_classes = {}
     conditional_prob = []
 
-    if args.malignancy:
-        num_classes[Tasks.MALIGNANCY] = Tasks.CLASSIFICATION
+    if experimentation in [Experimentation.STL_2D, Experimentation.STL_3D]:
+        num_classes[args.task] = Tasks.CLASSIFICATION
+    else:
+        possible_tasks = [Tasks.ARE, Tasks.GRADE, Tasks.LRF, Tasks.MALIGNANCY, Tasks.SUBTYPE]
+        are_used = [args.are, args.grade, args.lrf, args.malignancy, args.subtype]
 
-    if args.subtype:
-        num_classes[Tasks.SUBTYPE] = Tasks.CLASSIFICATION
-        if args.malignancy:
-            conditional_prob.append([Tasks.SUBTYPE, Tasks.MALIGNANCY])
-
-    if args.grade:
-        num_classes[Tasks.GRADE] = Tasks.CLASSIFICATION
-        if args.malignancy:
-            conditional_prob.append([Tasks.GRADE, Tasks.MALIGNANCY])
-
-    for task in [Tasks.ARE, Tasks.LRF]:
-        num_classes[task] = Tasks.CLASSIFICATION
+        for task, is_used in zip(possible_tasks, are_used):
+            if is_used:
+                num_classes[task] = Tasks.CLASSIFICATION
+                if args.malignancy and task in [Tasks.GRADE, Tasks.SUBTYPE]:
+                    conditional_prob.append([task, Tasks.MALIGNANCY])
 
     if experimentation is Experimentation.HARD_SHARING:
         net = build_hardshared(args, in_shape=in_shape, num_classes=num_classes, tasks_list=tasks_list)
