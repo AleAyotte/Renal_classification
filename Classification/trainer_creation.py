@@ -1,5 +1,5 @@
 """
-    @file:              TrainerCreation.py
+    @file:              trainer_creation.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021
@@ -11,9 +11,9 @@ import argparse
 import os
 from typing import Dict, Final, List, Optional, Union
 
-from Constant import Experimentation, ModelType
-from Trainer.SingleTaskTrainer import SingleTaskTrainer as STLTrainer
-from Trainer.MultiTaskTrainer import MultiTaskTrainer as MTLTrainer
+from constant import Experimentation, ModelType
+from trainer.single_task_trainer import SingleTaskTrainer as STLTrainer
+from trainer.multi_task_trainer import MultiTaskTrainer as MTLTrainer
 
 MIXED_PRECISION: Final = True
 PIN_MEMORY: Final = False
@@ -31,8 +31,8 @@ def create_trainer(args: argparse.Namespace,
     Create a SingleTaskTrainer or a MultiTaskTrainer according to the given argument and the experimentation type.
 
     :param args: A Namespace that contain the main argument for the experimentation.
-    :param experimentation: Indicate the type of experimentation that will be run. (See Constant.py)
-    :param model_type: The model type that will be train. (See Constant.py)
+    :param experimentation: Indicate the type of experimentation that will be run. (See constant.py)
+    :param model_type: The model type that will be train. (See constant.py)
     :param num_classes: A dictionary that indicate the number of classes for each task.
     :param tasks_list: A list of every task on which the model will be train.
     :param conditional_prob: A list of pairs, where the pair A, B represent the name of task from which we want

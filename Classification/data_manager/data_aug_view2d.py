@@ -1,5 +1,5 @@
 """
-    @file:              DataAugView2D.py
+    @file:              data_aug_view2d.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand2DElasticd
 
-from RenalDataset import RenalDataset
+from renal_dataset import RenalDataset
 
 
 if __name__ == "__main__":

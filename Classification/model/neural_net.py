@@ -1,5 +1,5 @@
 """
-    @file:              NeuralNet.py
+    @file:              neural_net.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020

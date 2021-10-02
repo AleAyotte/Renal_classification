@@ -1,5 +1,5 @@
 """
-    @file:              DataAugView3D.py
+    @file:              data_aug_view3d.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
@@ -13,10 +13,10 @@ from matplotlib import pyplot as plt
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand3DElasticd
 
-from Constant import DatasetName
-from DataManager.Constant import *
-from DataManager.BrainDataset import BrainDataset
-from DataManager.RenalDataset import RenalDataset
+from constant import DatasetName
+from data_manager.constant import *
+from data_manager.brain_dataset import BrainDataset
+from data_manager.renal_dataset import RenalDataset
 
 
 if __name__ == "__main__":

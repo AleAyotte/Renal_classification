@@ -1,5 +1,5 @@
 """
-    @file:              CapsNet2D.py
+    @file:              capsnet2d.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
@@ -17,9 +17,9 @@ from torch import nn
 from torch.nn import functional as F
 from typing import Sequence, Union
 
-from Model.CapsuleBlock import PrimaryCapsule, DynamicHighCapsule
-from Model.NeuralNet import NeuralNet
-from Trainer.Utils import init_weights, to_one_hot
+from model.capsule_block import PrimaryCapsule, DynamicHighCapsule
+from model.neural_net import NeuralNet
+from trainer.utils import init_weights, to_one_hot
 
 
 class CapsNet2D(NeuralNet):

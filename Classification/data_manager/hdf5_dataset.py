@@ -1,5 +1,5 @@
 """
-    @file:              HDF5Dataset.py
+    @file:              hdf5_dataset.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021
@@ -17,7 +17,7 @@ import torch
 from torch.utils.data import Dataset
 from typing import List, Optional, Sequence, Set, Tuple, Union
 
-from Constant import SplitName
+from constant import SplitName
 
 
 class HDF5Dataset(ABC, Dataset):

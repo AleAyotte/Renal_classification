@@ -1,5 +1,5 @@
 """
-    @file:              ResNet.py
+    @file:              resnet.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
@@ -16,10 +16,10 @@ import torch
 import torch.nn as nn
 from typing import Final, List, Sequence, Tuple, Type, Union
 
-from Constant import BlockType, DropType
-from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
-from Model.Module import Mixup, UncertaintyLoss
-from Model.NeuralNet import NeuralNet, init_weights
+from constant import BlockType, DropType
+from model.block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
+from model.module import Mixup, UncertaintyLoss
+from model.neural_net import NeuralNet, init_weights
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
@@ -85,7 +85,7 @@ class ResNet(NeuralNet):
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param blocks_type: A string or a list of string that indicate the type of block that will be used at each
                             level. If only a string is gived, all blocks in the model will be of the same type.
-                            (Options: see BlockType in Constant.py) (Defaut=BlockType.PREACT).
+                            (Options: see BlockType in constant.py) (Defaut=BlockType.PREACT).
                             The 2 following example give the same result.
                             Example 1)
                                 blocks_type = BlockType.PREACT
@@ -140,7 +140,7 @@ class ResNet(NeuralNet):
             elif block_type == BlockType.POSTACT:
                 block_list.append(ResBlock if depth <= 34 else ResBottleneck)
             else:
-                raise Exception(f"The block_type is not an option: {block_type}, see BlockType Enum in Constant.py.")
+                raise Exception(f"The block_type is not an option: {block_type}, see BlockType Enum in constant.py.")
 
         layers = {18: [2, 2, 2, 2], 34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3]}
 

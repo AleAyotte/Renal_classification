@@ -1,5 +1,5 @@
 """
-    @file:              Module.py
+    @file:              module.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
@@ -23,7 +23,7 @@ from torch import nn
 from torch.nn import functional as F
 from typing import Optional, Sequence, Tuple
 
-from Trainer.Utils import to_one_hot
+from trainer.utils import to_one_hot
 
 
 class CrossStitchUnit(torch.nn.Module):

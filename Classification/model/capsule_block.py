@@ -1,5 +1,5 @@
 """
-    @file:              CapsuleBlock.py
+    @file:              capsule_block.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     06/2021

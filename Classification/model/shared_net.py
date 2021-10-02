@@ -1,5 +1,5 @@
 """
-    @file:              SharedNet.py
+    @file:              shared_net.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
@@ -19,9 +19,9 @@ import torch
 import torch.nn as nn
 from typing import Callable, Dict, Final, List, Optional, Sequence, Union
 
-from Constant import Loss, SharingUnits
-from Model.Module import CrossStitchUnit, SluiceUnit, UncertaintyLoss, UniformLoss
-from Model.NeuralNet import NeuralNet
+from constant import Loss, SharingUnits
+from model.module import CrossStitchUnit, SluiceUnit, UncertaintyLoss, UniformLoss
+from model.neural_net import NeuralNet
 
 NB_LEVELS: Final = 4
 
@@ -105,7 +105,7 @@ class SharedNet(NeuralNet):
         # --------------------------------------------
         #               SHARING UNITS
         # --------------------------------------------
-        assert type(sharing_unit) is SharingUnits, "The sharing_unit should of type SharingUnits. See Constant.py."
+        assert type(sharing_unit) is SharingUnits, "The sharing_unit should of type SharingUnits. See constant.py."
         self.__sharing_unit = sharing_unit
 
         self.__subspace = np.zeros((NB_LEVELS, self.__nb_task))

@@ -1,11 +1,11 @@
 """
-    @file:              Trainer.py
+    @file:              trainer.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
     @Last modification: 08/2021
 
-    @Description:       Contain the mother class Trainer from which the SingleTaskTrainer and MultiTaskTrainer will
+    @Description:       Contain the mother class trainer from which the SingleTaskTrainer and MultiTaskTrainer will
                         inherit.
 """
 
@@ -23,12 +23,12 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from typing import Dict, List, Sequence, Tuple, Union
 
-from Constant import ModelType
-from DataManager.BrainDataset import BrainDataset
-from DataManager.RenalDataset import RenalDataset
-from Model.NeuralNet import NeuralNet
-from Model.ResNet_2D import ResNet2D
-from Trainer.Utils import find_optimal_cutoff
+from constant import ModelType
+from data_manager.brain_dataset import BrainDataset
+from data_manager.renal_dataset import RenalDataset
+from model.neural_net import NeuralNet
+from model.resnet_2d import ResNet2D
+from trainer.utils import find_optimal_cutoff
 
 DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
 MINIMUM_ACCURACY = 0.5  # Minimum threshold of the accuracy used in the early stopping criterion
@@ -124,7 +124,7 @@ class Trainer(ABC):
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
         :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on opmizers
-                           and the training. See ModelType in Constant.py (Default=ModelType.STANDARD)
+                           and the training. See ModelType in constant.py (Default=ModelType.STANDARD)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0,
                             the main process will be used for the data augmentation. (Default=0)
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will

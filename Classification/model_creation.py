@@ -1,5 +1,5 @@
 """
-    @file:              ModelCreation.py
+    @file:              model_creation.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021
@@ -11,15 +11,15 @@ import argparse
 import torch
 from typing import Dict, Final, List, Tuple, Union
 
-from Constant import AttentionBlock, BlockType, CS_CONFIG, DropType, Experimentation, Loss,\
+from constant import AttentionBlock, BlockType, CS_CONFIG, DropType, Experimentation, Loss,\
     LTBConfig, SharingUnits,  SubNetDepth, Tasks
-from Model.HardSharedResNet import HardSharedResNet
-from Model.LTBResNet import LTBResNet
-from Model.MTAN import MTAN
-from Model.NeuralNet import NeuralNet
-from Model.ResNet import ResNet
-from Model.ResNet_2D import ResNet2D
-from Model.SharedNet import SharedNet
+from model.hard_shared_resnet import HardSharedResNet
+from model.ltb_resnet import LTBResNet
+from model.mtan import MTAN
+from model.neural_net import NeuralNet
+from model.resnet import ResNet
+from model.resnet_2d import ResNet2D
+from model.shared_net import SharedNet
 
 LOAD_PATH: Final = "save/STL3D_NET/"  # Loading path of the single task model.
 MIN_NUM_TASKS: Final = 2
@@ -275,7 +275,7 @@ def create_model(args: argparse.Namespace,
     Create the corresponding neural network according to the experimentation type and a given namespace of argument.
 
     :param args: A Namespace that contain the main argument for the experimentation.
-    :param experimentation: Indicate the type of experimentation that will be run. (See Constant.py)
+    :param experimentation: Indicate the type of experimentation that will be run. (See constant.py)
     :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
     :param num_clin_features: The number of clinical features that will be used to classify the images.
     :param tasks_list: A list of every task on which the model will be train.

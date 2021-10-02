@@ -1,5 +1,5 @@
 """
-    @file:              Main.py
+    @file:              main.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021
@@ -15,12 +15,12 @@ from comet_ml import Experiment
 from torchsummary import summary
 from typing import Final
 
-from ArgParser import argument_parser
-from Constant import DatasetName, Experimentation, ModelType, SplitName, Tasks
-from DataManager.DatasetBuilder import build_datasets
-from ModelCreation import create_model
-from TrainerCreation import create_trainer
-from Utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
+from arg_parser import argument_parser
+from constant import DatasetName, Experimentation, ModelType, SplitName, Tasks
+from data_manager.dataset_builder import build_datasets
+from model_creation import create_model
+from trainer_creation import create_trainer
+from utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
 
 BRAIN_METS_TASKS: Final = {Tasks.ARE, Tasks.LRF}
 DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared_lr == 0

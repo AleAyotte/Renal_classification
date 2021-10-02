@@ -1,5 +1,5 @@
 """
-    @file:              DatasetBuilder.py
+    @file:              dataset_builder.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
@@ -14,10 +14,10 @@ from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWit
 from random import randint
 from typing import List, Optional, Sequence, Tuple, Union
 
-from Constant import DatasetName, SplitName
-from DataManager.BrainDataset import BrainDataset
-from DataManager.Constant import *
-from DataManager.RenalDataset import RenalDataset
+from constant import DatasetName, SplitName
+from data_manager.brain_dataset import BrainDataset
+from data_manager.constant import *
+from data_manager.renal_dataset import RenalDataset
 
 
 def build_datasets(dataset_name: DatasetName,
@@ -31,7 +31,7 @@ def build_datasets(dataset_name: DatasetName,
     """
     Load the data, split them into 3 dataset (training, validation, test) and prepare the dataset.
 
-    :param dataset_name: Indicate which dataset will be used. (See DatasetName in Constant.py)
+    :param dataset_name: Indicate which dataset will be used. (See DatasetName in constant.py)
     :param tasks: A list of attribute that will be use to labeled the data.
     :param clin_features: A list of clinical features that will be used as input in the model.
     :param num_chan: The number images channels. Only use if num_dimension == 3.
@@ -214,7 +214,7 @@ def get_dataset(clinical_features: Sequence[str],
 
     :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
-    :param dataset_name: Indicate which dataset will be used. (See DatasetName in Constant.py)
+    :param dataset_name: Indicate which dataset will be used. (See DatasetName in constant.py)
     :param data_path: The filepath of the hdf5 file where the data has been stored.
     :param exclude_list: A list of patient_id to exclude in this dataset.
     :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
@@ -250,7 +250,7 @@ def split_dataset(dataset: Union[BrainDataset, RenalDataset],
     Split the dataset using the correct parameter according to the dataset name.
 
     :param dataset: The HDF5Dataset that will be split.
-    :param dataset_name: Indicate which dataset will be used. (See DatasetName in Constant.py)
+    :param dataset_name: Indicate which dataset will be used. (See DatasetName in constant.py)
     :param random_seed: The seed that will be used to split the data.
     :param tasks: A list of attribute that will be use to labeled the data.
     :param transform: A function/transform that will be applied on the images and the ROI.

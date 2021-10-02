@@ -1,5 +1,5 @@
 """
-    @file:              Sampler.py
+    @file:              sampler.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021

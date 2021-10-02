@@ -1,5 +1,5 @@
 """
-    @file:              Block.py
+    @file:              block.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
@@ -24,7 +24,7 @@ import torch
 from torch import nn
 from typing import Final, List, NewType, Optional, Sequence, Tuple, Type, Union
 
-from Model.Module import GumbelSoftmax
+from model.module import GumbelSoftmax
 
 
 class BranchingBlock(nn.Module):

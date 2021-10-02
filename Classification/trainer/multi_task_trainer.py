@@ -1,11 +1,11 @@
 """
-    @file:              MultiTaskTrainer.py
+    @file:              multi_task_trainer.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
     @Last modification: 08/2021
 
-    @Description:       Contain the class MultiTaskTrainer which inherit from the class Trainer. This class is used
+    @Description:       Contain the class MultiTaskTrainer which inherit from the class trainer. This class is used
                         to train the MultiLevelResNet and the SharedNet on the three task (malignancy, subtype and
                         grade prediction).
 """
@@ -23,15 +23,15 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Dict, Optional, Sequence, Tuple, Union
 
-from Constant import ModelType
-from Model.Module import MarginLoss
-from Trainer.Trainer import Trainer
-from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
+from constant import ModelType
+from model.module import MarginLoss
+from trainer.trainer import Trainer
+from trainer.utils import to_one_hot, compute_recall, get_mean_accuracy
 
 
 class MultiTaskTrainer(Trainer):
     """
-    The MultiTaskTrainer class inherit of the Trainer class. It handle the training and the assess of a given
+    The MultiTaskTrainer class inherit of the trainer class. It handle the training and the assess of a given
     model on the malignancy and subtype tasks at the same time.
 
     ...
@@ -110,7 +110,7 @@ class MultiTaskTrainer(Trainer):
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param mixed_precision: If true, mixed_precision will be used during training and inference. (Default=False)
         :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on optimizers
-                           and the training. See ModelType in Constant.py (Default=ModelType.STANDARD)
+                           and the training. See ModelType in constant.py (Default=ModelType.STANDARD)
         :param num_classes: A dictionary that indicate the number of classes of each. For regression task, the number
                             of classes should be 1.
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0,

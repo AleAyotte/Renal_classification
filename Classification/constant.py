@@ -1,5 +1,5 @@
 """
-    @file:              Constant.py
+    @file:              constant.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     06/2021

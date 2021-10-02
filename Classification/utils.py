@@ -1,5 +1,5 @@
 """
-    @file:              Utils.py
+    @file:              utils.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
@@ -14,7 +14,7 @@ import numpy as np
 import os
 from typing import Optional, Sequence, Union
 
-from Trainer.Utils import compute_recall, get_mean_accuracy
+from trainer.utils import compute_recall, get_mean_accuracy
 
 API_KEY_FILEPATH = "comet_api_key.txt"  # path to the file that contain the API KEY for comet.ml
 CSV_PATH = "save/"

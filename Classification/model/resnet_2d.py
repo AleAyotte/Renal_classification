@@ -1,5 +1,5 @@
 """
-    @file:              ResNet_2D.py
+    @file:              resnet_2d.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021

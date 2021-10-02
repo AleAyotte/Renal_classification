@@ -1,17 +1,17 @@
 """
-    @file:              Utils.py
+    @file:              utils.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
     @Last modification: 02/2021
 
-    @Description:       Contain some usefull function used by the Trainer. Those function are compute_recall,
+    @Description:       Contain some usefull function used by the trainer. Those function are compute_recall,
                         get_mean_accuracy, to_one_hot. There is also the init_weight function used to initialize
                         the weight of the models.
 """
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.metrics import roc_curve
 import torch
 from torch.autograd import Variable

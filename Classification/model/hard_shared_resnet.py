@@ -1,5 +1,5 @@
 """
-    @file:              HardSharedResNet.py
+    @file:              hard_shared_resnet.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
@@ -15,10 +15,10 @@ import torch
 import torch.nn as nn
 from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
 
-from Constant import BlockType, DropType, Loss, Tasks
-from Model.Block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
-from Model.Module import Mixup, UncertaintyLoss, UniformLoss
-from Model.NeuralNet import NeuralNet, init_weights
+from constant import BlockType, DropType, Loss, Tasks
+from model.block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
+from model.module import Mixup, UncertaintyLoss, UniformLoss
+from model.neural_net import NeuralNet, init_weights
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4

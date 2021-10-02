@@ -1,5 +1,5 @@
 """
-    @file:              ArgParser.py
+    @file:              arg_parser.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     06/2021
@@ -167,7 +167,7 @@ def argument_parser() -> argparse.Namespace:
 
     hs_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                            help="The config used to determine the depth of each sub-network. The depth of the shared "
-                                "layers is determined by the most commun depth (see Constant.py SubNetDepth).")
+                                "layers is determined by the most commun depth (see constant.py SubNetDepth).")
     hs_parser.add_argument('--split_level', type=int, default=4,
                            help="At which level the multi level resnet should split into sub net.\n"
                                 "1: After the first convolution, \n2: After the first residual level, \n"
@@ -186,10 +186,10 @@ def argument_parser() -> argparse.Namespace:
                            help="The conservation parameter of the Cross-Stich Unit")
     ss_parser.add_argument('--cs_config', type=int, default=1, choices=[0, 1, 2, 3],
                            help="The config used to the position of the cross-stitch module if sharing_unit = "
-                                "cross_stitch (see Constant.py CS_CONFIG).")
+                                "cross_stitch (see constant.py CS_CONFIG).")
     ss_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                            help="The config used to determine the depth of each sub-network "
-                                "(see Constant.py SubNetDepth).")
+                                "(see constant.py SubNetDepth).")
     ss_parser.add_argument('--groups', type=int, default=1)
     ss_parser.add_argument('--pretrained', type=bool, default=False, nargs='?', const=True,
                            help="If True, then the SharedNet will be create with two subnet that has been pretrained "
@@ -237,7 +237,7 @@ def argument_parser() -> argparse.Namespace:
                             help="The number of training epoch that is use to find the optimal architecture.")
     ltb_parser.add_argument('--config', type=int, default=2, choices=[1, 2, 3],
                             help="The config used to determine the that will be used in the LTBResNet "
-                                 "(see Constant.py LTBConfig).")
+                                 "(see constant.py LTBConfig).")
     ltb_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                             help="The number of layer in the ResNet.")
     ltb_parser.add_argument('--tau', type=float, default=0.1,

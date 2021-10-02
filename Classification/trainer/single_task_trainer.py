@@ -1,15 +1,14 @@
 """
-    @file:              MultiTaskTrainer.py
+    @file:              multi_task_trainer.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
     @Last modification: 09/2021
 
-    @Description:       Contain the class SingleTaskTrainer which inherit from the class Trainer. This class is used
+    @Description:       Contain the class SingleTaskTrainer which inherit from the class trainer. This class is used
                         to train the 2D/3D ResNet on one of the three task (malignancy, subtype and grade prediction).
 """
 
-from Model.Module import MarginLoss
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -23,15 +22,16 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Sequence, Tuple, Union
 
-from Trainer.Trainer import Trainer
-from Trainer.Utils import to_one_hot, compute_recall, get_mean_accuracy
+from model.module import MarginLoss
+from trainer.trainer import Trainer
+from trainer.utils import to_one_hot, compute_recall, get_mean_accuracy
 
 ALL_TASK = ["malignancy", "subtype", "grade", "are", "lrf"]
 
 
 class SingleTaskTrainer(Trainer):
     """
-    The SingleTaskTrainer class inherit of the Trainer class. It handle the training and the assess of a given
+    The SingleTaskTrainer class inherit of the trainer class. It handle the training and the assess of a given
     model on a single task.
 
     ...

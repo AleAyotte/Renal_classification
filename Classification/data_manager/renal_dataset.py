@@ -1,5 +1,5 @@
 """
-    @file:              RenalDataset.py
+    @file:              renal_dataset.py
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
@@ -18,8 +18,8 @@ import random
 from sklearn.model_selection import train_test_split
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
-from Constant import SplitName
-from DataManager.HDF5Dataset import HDF5Dataset
+from constant import SplitName
+from data_manager.hdf5_dataset import HDF5Dataset
 
 
 class RenalDataset(HDF5Dataset):
