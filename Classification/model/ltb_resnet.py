@@ -33,6 +33,8 @@ class LTBResNet(NeuralNet):
     ...
     Attributes
     ----------
+    aux_tasks_loss : Union[UncertaintyLoss, UniformLoss]
+        A torch.module that will be used to compute the multi-task loss on the auxiliary tasks.
     avg_pool :  nn.AvgPool3d
         The AvgPool3D module that is used after the last series of residual block.
     conv : nn.ModuleList
@@ -51,8 +53,10 @@ class LTBResNet(NeuralNet):
         The third series of residual block.
     layers4 : nn.Sequential
         The last series of residual block.
-    loss: Union[UncertaintyLoss, UniformLoss]
-        A torch.module that will be used to compute the multi-task loss during the training.
+    loss : Callable
+        A method that will combine the main task loss and the auxiliary task loss.
+    main_tasks_loss : Union[UncertaintyLoss, UniformLoss]
+        A torch.module that will be used to compute the multi-task loss on the main tasks.
     __num_flat_features : int
         Number of features at the output of the last convolution.
     __tasks : List[str]
@@ -255,7 +259,8 @@ class LTBResNet(NeuralNet):
                                                     out_features=num_classes[task])
         self.apply(init_weights)
 
-    def __define_loss(self, aux_tasks_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
+    def __define_loss(self, aux_tasks_coeff: float) -> Union[Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+                                                             Callable[[torch.Tensor], torch.Tensor]]:
         """
         Build the method that will be used to compute the loss.
 
