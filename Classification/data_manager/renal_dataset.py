@@ -165,20 +165,18 @@ class RenalDataset(HDF5Dataset):
         return data, labels, patient_id, stratum_keys, clin
 
     def extract_data(self,
-                     idx: Sequence[int],
-                     pop: bool = True) -> Tuple[Sequence[dict],
-                                                Union[Sequence[dict], Sequence[int]],
-                                                Sequence[str],
-                                                Sequence[str],
-                                                Sequence[Sequence[int]]]:
+                     idx: Sequence[int]) -> Tuple[Sequence[dict],
+                                                  Union[Sequence[dict], Sequence[int]],
+                                                  Sequence[str],
+                                                  Sequence[str],
+                                                  Sequence[Sequence[int]]]:
         """
         Extract data without applying transformation on the images.
 
         :param idx: The index of the data to extract.
-        :param pop: If True, the extracted data are removed from the dataset. (Default: True)
         :return: A tuple that contain the data (images), the labels, the stratum_keys and the clinical data.
         """
-        return self._extract_data(idx, pop)
+        return self._extract_data(idx)
 
     def _read_hdf5(self,
                    to_exclude: Set[str],
