@@ -13,13 +13,7 @@ import math
 import numpy as np
 from typing import Dict, Final, List, Optional, Tuple, Union
 
-AIM_TARGET: Final = "aim_target"
-AIM_RATE: Final = "aim_rate"
-GREATER: Final = "greater_rate"
-LOWER: Final = "lower_rate"
-NUM_TARGET: Final = "num_target"
-NUM_POS: Final = "num_pos"
-POS_RATE: Final = "pos_rate"
+from data_manager.constant import *
 
 
 class Sampler:
@@ -102,7 +96,7 @@ class Sampler:
 
         return data_stats, pat_stats
 
-    def __compute_rate_status(self):
+    def __compute_rate_status(self) -> Dict[str, Dict[str, Union[float, int]]]:
         """
         Create two list of patient. The first one indicate the patients with a greater positive rate then the
         average and the second one the patients with lower positive rate then the average.
