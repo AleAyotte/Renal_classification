@@ -50,8 +50,6 @@ class CrossStitchUnit(torch.nn.Module):
         :param spread: A float that represent the spread parameters.
         """
         super().__init__()
-        self.__num_chan = nb_channels
-        self.__num_task = nb_task
 
         mean = (1 - c) / (nb_task - 1)
         std = spread / (nb_task - 1)
