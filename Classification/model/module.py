@@ -36,6 +36,11 @@ class CrossStitchUnit(torch.nn.Module):
     alpha: torch.nn.Parameter
         A torch Tensor that represent parameters of the Cross-Stitch Unit. Those parameters are
         a matrix NxN that learned how the information between N subspace should be shared.
+    Methods
+    -------
+    penalty() -> torch.Tensor:
+        Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
+        be equal to 1.
     """
     def __init__(self,
                  nb_channels: int,
@@ -258,6 +263,11 @@ class SluiceUnit(torch.nn.Module):
     alpha: torch.nn.Parameter
         A torch Tensor that represent parameters of the Sluice Unit. Those parameters are
         a matrix NxN that learned how the information between N subspace should be shared.
+    Methods
+    -------
+    penalty() -> torch.Tensor:
+        Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
+        be equal to 1.
     """
 
     def __init__(self,
