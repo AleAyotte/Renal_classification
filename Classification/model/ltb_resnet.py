@@ -66,9 +66,10 @@ class LTBResNet(NeuralNet):
     """
     def __init__(self,
                  block_type_list: Union[List[BlockType], List[List[BlockType]], BlockType],
+                 main_tasks: List[str],
                  num_classes: Dict[str, int],
-                 tasks: List[str],
                  act: str = "ReLU",
+                 aux_tasks: List[str] = None,
                  aux_tasks_coeff: float = 0.05,
                  block_width: Union[int, List[int]] = 2,
                  depth: int = 18,
@@ -106,10 +107,10 @@ class LTBResNet(NeuralNet):
         :param num_in_chan: An integer that indicate the number of channel of the input images.
         :param tau: The non-negative scalar temperature parameter of the gumble softmax operation.
         """
-        assert len(tasks) > 0, "You should specify the name of each task"
+        assert len(main_tasks) > 0, "You should specify the name of each task"
         super().__init__()
-        self.__in_channels = first_channels
-        self.__tasks = tasks
+        aux_tasks = [] if aux_tasks is None else aux_tasks
+        self.__tasks = main_tasks + aux_tasks
         # --------------------------------------------
         #                NUM_CLASSES
         # --------------------------------------------
@@ -129,19 +130,16 @@ class LTBResNet(NeuralNet):
             for task in list(missing_tasks):
                 num_classes[task] = Tasks.REGRESSION
 
-        num_aux_tasks = len([task for task in self.__tasks if num_classes[task] == 1])
-        num_main_tasks = len([task for task in self.__tasks if num_classes[task] > 1])
-
         # --------------------------------------------
         #              UNCERTAINTY LOSS
         # --------------------------------------------
         if loss == Loss.UNCERTAINTY:
-            self.main_tasks_loss = UncertaintyLoss(num_task=num_main_tasks)
-            self.aux_tasks_loss = UncertaintyLoss(num_task=num_aux_tasks)
+            self.main_tasks_loss = UncertaintyLoss(num_task=len(main_tasks))
+            self.aux_tasks_loss = UncertaintyLoss(num_task=len(aux_tasks))
         else:
             self.main_tasks_loss = UniformLoss()
             self.aux_tasks_loss = UniformLoss()
-        self.loss = self.__define_loss(aux_tasks_coeff=aux_tasks_coeff if num_aux_tasks > 0 else 0.0)
+        self.loss = self.__define_loss(aux_tasks_coeff=aux_tasks_coeff if len(aux_tasks) > 0 else 0.0)
 
         # --------------------------------------------
         #                    BLOCK
