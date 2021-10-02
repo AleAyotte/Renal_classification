@@ -214,7 +214,7 @@ class HDF5Dataset(ABC, Dataset):
               random_seed: int = 0,
               sample_size: float = 0.1,
               transform: Optional[Compose] = None,
-              **kwargs) -> HDF5Dataset:
+              *args) -> HDF5Dataset:
         """
         Split the current dataset and return a new dataset with the data.
 
