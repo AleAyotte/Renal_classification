@@ -41,7 +41,7 @@ class CrossStitchUnit(torch.nn.Module):
                  nb_channels: int,
                  nb_task: int,
                  c=0.9,
-                 spread=0.1):
+                 spread=0.1) -> None:
         """
 
         :param nb_task: The number of network to combine.
@@ -105,7 +105,7 @@ class GumbelSoftmax(nn.Module):
     def __init__(self,
                  num_input: int,
                  num_output: int,
-                 tau: float = 1):
+                 tau: float = 1) -> None:
         """
         Create a gumbel softmax block
 
@@ -184,7 +184,7 @@ class Mixup(torch.nn.Module):
     set_batch_size(b_size: int) -> None:
         Change the value of the __batch_size attribut.
     """
-    def __init__(self, beta_params: float):
+    def __init__(self, beta_params: float) -> None:
         """
         The constructor of a mixup module.
 
@@ -263,7 +263,7 @@ class SluiceUnit(torch.nn.Module):
     def __init__(self,
                  nb_subspace: int,
                  c: float = 0.9,
-                 spread: float = 0.1):
+                 spread: float = 0.1) -> None:
         """
         Initialize a sluice units.
 
@@ -312,7 +312,7 @@ class UncertaintyLoss(torch.nn.Module):
     phi: torch.nn.Parameter
 
     """
-    def __init__(self, num_task):
+    def __init__(self, num_task) -> None:
         """
         Initialize a Uncertainty loss module.
 
