@@ -12,23 +12,12 @@
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd
 from random import randint
-from typing import Final, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 from Constant import DatasetName, SplitName
 from DataManager.BrainDataset import BrainDataset
+from DataManager.Constant import *
 from DataManager.RenalDataset import RenalDataset
-
-
-BMETS_A: Final = "Data/BrainMetsA.hdf5"
-BMETS_B: Final = "Data/BrainMetsB.hdf5"
-BMETS_TOL_DICT = {"are": 0.01, "lrf": 0.02}
-RCC_2D: Final = "Data/2D_with_N4"
-RCC_4CHAN: Final = "Data/RCC_4chan.hdf5"
-RCC_3CHAN: Final = "Data/RCC_3chan.hdf5"
-PAD_MODE: Final = "constant"  # choices=["constant", "edge", "reflect", "symmetric"]
-REJECT_FILE: Final = "DataManager/reject_list.txt"
-RCC_STRATIFICATION_KEYS: Final = ["malignancy", "subtype", "grade"]
-SPLIT_SIZE: Final = 0.2
 
 
 def build_datasets(dataset_name: DatasetName,
@@ -158,28 +147,49 @@ def get_data_augmentation(dataset_name: DatasetName,
 
         transform = Compose([
             AddChanneld(keys=all_imgs_keys),
-            RandFlipd(keys=all_imgs_keys, spatial_axis=[0], prob=0.5),
-            RandScaleIntensityd(keys=partial_imgs_key, factors=intensity_factor, prob=0.5),
-            RandAffined(keys=all_imgs_keys, prob=0.5, shear_range=[0.4, 0.4, 0],
-                        rotate_range=[0, 0, 6.28], translate_range=0.66, padding_mode="zeros"),
-            RandSpatialCropd(keys=all_imgs_keys, roi_size=crop_size, random_center=False),
-            RandZoomd(keys=all_imgs_keys, prob=0.5, min_zoom=0.77, max_zoom=1.23,
-                      keep_size=False, mode="trilinear", align_corners=True),
-            ResizeWithPadOrCropd(keys=all_imgs_keys, spatial_size=pad_size, mode=PAD_MODE),
+            RandFlipd(keys=all_imgs_keys, prob=PROB, spatial_axis=SPATIAL_AXIS),
+            RandScaleIntensityd(keys=partial_imgs_key, factors=intensity_factor, prob=PROB),
+            RandAffined(keys=all_imgs_keys,
+                        padding_mode=PAD_MODE_AFFINE,
+                        prob=PROB,
+                        rotate_range=ROTATE_RANGE_3D,
+                        shear_range=SHEAR_RANGE_3D,
+                        translate_range=TRANSLATE_RANGE_3D),
+            RandSpatialCropd(keys=all_imgs_keys, random_center=RANDOM_CENTER, roi_size=crop_size),
+            RandZoomd(keys=all_imgs_keys,
+                      align_corners=ALIGN_CORNERS,
+                      keep_size=KEEP_SIZE,
+                      max_zoom=MAX_ZOOM_3D,
+                      min_zoom=MIN_ZOOM_3D,
+                      mode=MODE_3D,
+                      prob=PROB),
+            ResizeWithPadOrCropd(keys=all_imgs_keys, mode=PAD_MODE_RESIZE, spatial_size=pad_size),
             ToTensord(keys=all_imgs_keys)
         ])
 
     # 2 Dimensions
     else:
         all_imgs_keys = ["t1", "t2"]
+        intensity_factor = 0.2
+        pad_size = [224, 224]
+
         transform = Compose([
-            RandFlipd(keys=all_imgs_keys, spatial_axis=[0], prob=0.5),
-            RandScaleIntensityd(keys=all_imgs_keys, factors=0.2, prob=0.5),
-            RandAffined(keys=all_imgs_keys, prob=0.8, shear_range=0.5,
-                        rotate_range=6.28, translate_range=0.1),
-            RandZoomd(keys=all_imgs_keys, prob=0.5, min_zoom=0.95, max_zoom=1.05,
-                      keep_size=False),
-            ResizeWithPadOrCropd(keys=all_imgs_keys, spatial_size=[224, 224], mode="constant"),
+            RandFlipd(keys=all_imgs_keys, prob=PROB, spatial_axis=SPATIAL_AXIS),
+            RandScaleIntensityd(keys=all_imgs_keys, factors=intensity_factor, prob=PROB),
+            RandAffined(keys=all_imgs_keys,
+                        padding_mode=PAD_MODE_AFFINE,
+                        prob=PROB,
+                        rotate_range=ROTATE_RANGE_2D,
+                        shear_range=SHEAR_RANGE_2D,
+                        translate_range=TRANSLATE_RANGE_2D),
+            RandZoomd(keys=all_imgs_keys,
+                      align_corners=ALIGN_CORNERS,
+                      keep_size=KEEP_SIZE,
+                      max_zoom=MAX_ZOOM_2D,
+                      min_zoom=MIN_ZOOM_2D,
+                      mode=MODE_2D,
+                      prob=PROB),
+            ResizeWithPadOrCropd(keys=all_imgs_keys, mode=PAD_MODE_RESIZE, spatial_size=pad_size),
             ToTensord(keys=all_imgs_keys)
         ])
 

@@ -12,16 +12,11 @@
 from matplotlib import pyplot as plt
 from monai.transforms import RandFlipd, RandScaleIntensityd, ToTensord, Compose, AddChanneld
 from monai.transforms import RandSpatialCropd, RandZoomd, RandAffined, ResizeWithPadOrCropd, Rand3DElasticd
-from typing import Final
 
 from Constant import DatasetName
+from DataManager.Constant import *
 from DataManager.BrainDataset import BrainDataset
 from DataManager.RenalDataset import RenalDataset
-
-BMETS_DATA_PATH: Final = "Data/BrainMetsB.hdf5"
-BMETS_SLICE: Final = [32, 32, 16]
-RCC_DATA_PATH: Final = "Data/RCC_3chan.hdf5"
-RCC_SLICE: Final = [48, 48, 16]
 
 
 if __name__ == "__main__":
@@ -29,14 +24,14 @@ if __name__ == "__main__":
     dataset = DatasetName.BMETS
     if dataset == DatasetName.RCC:
         crop_size = [64, 64, 16]
-        data_path = RCC_DATA_PATH
+        data_path = RCC_4CHAN
         imgs_key_all = ["t1", "t2", "roi"]
         imgs_key_partial = ["t1", "t2"]
         pad_size = [96, 96, 32]
         slic = RCC_SLICE
     else:
         crop_size = [48, 48, 16]
-        data_path = BMETS_DATA_PATH
+        data_path = BMETS_B
         imgs_key_all = ["t1ce", "dose", "roi"]
         imgs_key_partial = ["t1ce"]
         pad_size = [64, 64, 32]
@@ -47,9 +42,8 @@ if __name__ == "__main__":
     # --------------------------------------------
     transform = Compose([
         AddChanneld(keys=imgs_key_all),
-        RandFlipd(keys=imgs_key_all, spatial_axis=[0], prob=0),
-        RandFlipd(keys=imgs_key_all, spatial_axis=[1], prob=0),
-        RandScaleIntensityd(keys=imgs_key_partial, factors=0.1, prob=0),
+        RandFlipd(keys=imgs_key_all, spatial_axis=[0], prob=1),
+        RandScaleIntensityd(keys=imgs_key_partial, factors=0.1, prob=1),
         # Rand3DElasticd(keys=imgs_key_all, sigma_range=(5, 8), magnitude_range=(100, 200), prob=1),
         # Rand3DElasticd(keys=imgs_key_all, sigma_range=(3, 3), magnitude_range=(15, 35), prob=1),
         RandAffined(keys=imgs_key_all, prob=1, shear_range=[0.46, 0.46, 0],
