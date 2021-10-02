@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     08/2021
-    @Last modification: 08/2021
+    @Last modification: 10/2021
 
     @Description:       This file contain the class LTBResNet (Learn-To-Branch ResNet) that inherit from the NeuralNet
                         class.
@@ -15,12 +15,12 @@ from monai.networks.blocks.convolutions import Convolution
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
+from typing import Callable, Dict, Final, List, Optional, Sequence, Tuple, Type, Union
 
 from constant import BlockType, DropType, Loss, Tasks
 from model.block import BranchingBlock, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
 from model.module import Mixup, UncertaintyLoss, UniformLoss
-from model.meural_net import NeuralNet, init_weights
+from model.neural_net import NeuralNet, init_weights
 
 NB_DIMENSIONS: Final = 3
 NB_LEVELS: Final = 4
@@ -69,6 +69,7 @@ class LTBResNet(NeuralNet):
                  num_classes: Dict[str, int],
                  tasks: List[str],
                  act: str = "ReLU",
+                 aux_tasks_coeff: float = 0.05,
                  block_width: Union[int, List[int]] = 2,
                  depth: int = 18,
                  drop_rate: float = 0,
@@ -80,14 +81,15 @@ class LTBResNet(NeuralNet):
                  loss: Loss = Loss.UNCERTAINTY,
                  norm: str = "batch",
                  num_in_chan: int = 4,
-                 tau: float = 1):
+                 tau: float = 1) -> None:
         """
 
         :param block_type_list: A list of block that will be instanciate in the network.
         :param num_classes: A dictionnary that indicate the number of class for each task. For regression tasks,
-                            the num_class shoule be equal to one.
+                            the num_class shoule be equal to one. Regression task will be consider has auxiliary tasks.
         :param tasks: A list of tasks on which the model will be train.
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param aux_tasks_coeff: The coefficient that will multiply the loss of the auxiliary tasks.
         :param block_width: A integer or a list of integer that indicate the number of possible path at each layer.
         :param depth: The number of convolution and fully connected layer in the neural network. (Default=18)
         :param drop_rate: The maximal dropout rate used to configure the dropout layer. See drop_type (Default=0)
@@ -108,7 +110,6 @@ class LTBResNet(NeuralNet):
         super().__init__()
         self.__in_channels = first_channels
         self.__tasks = tasks
-
         # --------------------------------------------
         #                NUM_CLASSES
         # --------------------------------------------
@@ -128,13 +129,19 @@ class LTBResNet(NeuralNet):
             for task in list(missing_tasks):
                 num_classes[task] = Tasks.REGRESSION
 
+        num_aux_tasks = len([task for task in self.__tasks if num_classes[task] == 1])
+        num_main_tasks = len([task for task in self.__tasks if num_classes[task] > 1])
+
         # --------------------------------------------
         #              UNCERTAINTY LOSS
         # --------------------------------------------
         if loss == Loss.UNCERTAINTY:
-            self.loss = UncertaintyLoss(num_task=len(tasks))
+            self.main_tasks_loss = UncertaintyLoss(num_task=num_main_tasks)
+            self.aux_tasks_loss = UncertaintyLoss(num_task=num_aux_tasks)
         else:
-            self.loss = UniformLoss()
+            self.main_tasks_loss = UniformLoss()
+            self.aux_tasks_loss = UniformLoss()
+        self.loss = self.__define_loss(aux_tasks_coeff=aux_tasks_coeff if num_aux_tasks > 0 else 0.0)
 
         # --------------------------------------------
         #                    BLOCK
@@ -247,6 +254,23 @@ class LTBResNet(NeuralNet):
                                                     in_features=self.__num_flat_features,
                                                     out_features=num_classes[task])
         self.apply(init_weights)
+
+    def __define_loss(self, aux_tasks_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
+        """
+        Build the method that will be used to compute the loss.
+
+        :param aux_tasks_coeff: The coefficient that will multiply the loss of the auxiliary tasks.
+        :return: A function that compute the multi-task loss.
+        """
+        if aux_tasks_coeff:
+            def multi_task_loss(losses: torch.Tensor,
+                                aux_tasks_losses: torch.Tensor) -> torch.Tensor:
+                return self.main_tasks_loss(losses) + aux_tasks_coeff * self.aux_tasks_loss(aux_tasks_losses)
+        else:
+            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
+                return self.loss_module(losses)
+
+        return multi_task_loss
 
     def __make_layer(self,
                      block_list: List[Union[Type[PreResBlock], Type[PreResBottleneck],
