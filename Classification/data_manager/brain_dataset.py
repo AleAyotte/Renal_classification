@@ -38,7 +38,7 @@ class BrainDataset(HDF5Dataset):
         dataset.
     _data: np.array
         A numpy array that contain the dataset medical images.
-    __data_spliter : Sampler
+    __data_splitter : Sampler
         A sampler that will be used to split the dataset without changing too much the label ratio positive/negative.
     _imgs_keys: Union[Sequence[string], string]
         A string or a list of string that indicate The images name in the hdf5 file that will be load in the dataset
@@ -105,7 +105,7 @@ class BrainDataset(HDF5Dataset):
                          clinical_features=clinical_features,
                          split=split,
                          transform=transform)
-        self.__data_spliter = None
+        self.__data_splitter = None
         self.__is_ready = False
         self.__patients_data = {}
         self.__patients_labels = {}
@@ -134,7 +134,7 @@ class BrainDataset(HDF5Dataset):
             self.__patients_data[pat_id] = patients_data[pat_id]
             self.__patients_labels[pat_id] = patients_labels[pat_id]
 
-        self.__data_spliter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
+        self.__data_splitter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
 
     def _extract_data(self,
                       idx: Sequence[int],
@@ -189,7 +189,7 @@ class BrainDataset(HDF5Dataset):
             if pop:
                 del self.__patients_data[patient]
                 del self.__patients_labels[patient]
-                self.__data_spliter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
+                self.__data_splitter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
 
         return patients_data, patients_labels
 
@@ -227,7 +227,7 @@ class BrainDataset(HDF5Dataset):
             self._clinical_data = np.array(clinical_data)
 
         self.__is_ready = True
-        self.__data_spliter = None
+        self.__data_splitter = None
         self.remove_unlabeled_data()
 
     def _read_hdf5(self,
@@ -271,7 +271,7 @@ class BrainDataset(HDF5Dataset):
                         self.__patients_data[pat_id][target][feat_name] = patient[target].attrs[feat_name]
         f.close()
 
-        self.__data_spliter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
+        self.__data_splitter = Sampler(data=self.__patients_labels, labels_name=self._tasks)
 
     def split(self,
               tol_dict: Dict[str, float],
@@ -295,10 +295,10 @@ class BrainDataset(HDF5Dataset):
         :return: A dataset that contain the splited data.
         """
 
-        patient_list = self.__data_spliter.sample(tol_dict=tol_dict,
-                                                  max_iter=max_iter,
-                                                  seed=random_seed,
-                                                  split_size=sample_size)
+        patient_list = self.__data_splitter.sample(tol_dict=tol_dict,
+                                                   max_iter=max_iter,
+                                                   seed=random_seed,
+                                                   split_size=sample_size)
         patients_data, patients_labels = self.extract_patient(patient_list, pop)
 
         new_dataset = BrainDataset(hdf5_filepath=None,
