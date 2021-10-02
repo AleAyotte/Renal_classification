@@ -86,9 +86,9 @@ class LTBResNet(NeuralNet):
         """
 
         :param block_type_list: A list of block that will be instanciate in the network.
+        :param main_tasks: A list of tasks on which the model will be train.
         :param num_classes: A dictionnary that indicate the number of class for each task. For regression tasks,
                             the num_class shoule be equal to one. Regression task will be consider has auxiliary tasks.
-        :param tasks: A list of tasks on which the model will be train.
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param aux_tasks_coeff: The coefficient that will multiply the loss of the auxiliary tasks.
         :param block_width: A integer or a list of integer that indicate the number of possible path at each layer.
@@ -114,12 +114,14 @@ class LTBResNet(NeuralNet):
         # --------------------------------------------
         #                NUM_CLASSES
         # --------------------------------------------
-        # If num_classes has not been defined, then we assume that every task are binary classification.
+        # If num_classes has not been defined, then we assume that every main task are binary classification and
+        # every auxiliary task are regression.
         if num_classes is None:
             num_classes = {}
-            for task in self.__tasks:
+            for task in main_tasks:
                 num_classes[task] = Tasks.CLASSIFICATION
-
+            for task in aux_tasks:
+                num_classes[task] = Tasks.REGRESSION
         # If num_classes has been defined for some tasks but not all, we assume that the remaining are regression task
         else:
             key_set = set(num_classes.keys())
