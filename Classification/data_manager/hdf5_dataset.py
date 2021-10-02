@@ -147,7 +147,7 @@ class HDF5Dataset(ABC, Dataset):
                                                                          Union[Sequence[float], np.array]],
                                                                    None]:
         """
-        Normalize the clinical substracting them the given mean and divide them by the given std. If no mean or std
+        Normalizes the clinical substracting them the given mean and divide them by the given std. If no mean or std
         is given, the they will defined with current dataset clinical data.
 
         :param mean: An array of length equal to the number of clinical features (not the number of clinical data)
@@ -188,19 +188,24 @@ class HDF5Dataset(ABC, Dataset):
         """
         raise NotImplementedError("Must override __read_hdf5.")
 
-    def remove_unlabeled_data(self) -> None:
+    def remove_unlabeled_data(self,
+                              tasks_list: Optional[List[str]] = None) -> None:
         """
-        Remove the data that has no label for every task.
+        Removes the data that has no label for every given task.
+
+        :param tasks_list: A list of tasks for which the data should have a label for at least one of them.
+                           If none, the list of tasks that has been gived at the instanciation of the dataset is used.
         """
-        num_tasks = len(self._tasks)
+        tasks_list = self._tasks if tasks_list is None else tasks_list
+
         unlabeled_idx = []
         for i in range(len(self._labels)):
-            unlabeled_task = 0
-            for task in self._tasks:
-                unlabeled_task += 1 if self._labels[i][task] == -1 else 0
-
-            if unlabeled_task == num_tasks:
+            for task in tasks_list:
+                if self._labels[i][task] != -1:
+                    break
+            else:
                 unlabeled_idx.append(i)
+
         self._extract_data(idx=unlabeled_idx, pop=True)
 
     @abstractmethod
