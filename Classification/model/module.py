@@ -184,12 +184,12 @@ class Mixup(torch.nn.Module):
     set_batch_size(b_size: int) -> None:
         Change the value of the __batch_size attribut.
     """
-    def __init__(self, beta_params):
+    def __init__(self, beta_params: float):
         """
         The constructor of a mixup module.
+
         :param beta_params: One single value for the two parameters of a beta distribution
         """
-
         super().__init__()
         self.__beta = beta_params
         self.lamb = 1
@@ -203,7 +203,6 @@ class Mixup(torch.nn.Module):
 
         :return: Return mixed data if the network is in train mode and the module is enable.
         """
-
         if self.training and self.enable:
             device = x.get_device()
             lamb = torch.Tensor([self.lamb]).float().to(device)
@@ -220,7 +219,6 @@ class Mixup(torch.nn.Module):
         :return: The constant that will be use to mixup the data for the next iteration and a list of index that
                  represents the permutation used for the mixing process.
         """
-
         return self.lamb, self.permut
 
     def sample(self) -> Tuple[float, Sequence[int]]:
@@ -230,7 +228,6 @@ class Mixup(torch.nn.Module):
         :return: The coefficient used to mixup the training features during the next foward pass.
                  The permutation indices that will be used to shuffle the features before the next foward pass.
         """
-
         if self.__beta > 0:
             # We activate the module and we sample a value in his beta distribution
             self.enable = True
