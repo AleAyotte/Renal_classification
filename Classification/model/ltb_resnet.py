@@ -325,7 +325,7 @@ class LTBResNet(NeuralNet):
         :param gumbel_softmax_weights: If true the branching weights will be return. Else, it will be the nodes weights.
         :return: A list of torch.Parameter that represent the weights of either the nodes or the branching.
         """
-        weights = list(self.loss.parameters()) + list(self.conv.parameters()) if not gumbel_softmax_weights else []
+        weights = list(self.conv.parameters()) if not gumbel_softmax_weights else []
 
         for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
             for layer in layers:
