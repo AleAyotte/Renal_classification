@@ -183,7 +183,7 @@ class MultiTaskTrainer(Trainer):
         # Define the classes weights
         weight = {}
         if self._classes_weights == "balanced":
-            for task in self._tasks:
+            for task in self._classification_tasks:
                 weight[task] = torch.Tensor(self._weights[task]).to(self._device)
         else:
             for task in self._tasks:
