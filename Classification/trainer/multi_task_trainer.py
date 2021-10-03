@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Dict, Optional, Sequence, Tuple, Union
 
-from constant import ModelType
+from constant import ModelType, Tasks
 from model.module import MarginLoss
 from trainer.trainer import Trainer
 from trainer.utils import to_one_hot, compute_recall, get_mean_accuracy
@@ -132,8 +132,10 @@ class MultiTaskTrainer(Trainer):
         # If num_classes has not been defined, then we assume that every task are binary classification.
         if num_classes is None:
             num_classes = {}
-            for task in tasks:
-                num_classes[task] = 2
+            for task in main_tasks:
+                num_classes[task] = Tasks.CLASSIFICATION
+            for task in aux_tasks:
+                num_classes[task] = Tasks.REGRESSION
 
         # If num_classes has been defined for some tasks but not all, we assume that the remaining are regression task
         else:
@@ -185,19 +187,22 @@ class MultiTaskTrainer(Trainer):
             for task in self._tasks:
                 weight[task] = None
 
-        # Define the losses
+        # Classification tasks
         if self._loss == "ce":
-            for task in self._tasks:
+            for task in self._classification_tasks:
                 self.__losses[task] = nn.CrossEntropyLoss(weight=weight[task])
         elif self._loss == "bce":
-            for task in self._tasks:
+            for task in self._classification_tasks:
                 self.__losses[task] = nn.BCEWithLogitsLoss(pos_weight=weight[task])
         elif self._loss == "focal":
-            for task in self._tasks:
+            for task in self._classification_tasks:
                 self.__losses[task] = FocalLoss(gamma=gamma, weight=weight[task])
         else:  # loss == "marg"
-            for task in self._tasks:
+            for task in self._classification_tasks:
                 self._losses[task] = MarginLoss()
+        # Regression tasks
+        for task in self._regression_tasks:
+            self.__losses[task] = nn.MSELoss()
 
     def _standard_epoch(self,
                         epoch: int,
@@ -407,6 +412,7 @@ class MultiTaskTrainer(Trainer):
 
         return mean_acc, loss
 
+    @torch.no_grad()
     def _get_conf_matrix(self,
                          dt_loader: DataLoader,
                          get_loss: bool = False,
@@ -430,71 +436,98 @@ class MultiTaskTrainer(Trainer):
             patient_id = dt_loader.dataset.get_patient_id()
             self._save_prediction(outs, labels, patient_id, save_path)
 
-        losses = []
-        conf_mat = {}
         auc_score = {}
-        preds = {}
+        conf_mat = {}
         masks = {}
-        with torch.no_grad():
-            # Compute the mask and the prediction
-            for task in self._main_tasks:
-                masks[task] = torch.where(labels[task] > -1, 1, 0).bool()
+        preds = {}
 
-                threshold = self._optimal_threshold[task] if use_optimal_threshold else 0.5
-                preds[task] = torch.where(outs[task][:, 1] >= threshold, 1, 0).cpu()
+        main_classification_tasks = list(set(self._main_tasks) & set(self._classification_tasks))
+        main_regression_tasks = list(set(self._main_tasks) & set(self._regression_tasks))
 
-            # Compute the confusion matrix and the loss for each task.
-            for task in self._main_tasks:
-                task_labels = labels[task][masks[task]]
-                conf_mat[task] = confusion_matrix(task_labels.numpy(),
-                                                  preds[task][masks[task]].numpy())
+        losses = []
+        if get_loss:
+            losses = [self.__losses[task](outs[task], labels[task]) for task in main_regression_tasks]
 
-                # We compute the loss only if asked.
-                if get_loss:
-                    if self._loss == "bce":
-                        target = to_one_hot(task_labels,
-                                            self._num_classes[task],
-                                            self._device)
-                    else:
-                        target = task_labels.to(self._device)
-                    losses.append(self.__losses[task](outs[task][masks[task]], target))
+        # Compute the mask and the prediction
+        for task in main_classification_tasks:
+            masks[task] = torch.where(labels[task] > -1, 1, 0).bool()
 
-                # If get_loss is False, then we compute the auc score.
+            threshold = self._optimal_threshold[task] if use_optimal_threshold else 0.5
+            preds[task] = torch.where(outs[task][:, 1] >= threshold, 1, 0).cpu()
+
+        # Compute the confusion matrix and the loss for each task.
+        for task in self._main_classification_tasks:
+            task_labels = labels[task][masks[task]]
+            conf_mat[task] = confusion_matrix(task_labels.numpy(),
+                                              preds[task][masks[task]].numpy())
+            if get_loss:
+                if self._loss == "bce":
+                    target = to_one_hot(task_labels, self._num_classes[task], self._device)
                 else:
-                    task_outs = outs[task][masks[task].to(self._device)]
-                    fpr, tpr, _ = roc_curve(y_true=task_labels.numpy(),
-                                            y_score=task_outs[:, 1].cpu().numpy())
-                    auc_score[task] = auc(fpr, tpr)
+                    target = task_labels.to(self._device)
+                losses.append(self.__losses[task](outs[task][masks[task]], target))
 
-            # Conditional probability
-            for tasks in self.__cond_prob:
-                task1, task2 = tasks
-                task_name = task1 + "|" + task2
+            # If get_loss is False, then we compute the auc score.
+            else:
+                task_outs = outs[task][masks[task].to(self._device)]
+                fpr, tpr, _ = roc_curve(y_true=task_labels.numpy(),
+                                        y_score=task_outs[:, 1].cpu().numpy())
+                auc_score[task] = auc(fpr, tpr)
 
-                # Only where
-                mask = torch.where(
-                    torch.logical_and(
-                        masks[task1],
-                        torch.BoolTensor(preds[task2] == labels[task2])),
-                    1, 0
-                ).bool()
+        self.__compute_conditional_prob(auc_score=auc_score,
+                                        conf_mat=conf_mat,
+                                        get_loss=not get_loss,
+                                        labels=labels,
+                                        masks=masks,
+                                        preds=preds,
+                                        outs=outs)
 
-                cond_pred = preds[task1][mask]
-                if len(cond_pred) > 0:
-                    cond_conf = confusion_matrix(labels[task1][mask].numpy(),
-                                                 cond_pred.numpy(),
-                                                 labels=range(self._num_classes[task_name]))
-
-                    if not get_loss:
-                        task_outs = outs[task1][mask.to(self._device)]
-                        fpr, tpr, _ = roc_curve(y_true=labels[task1][mask].numpy(),
-                                                y_score=task_outs[:, 1].cpu().numpy())
-                        auc_score[task_name] = auc(fpr, tpr)
-                else:
-                    cond_conf = np.array([[float("nan"), float("nan")],
-                                          [float("nan"), float("nan")]])
-                conf_mat[task_name] = cond_conf
-
-            total_loss = torch.sum(torch.stack(losses)) if get_loss else None
+        total_loss = torch.sum(torch.stack(losses)) if get_loss else None
 
         return (conf_mat, total_loss) if get_loss else (conf_mat, auc_score)
+
+    @torch.no_grad()
+    def __compute_conditional_prob(self,
+                                   auc_score: Dict[str, float],
+                                   conf_mat: Dict[str, np.array],
+                                   get_auc: bool,
+                                   labels: Dict[str, torch.Tensor],
+                                   masks: Dict[str, torch.Tensor],
+                                   preds: Dict[str, torch.Tensor],
+                                   outs: Dict[str, torch.Tensor]) -> None:
+        """
+        compute the conditional probability scores.
+
+        :param auc_score: A dictionary of float that contains the auc per task.
+        :param conf_mat: A dictionary of numpy array that contains the confusion matrix per task.
+        :param get_auc: If true, the auc will also be compute.
+        :param labels: A dictionary of torch.Tensor that contains the labels for each task.
+        :param masks: A dictionary of torch.Tensor that indicate which data has a label for each task.
+        :param preds: A dictionary of torch.Tensor that contains the predictions of the model per task.
+        :param outs: A dictionary of torch.Tensor that contains the outputs of the model per task.
+        """
+        for task1, task2 in self.__cond_prob:
+            task_name = task1 + "|" + task2
+
+            mask = torch.where(
+                torch.logical_and(
+                    masks[task1],
+                    torch.BoolTensor(preds[task2] == labels[task2])),
+                1, 0
+            ).bool()
+
+            cond_pred = preds[task1][mask]
+            if len(cond_pred) > 0:
+                cond_conf = confusion_matrix(labels[task1][mask].numpy(),
+                                             cond_pred.numpy(),
+                                             labels=range(self._num_classes[task_name]))
+
+                if get_auc:
+                    task_outs = outs[task1][mask.to(self._device)]
+                    fpr, tpr, _ = roc_curve(y_true=labels[task1][mask].numpy(),
+                                            y_score=task_outs[:, 1].cpu().numpy())
+                    auc_score[task_name] = auc(fpr, tpr)
+            else:
+                cond_conf = np.array([[float("nan"), float("nan")],
+                                      [float("nan"), float("nan")]])
+            conf_mat[task_name] = cond_conf
