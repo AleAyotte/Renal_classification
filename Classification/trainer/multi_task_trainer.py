@@ -293,35 +293,7 @@ class MultiTaskTrainer(Trainer):
         :param pred: A matrix of the prediction of the model.
         :return: The mixup loss as torch tensor.
         """
-
-        losses = []
-        metrics = {}
-
-        for task in self._tasks:
-            if self._loss == "bce":
-                # Transform the labels into one hot vectors.
-                hot_target = to_one_hot(labels[task] + 1, self._num_classes[task], self._device)
-                hot_target = hot_target[:, 1:]
-
-                mixed_target = lamb*hot_target + (1-lamb)*hot_target[permut]
-                loss = self.__losses[task](pred[task], mixed_target)
-            else:
-                labels[task] = labels[task].to(self._device)
-                loss = lamb*self.__losses[task](pred[task], labels[task])
-                loss += lamb*self.__losses[task](pred[task], labels[task][permut])
-
-            losses.append(loss)
-            metrics[task] = loss.item()
-
-        losses = torch.stack(losses)
-        loss = self.model.loss(losses)
-
-        if self._track_mode == "all":
-            metrics["total"] = loss.item()
-            self._writer.add_scalars('Training/Loss',
-                                     metrics,
-                                     it)
-        return loss
+        raise NotImplementedError
 
     def _mixup_epoch(self,
                      epoch: int,
@@ -339,37 +311,7 @@ class MultiTaskTrainer(Trainer):
         :param train_loader: A torch data_loader that contain the features and the labels for training.
         :return: The average training loss.
         """
-        sum_loss = 0
-        n_iters = len(train_loader)
-
-        for optimizer in optimizers:
-            optimizer.zero_grad()
-
-        scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
-        for it, data in enumerate(train_loader, 0):
-            images, labels = data["sample"].to(self._device), data["labels"]
-
-            features = None
-            if "features" in list(data.keys()):
-                features = data["features"].to(self._device)
-
-            # Mixup activation
-            mixup_key, lamb, permut = self.model.activate_mixup()
-
-            # training step
-            with amp.autocast(enabled=self._mixed_precision):
-                preds = self.model(images) if features is None else self.model(images, features)
-                loss = self._mixup_criterion(pred=preds,
-                                             labels=labels,
-                                             lamb=lamb,
-                                             permut=permut,
-                                             it=it + epoch*n_iters)
-
-            self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
-            self.model.disable_mixup(mixup_key)
-            sum_loss += loss
-
-        return sum_loss.item() / n_iters
+        raise NotImplementedError
 
     def _validation_step(self,
                          dt_loader: DataLoader,
