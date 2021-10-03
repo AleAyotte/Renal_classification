@@ -24,6 +24,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 from constant import ModelType, Tasks
+from model.ltb_resnet import LTBResNet
 from model.module import MarginLoss
 from trainer.trainer import Trainer
 from trainer.utils import to_one_hot, compute_recall, get_mean_accuracy
@@ -127,6 +128,7 @@ class MultiTaskTrainer(Trainer):
 
         # We merge the main tasks with the auxiliary tasks.
         tasks = list(set(main_tasks).union(set(aux_tasks))) if aux_tasks is not None else deepcopy(main_tasks)
+        self._aux_tasks = deepcopy(aux_tasks)
         self._main_tasks = deepcopy(main_tasks)
 
         # If num_classes has not been defined, then we assume that every task are binary classification.
@@ -229,7 +231,7 @@ class MultiTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            images, labels = data["sample"].to(self._device), data["labels"]
+            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
 
             features = None
             if "features" in list(data.keys()):
@@ -240,18 +242,29 @@ class MultiTaskTrainer(Trainer):
                 preds = self.model(images) if features is None else self.model(images, features)
 
                 losses = []
+                aux_losses = []
                 metrics = {}
                 for task in self._tasks:
-                    labels[task] = labels[task].to(self._device)
-
                     # Compute the loss only where have labels (label != -1).
-                    mask = torch.where(labels[task] > -1, 1, 0).bool()
-                    loss = self.__losses[task](preds[task][mask], labels[task][mask])
-                    losses.append(loss)
-                    metrics[task] = loss.item()
+                    if task in self._classification_task:
+                        mask = torch.where(labels[task] > -1, 1, 0).bool()
+                        loss = self.__losses[task](preds[task][mask], labels[task][mask])
+                    else:
+                        loss = self.__losses[task](preds[task], labels[task])
 
-                losses = torch.stack(losses)
-                loss = self.model.loss(losses)
+                    losses.append(loss) if task in self._main_tasks else aux_losses.append(loss)
+                    if task in self._main_tasks:
+                        metrics[task] = loss.item()
+
+                # Compute final loss
+                if len(self._aux_tasks) > 0:
+                    if isinstance(self.model, LTBResNet) and len(self._aux_tasks) > 0:
+                        loss = self.model.loss(torch.stack(losses), torch.stack(aux_losses))
+                    else:
+                        losses.extend(aux_losses)
+                        loss = self.model.loss(torch.stack(losses))
+                else:
+                    loss = self.model.loss(torch.stack(losses))
 
             self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
             sum_loss += loss
@@ -283,7 +296,7 @@ class MultiTaskTrainer(Trainer):
 
         losses = []
         metrics = {}
-        
+
         for task in self._tasks:
             if self._loss == "bce":
                 # Transform the labels into one hot vectors.
