@@ -283,28 +283,22 @@ class MultiTaskTrainer(Trainer):
 
         losses = []
         metrics = {}
-
-        if self._loss == "bce":
-            for task in self._tasks:
+        
+        for task in self._tasks:
+            if self._loss == "bce":
                 # Transform the labels into one hot vectors.
-                hot_target = to_one_hot(labels[task] + 1,
-                                        self._num_classes[task],
-                                        self._device)
+                hot_target = to_one_hot(labels[task] + 1, self._num_classes[task], self._device)
                 hot_target = hot_target[:, 1:]
 
                 mixed_target = lamb*hot_target + (1-lamb)*hot_target[permut]
                 loss = self.__losses[task](pred[task], mixed_target)
-                losses.append(loss)
-                metrics[task] = loss.item()
-
-        else:
-            for task in self._tasks:
-
+            else:
                 labels[task] = labels[task].to(self._device)
                 loss = lamb*self.__losses[task](pred[task], labels[task])
                 loss += lamb*self.__losses[task](pred[task], labels[task][permut])
-                losses.append(loss)
-                metrics[task] = loss.item()
+
+            losses.append(loss)
+            metrics[task] = loss.item()
 
         losses = torch.stack(losses)
         loss = self.model.loss(losses)
