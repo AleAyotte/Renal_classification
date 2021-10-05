@@ -304,10 +304,11 @@ class BrainDataset(HDF5Dataset):
                                                    split_size=sample_size)
         patients_data, patients_labels = self.extract_patient(patient_list, pop)
 
-        new_dataset = BrainDataset(hdf5_filepath=None,
-                                   tasks=self._tasks,
-                                   imgs_keys=self._imgs_keys,
+        new_dataset = BrainDataset(classification_tasks=self._c_tasks,
                                    clinical_features=self._features_name,
+                                   hdf5_filepath=None,
+                                   imgs_keys=self._imgs_keys,
+                                   regression_tasks=self._r_tasks,
                                    split=None,
                                    transform=transform)
 
