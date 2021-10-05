@@ -70,31 +70,34 @@ class RenalDataset(HDF5Dataset):
         Calculate the number of data per encoding key.
     """
     def __init__(self,
+                 classification_tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
-                 tasks: Sequence[str],
                  clinical_features: Optional[Union[List[str], str]] = None,
                  exclude_list: Optional[List[str]] = None,
                  hdf5_filepath: Optional[str] = None,
+                 regression_tasks: Optional[List[str]] = None,
                  split: Optional[str] = SplitName.TRAIN,
                  stratification_keys: Optional[List[str]] = None,
                  transform: Optional[Compose] = None) -> None:
         """
         Create a dataset by loading the renal image at the given path.
 
+        :param classification_tasks: A list of clinical_features that will be used has labels for classification tasks.
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
-        :param tasks: A list of clinical_features that will be used has labels for tasks.
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
         :param exclude_list: A list of patient_id to exclude in this dataset.
         :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
+        :param regression_tasks: A list of clinical_features that will be used has labels for regression tasks.
         :param split: A string that indicate which subset will be load. (Default="train")
         :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
 
-        super().__init__(tasks=tasks,
-                         imgs_keys=imgs_keys,
+        super().__init__(classification_tasks=classification_tasks,
                          clinical_features=clinical_features,
+                         imgs_keys=imgs_keys,
+                         regression_tasks=regression_tasks,
                          split=split,
                          transform=transform)
         self.__stratum_keys = np.array([])
@@ -254,10 +257,11 @@ class RenalDataset(HDF5Dataset):
 
         data, labels, patient_id, stratum_keys, clin = self._extract_data(idx=new_set, pop=pop)
 
-        new_dataset = RenalDataset(hdf5_filepath=None,
-                                   tasks=self._tasks,
-                                   imgs_keys=self._imgs_keys,
+        new_dataset = RenalDataset(classification_tasks=self._c_tasks,
                                    clinical_features=self._features_name,
+                                   hdf5_filepath=None,
+                                   imgs_keys=self._imgs_keys,
+                                   regression_tasks=self._r_tasks,
                                    split=None,
                                    stratification_keys=self.__strat_keys_name,
                                    transform=transform)

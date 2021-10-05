@@ -20,22 +20,24 @@ from data_manager.constant import *
 from data_manager.renal_dataset import RenalDataset
 
 
-def build_datasets(dataset_name: DatasetName,
-                   tasks: Sequence[str],
+def build_datasets(classification_tasks: List[str],
+                   dataset_name: DatasetName,
                    clin_features: Optional[Sequence[str]] = None,
                    num_chan: int = 4,
                    num_dimension: int = 3,
+                   regression_tasks: Optional[List[str]] = None,
                    split_seed: Optional[int] = None,
                    testset_name: str = "test") -> Union[Tuple[BrainDataset, BrainDataset, BrainDataset],
                                                         Tuple[RenalDataset, RenalDataset, RenalDataset]]:
     """
     Load the data, split them into 3 dataset (training, validation, test) and prepare the dataset.
 
+    :param classification_tasks: A list of attribute that will be used has classification labels.
     :param dataset_name: Indicate which dataset will be used. (See DatasetName in constant.py)
-    :param tasks: A list of attribute that will be use to labeled the data.
     :param clin_features: A list of clinical features that will be used as input in the model.
     :param num_chan: The number images channels. Only use if num_dimension == 3.
     :param num_dimension: The number of dimension of the images in the dataset.
+    :param regression_tasks: A list of attribute name that will be used has regression tasks.
     :param testset_name: Determine the data that will be used in the testset. If testset == 'test' then the testset
                          will be sampled in the train set. Else, it will load the corresponding testset.
     :param split_seed: The seed that should be use to sample the testset and the validset in the training set.
@@ -68,38 +70,40 @@ def build_datasets(dataset_name: DatasetName,
     with open(REJECT_FILE, 'r') as f:
         exclude_list = [line.strip() for line in f]
 
-    trainset = get_dataset(clinical_features=clin_features,
+    trainset = get_dataset(classification_tasks=classification_tasks,
+                           clinical_features=clin_features,
                            data_path=data_path,
                            dataset_name=dataset_name,
                            exclude_list=exclude_list,
                            imgs_keys=imgs_keys,
+                           regression_tasks=regression_tasks,
                            split=SplitName.TRAIN,
-                           tasks=tasks,
                            transform=transform)
 
     seed_valid = randint(0, 10000) if split_seed is None else split_seed
     seed_test = randint(0, 10000) if split_seed is None else split_seed
 
     if testset_name == SplitName.HOLDOUT.lower():
-        testset = get_dataset(clinical_features=clin_features,
+        testset = get_dataset(classification_tasks=classification_tasks,
+                              clinical_features=clin_features,
                               data_path=data_path,
                               dataset_name=dataset_name,
                               exclude_list=exclude_list,
                               imgs_keys=imgs_keys,
+                              regression_tasks=regression_tasks,
                               split=SplitName.HOLDOUT,
-                              tasks=tasks,
                               transform=test_transform)
     else:
-        testset = split_dataset(dataset=trainset,
+        testset = split_dataset(classification_tasks=classification_tasks,
+                                dataset=trainset,
                                 dataset_name=dataset_name,
                                 random_seed=seed_test,
-                                tasks=tasks,
                                 transform=test_transform)
 
-    validset = split_dataset(dataset=trainset,
+    validset = split_dataset(classification_tasks=classification_tasks,
+                             dataset=trainset,
                              dataset_name=dataset_name,
                              random_seed=seed_valid,
-                             tasks=tasks,
                              transform=test_transform)
 
     # --------------------------------------------
@@ -201,17 +205,19 @@ def get_data_augmentation(dataset_name: DatasetName,
     return transform, test_transform
 
 
-def get_dataset(clinical_features: Sequence[str],
+def get_dataset(classification_tasks: List[str],
+                clinical_features: Sequence[str],
                 dataset_name: DatasetName,
                 data_path: str,
                 exclude_list: List[str],
                 imgs_keys: List[str],
                 split: SplitName,
-                tasks: Sequence[str],
-                transform: Compose) -> Union[BrainDataset, RenalDataset]:
+                transform: Compose,
+                regression_tasks: Optional[List[str]] = None) -> Union[BrainDataset, RenalDataset]:
     """
     Load the correct Dataset object according to the dataset that we want to load
 
+    :param classification_tasks: A list of attribute name that will be used has classification tasks.
     :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
     :param dataset_name: Indicate which dataset will be used. (See DatasetName in constant.py)
@@ -219,40 +225,42 @@ def get_dataset(clinical_features: Sequence[str],
     :param exclude_list: A list of patient_id to exclude in this dataset.
     :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
     :param split: A string that indicate which subset will be load. (Default="train")
-    :param tasks: A list of clinical_features that will be used has labels for tasks.
     :param transform: A function/transform that will be applied on the images and the ROI.
+    :param regression_tasks: A list of attribute name that will be used has regression tasks.
     :return: An HDF5Dataset that contain the loaded data.
     """
     if dataset_name is DatasetName.RCC:
-        dataset = RenalDataset(clinical_features=clinical_features,
+        dataset = RenalDataset(classification_tasks=classification_tasks,
+                               clinical_features=clinical_features,
                                exclude_list=exclude_list,
                                hdf5_filepath=data_path,
                                imgs_keys=imgs_keys,
+                               regression_tasks=regression_tasks,
                                split=split,
                                stratification_keys=RCC_STRATIFICATION_KEYS,
-                               tasks=tasks,
                                transform=transform)
     else:
-        dataset = BrainDataset(clinical_features=clinical_features,
+        dataset = BrainDataset(classification_tasks=classification_tasks,
+                               clinical_features=clinical_features,
                                hdf5_filepath=data_path,
                                imgs_keys=imgs_keys,
-                               tasks=tasks,
+                               regression_tasks=regression_tasks,
                                transform=transform)
     return dataset
 
 
-def split_dataset(dataset: Union[BrainDataset, RenalDataset],
+def split_dataset(classification_tasks: List[str],
+                  dataset: Union[BrainDataset, RenalDataset],
                   dataset_name: DatasetName,
                   random_seed: int,
-                  tasks: Sequence[str],
                   transform: Compose) -> Union[BrainDataset, RenalDataset]:
     """
     Split the dataset using the correct parameter according to the dataset name.
 
+    :param classification_tasks: A list of attribute that will be used has classification labels.
     :param dataset: The HDF5Dataset that will be split.
     :param dataset_name: Indicate which dataset will be used. (See DatasetName in constant.py)
     :param random_seed: The seed that will be used to split the data.
-    :param tasks: A list of attribute that will be use to labeled the data.
     :param transform: A function/transform that will be applied on the images and the ROI.
     :return: An HDF5Dataset that represent the validation/test set
     """
@@ -265,6 +273,6 @@ def split_dataset(dataset: Union[BrainDataset, RenalDataset],
         testset = dataset.split(pop=True,
                                 random_seed=random_seed,
                                 sample_size=SPLIT_SIZE,
-                                tol_dict={task: BMETS_TOL_DICT[task] for task in tasks},
+                                tol_dict={task: BMETS_TOL_DICT[task] for task in classification_tasks},
                                 transform=transform)
     return testset

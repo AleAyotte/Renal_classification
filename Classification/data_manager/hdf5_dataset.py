@@ -65,18 +65,20 @@ class HDF5Dataset(ABC, Dataset):
         Split the current dataset and return a new dataset with the data.
     """
     def __init__(self,
-                 tasks: Sequence[str],
+                 classification_tasks: List[str],
                  imgs_keys: Union[Sequence[str], str],
                  clinical_features: Optional[Union[List[str], str]] = None,
+                 regression_tasks: Optional[List[str]] = None,
                  split: Optional[str] = SplitName.TRAIN,
                  transform: Optional[Compose] = None) -> None:
         """
         Create a dataset by loading the renal image at the given path.
 
-        :param tasks: A list of clinical_features that will be used has labels for tasks.
+        :param classification_tasks: A list of clinical_features that will be used has labels for classification tasks.
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
+        :param regression_tasks: A list of clinical_features that will be used has labels for regression tasks.
         :param split: A string that indicate which subset will be load. (Default=DatasetName.TRAIN)
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
@@ -86,7 +88,9 @@ class HDF5Dataset(ABC, Dataset):
 
         self.transform = transform
         self._imgs_keys = imgs_keys
-        self._tasks = tasks
+        self._c_tasks = classification_tasks
+        self._r_tasks = regression_tasks if regression_tasks is not None else []
+        self._tasks = self._c_tasks + self._r_tasks
         self._with_clinical = clinical_features is not None
         if self._with_clinical and type(clinical_features) is not list:
             self._features_name = [clinical_features]
@@ -129,14 +133,16 @@ class HDF5Dataset(ABC, Dataset):
         :return: A list of np.array where each np.array represent the number of data per class.
                  The length of the list is equal to the number of task.
         """
-        all_labels = {}
-        for key in list(self._labels[0].keys()):
-            label_list = [int(label[key]) for label in self._labels if label[key] >= 0]
-            all_labels[key] = np.bincount(label_list)
 
-            # If there are more than 2 classes, we only take the two last.
-            if len(all_labels[key]) > 2:
-                all_labels[key] = all_labels[key][1:]
+        # TODO: CONSIDER REGRESSION TASK
+        all_labels = {}
+        for task in self._c_tasks:
+            label_list = [int(label[task]) for label in self._labels if label[task] >= 0]
+            all_labels[task] = np.bincount(label_list)
+
+            # If there is more than 2 classes, we only take the two last.
+            if len(all_labels[task]) > 2:
+                all_labels[task] = all_labels[task][1:]
 
         return all_labels
 
@@ -196,7 +202,7 @@ class HDF5Dataset(ABC, Dataset):
         :param tasks_list: A list of tasks for which the data should have a label for at least one of them.
                            If none, the list of tasks that has been gived at the instanciation of the dataset is used.
         """
-        tasks_list = self._tasks if tasks_list is None else tasks_list
+        tasks_list = self._c_tasks if tasks_list is None else tasks_list
 
         unlabeled_idx = []
         for i in range(len(self._labels)):
@@ -253,13 +259,21 @@ class HDF5Dataset(ABC, Dataset):
 
         # Extract and stack the labels in a dictionnary of torch tensor
         labels = {}
-        for key in list(self._labels[idx][0].keys()):
-            labels[key] = torch.tensor([
-                _dict[key] for _dict in self._labels[idx]
+
+        # Classification tasks
+        for task in list(self._c_tasks):
+            labels[task] = torch.tensor([
+                _dict[task] for _dict in self._labels[idx]
             ]).long().squeeze()
 
+        # Regression tasks
+        for task in list(self._r_tasks):
+            labels[task] = torch.tensor([
+                _dict[task] for _dict in self._labels[idx]
+            ]).float().squeeze()
+
         if self._with_clinical:
-            features = torch.tensor(self._clinical_data[idx]).long().squeeze()
+            features = torch.tensor(self._clinical_data[idx]).float().squeeze()
             return {"sample": sample, "labels": labels, "features": features}
 
         else:

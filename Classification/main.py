@@ -65,11 +65,11 @@ if __name__ == "__main__":
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(clin_features=clin_features,
+    trainset, validset, testset = build_datasets(classification_tasks=tasks_list,
+                                                 clin_features=clin_features,
                                                  dataset_name=dataset_name,
                                                  num_chan=args.num_chan_data,
                                                  split_seed=args.seed,
-                                                 tasks=tasks_list,
                                                  testset_name=args.testset)
 
     # --------------------------------------------

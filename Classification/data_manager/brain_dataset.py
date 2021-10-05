@@ -81,28 +81,31 @@ class BrainDataset(HDF5Dataset):
     """
 
     def __init__(self,
+                 classification_tasks: Sequence[str],
                  imgs_keys: Union[Sequence[str], str],
-                 tasks: Sequence[str],
                  clinical_features: Optional[Union[List[str], str]] = None,
                  exclude_list: Optional[List[str]] = None,
                  hdf5_filepath: Optional[str] = None,
+                 regression_tasks: Optional[List[str]] = None,
                  split: Optional[str] = SplitName.TRAIN,
                  transform: Optional[Compose] = None) -> None:
         """
         Create a dataset by loading the renal image at the given path.
 
+        :param classification_tasks: A list of clinical_features that will be used has labels for classification tasks.
         :param imgs_keys: The images name in the hdf5 file that will be load in the dataset (Exemple: "t1").
-        :param tasks: A list of clinical_features that will be used has labels for tasks.
         :param clinical_features: A list of string that indicate which clinical features will be used
                                   to train the model.
         :param exclude_list: A list of patient_id to exclude in this dataset.
         :param hdf5_filepath: The filepath of the hdf5 file where the data has been stored.
+        :param regression_tasks: A list of clinical_features that will be used has labels for regression tasks.
         :param split: A string that indicate which subset will be load. (Default=DatasetName.TRAIN)
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
-        super().__init__(tasks=tasks,
-                         imgs_keys=imgs_keys,
+        super().__init__(classification_tasks=classification_tasks,
                          clinical_features=clinical_features,
+                         imgs_keys=imgs_keys,
+                         regression_tasks=regression_tasks,
                          split=split,
                          transform=transform)
         self.__data_splitter = None
