@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 09/2021
+    @Last modification: 10/2021
 
     @Description:       This file contain a function that build the training, validation and testing set for both 2D
                         and 3D datasets.

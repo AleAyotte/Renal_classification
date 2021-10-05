@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021
-    @Last modification: 09/2021
+    @Last modification: 10/2021
 
     @Description:       This file contain the BrainDataset class that inherit from HDF5Dataset. The BrainDataset will
                         be used to 1) load an HDF5 file that contain the BrainMets dataset, 2) split the dataset by
@@ -36,6 +36,8 @@ class BrainDataset(HDF5Dataset):
     _clinical_data: Union[np.array, None]
         If __with_clinical is True, then it will be a numpy array that contain the clinical of each patient in the
         dataset.
+    _c_tasks : List[str]
+        A list of features name that will be used has classification tasks.
     _data: np.array
         A numpy array that contain the dataset medical images.
     __data_splitter : Sampler
@@ -55,6 +57,8 @@ class BrainDataset(HDF5Dataset):
     __patients_labels : dict
         A dictionary that contain the label per target and per patient. Will be used by data_spliter to split the
         dataset Will be remove when the method prepare_dataset will be call.
+    _r_tasks : List[str]
+        A list of features name that will be used has regression tasks.
     _tasks : Sequence[string]
         A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
     _with_clinical: bool

@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021
-    @Last modification: 09/2021
+    @Last modification: 10/2021
 
     @Description:       This file contain the HDF5Dataset class, which is used to load an HDF5 dataset and to
                         preprocess 2D and 3D images.
@@ -30,6 +30,8 @@ class HDF5Dataset(ABC, Dataset):
     _clinical_data : Union[np.array, None]
         If __with_clinical is True, then it will be a numpy array that contain the clinical of each patient in the
         dataset.
+    _c_tasks : List[str]
+        A list of features name that will be used has classification tasks.
     _data : np.array
         A numpy array that contain the dataset medical images.
     _features_name : Union[List[str], str]
@@ -41,7 +43,9 @@ class HDF5Dataset(ABC, Dataset):
         A numpy array that contain the labels of each data for each task.
     _patient_id : np.array
         A list of string that indicate the patient id of each data in the dataset.
-    _tasks : Sequence[string]
+    _r_tasks : List[str]
+        A list of features name that will be used has regression tasks.
+    _tasks : List[str]
         A list of clinical_features that will be used has labels for tasks. (Default=['outcome'])
     transform : Union[compose, None]
         A function/transform that will be applied on the images and the ROI.
@@ -134,7 +138,6 @@ class HDF5Dataset(ABC, Dataset):
                  The length of the list is equal to the number of task.
         """
 
-        # TODO: CONSIDER REGRESSION TASK
         all_labels = {}
         for task in self._c_tasks:
             label_list = [int(label[task]) for label in self._labels if label[task] >= 0]

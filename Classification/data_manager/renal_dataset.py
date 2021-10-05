@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 09/2021
+    @Last modification: 10/2021
 
     @Description:       This file contain the RenalDataset class, which is used to load and preprocess both 2D and 3D
                         data to train a model. It also contain the split_trainset function which is used to create the
@@ -33,6 +33,8 @@ class RenalDataset(HDF5Dataset):
     _clinical_data: Union[np.array, None]
         If __with_clinical is True, then it will be a numpy array that contain the clinical of each patient in the
         dataset.
+    _c_tasks : List[str]
+        A list of features name that will be used has classification tasks.
     _data: np.array
         A numpy array that contain the dataset medical images.
     _imgs_keys: Union[Sequence[string], string]
@@ -42,6 +44,8 @@ class RenalDataset(HDF5Dataset):
         A numpy array that contain the labels of each data for each task.
     _patient_id : np.array
         A list of string that indicate the patient id of each data in the dataset.
+    _r_tasks : List[str]
+        A list of features name that will be used has regression tasks.
     __strat_keys_name : List[str]
         A list of string that contain the name of the keys that will be used to create the stratum_keys.
     __stratum_keys : np.array
