@@ -253,8 +253,7 @@ class MultiTaskTrainer(Trainer):
                         loss = self.__losses[task](preds[task], labels[task])
 
                     losses.append(loss) if task in self._main_tasks else aux_losses.append(loss)
-                    if task in self._main_tasks:
-                        metrics[task] = loss.item()
+                    metrics[task] = loss.item()
 
                 # Compute final loss
                 if len(self._aux_tasks) > 0:
