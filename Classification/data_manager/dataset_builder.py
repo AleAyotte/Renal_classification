@@ -114,6 +114,11 @@ def build_datasets(classification_tasks: List[str],
         validset.normalize_clin_data(mean=mean, std=std)
         testset.normalize_clin_data(mean=mean, std=std)
 
+    if regression_tasks is not None and len(regression_tasks) > 0:
+        mean, std = trainset.normalize_regression_labels(get_norm_param=True)
+        validset.normalize_regression_labels(mean=mean, std=std)
+        testset.normalize_regression_labels(mean=mean, std=std)
+
     # --------------------------------------------
     #               PREPARE DATASET
     # --------------------------------------------

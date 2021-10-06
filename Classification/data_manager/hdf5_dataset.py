@@ -15,7 +15,7 @@ from monai.transforms import Compose
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from typing import List, Optional, Sequence, Set, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from constant import SplitName
 
@@ -156,8 +156,8 @@ class HDF5Dataset(ABC, Dataset):
                                                                          Union[Sequence[float], np.array]],
                                                                    None]:
         """
-        Normalizes the clinical substracting them the given mean and divide them by the given std. If no mean or std
-        is given, the they will defined with current dataset clinical data.
+        Normalizes the clinical features by substracting them the given mean and divide them by the given std. If no
+        mean or std is given, the they will defined with current dataset clinical data.
 
         :param mean: An array of length equal to the number of clinical features (not the number of clinical data)
                      that will be substract to the clinical features.
@@ -174,6 +174,37 @@ class HDF5Dataset(ABC, Dataset):
             std = np.std(self._clinical_data, axis=0)
 
         self._clinical_data = (self._clinical_data - mean) / std
+
+        if get_norm_param:
+            return mean, std
+
+    def normalize_regression_labels(self,
+                                    mean: Optional[Dict[str, float]] = None,
+                                    std: Optional[Dict[str, float]] = None,
+                                    get_norm_param: bool = False) -> Union[Tuple[Dict[str, float],
+                                                                                 Dict[str, float]],
+                                                                           None]:
+        """
+        Normalizes the labels of the regression tasks by substracting them the given mean and divide them by the given
+        std. If no mean or std is given, the they will defined with current dataset clinical data.
+
+        :param mean: A dictionary that indicate the mean value has float for each task.
+        :param std: A dictionary that indicate the standard deviation has float for each task.
+        :param get_norm_param: If True, the mean and the std of the current dataset are return.
+        :return: If get_norm_param is True then the mean and the std of the current dataset will be return. Otherwise,
+                 nothing will be return.
+        """
+        if mean is None and std is None:
+            mean = {}
+            std = {}
+            for task in self._r_tasks:
+                task_label = [pat[task] for pat in self._labels]
+                mean[task] = np.mean(task_label)
+                std[task] = np.std(task_label)
+
+        for pat in self._labels:
+            for task in self._r_tasks:
+                pat[task] = (pat[task] - mean[task]) / std[task]
 
         if get_norm_param:
             return mean, std
