@@ -128,7 +128,7 @@ class MultiTaskTrainer(Trainer):
 
         # We merge the main tasks with the auxiliary tasks.
         tasks = list(set(main_tasks).union(set(aux_tasks))) if aux_tasks is not None else deepcopy(main_tasks)
-        self._aux_tasks = deepcopy(aux_tasks)
+        self._aux_tasks = deepcopy(aux_tasks) if aux_tasks is not None else []
         self._main_tasks = deepcopy(main_tasks)
 
         # If num_classes has not been defined, then we assume that every task are binary classification.
@@ -231,7 +231,7 @@ class MultiTaskTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             # Extract the data
-            images, labels = data["sample"].to(self._device), data["labels"].to(self._device)
+            images, labels = data["sample"].to(self._device), data["labels"]
 
             features = None
             if "features" in list(data.keys()):
@@ -245,12 +245,14 @@ class MultiTaskTrainer(Trainer):
                 aux_losses = []
                 metrics = {}
                 for task in self._tasks:
+                    labels[task] = labels[task].to(self._device)
+
                     # Compute the loss only where have labels (label != -1).
-                    if task in self._classification_task:
+                    if task in self._classification_tasks:
                         mask = torch.where(labels[task] > -1, 1, 0).bool()
                         loss = self.__losses[task](preds[task][mask], labels[task][mask])
                     else:
-                        loss = self.__losses[task](preds[task], labels[task])
+                        loss = self.__losses[task](preds[task].squeeze(), labels[task])
 
                     losses.append(loss) if task in self._main_tasks else aux_losses.append(loss)
                     metrics[task] = loss.item()
@@ -394,7 +396,7 @@ class MultiTaskTrainer(Trainer):
 
         losses = []
         if get_loss:
-            losses = [self.__losses[task](outs[task], labels[task]) for task in main_regression_tasks]
+            losses = [self.__losses[task](outs[task].squeeze(), labels[task]) for task in main_regression_tasks]
 
         # Compute the mask and the prediction
         for task in main_classification_tasks:
@@ -404,7 +406,7 @@ class MultiTaskTrainer(Trainer):
             preds[task] = torch.where(outs[task][:, 1] >= threshold, 1, 0).cpu()
 
         # Compute the confusion matrix and the loss for each task.
-        for task in self._main_classification_tasks:
+        for task in main_classification_tasks:
             task_labels = labels[task][masks[task]]
             conf_mat[task] = confusion_matrix(task_labels.numpy(),
                                               preds[task][masks[task]].numpy())
@@ -424,7 +426,7 @@ class MultiTaskTrainer(Trainer):
 
         self.__compute_conditional_prob(auc_score=auc_score,
                                         conf_mat=conf_mat,
-                                        get_loss=not get_loss,
+                                        get_auc=not get_loss,
                                         labels=labels,
                                         masks=masks,
                                         preds=preds,
