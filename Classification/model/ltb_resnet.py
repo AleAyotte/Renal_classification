@@ -332,6 +332,10 @@ class LTBResNet(NeuralNet):
         """
         weights = list(self.conv.parameters()) if not gumbel_softmax_weights else []
 
+        if not gumbel_softmax_weights:
+            for loss_module in [self.aux_tasks_loss, self.main_tasks_loss]:
+                weights += list(loss_module.parameters())
+
         for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
             for layer in layers:
                 weights += layer.get_weights(gumbel_softmax_weights)
