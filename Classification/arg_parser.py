@@ -226,9 +226,13 @@ def argument_parser() -> argparse.Namespace:
     ltb_parser = subparser.add_parser("LTB", aliases=["ltb"],
                                       help="Parser of the ltb experimentation",
                                       parents=[parent_parser, _3d_parser, mtl_parser])
-
+    ltb_parser.add_argument('--aux_coeff', type=float, default=0.15,
+                            help="The coefficient that is applied to the losses of the auxiliary in the total loss.")
+    ltb_parser.add_argument('--aux_task_set', type=int, default=1, choices=[1, 2],
+                            help="The set of auxiliary task that will be used in the experimentation."
+                                 "(see constant.py AuxTaskSet).")
     ltb_parser.add_argument('--branch_eta', type=float, default=1e-6,
-                            help="The filnal learning rate parameter of the gumbel softmax block.")
+                            help="The final learning rate parameter of the gumbel softmax block.")
     ltb_parser.add_argument('--branch_lr', type=float, default=1e-4,
                             help="The learning rate parameter of the gumbel softmax block.")
     ltb_parser.add_argument('--branch_l2', type=float, default=0,
@@ -244,7 +248,7 @@ def argument_parser() -> argparse.Namespace:
                             help="The tau parameter of the gumbel softmax block.")
     ltb_parser.add_argument('--warm_up', type=int, default=5,
                             help="Number of epoch before training the branching unit.")
-    ltb_parser.add_argument('--width', type=int, default=2, choices=[2, 3, 4],
+    ltb_parser.add_argument('--width', type=int, default=2,
                             help="The number of parallel layers (possible path) in the Learn-To-Branch model.")
 
     return parser.parse_args()

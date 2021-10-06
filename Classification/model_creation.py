@@ -95,15 +95,20 @@ def build_ltb(args: argparse.Namespace,
     else:
         block_config = LTBConfig.CONFIG3
 
+    aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
+    main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
+
     net = LTBResNet(act=args.activation,
+                    aux_tasks=aux_tasks,
+                    aux_tasks_coeff=args.aux_coeff,
                     block_type_list=block_config,
                     block_width=args.width,
                     drop_rate=args.drop_rate,
                     drop_type=DropType[args.drop_type.upper()],
                     first_channels=args.in_channels,
                     in_shape=in_shape,
-                    num_classes=num_classes,
-                    tasks=tasks_list).to(args.device)
+                    main_tasks=main_tasks,
+                    num_classes=num_classes).to(args.device)
     return net
 
 
@@ -288,14 +293,18 @@ def create_model(args: argparse.Namespace,
     if experimentation in [Experimentation.STL_2D, Experimentation.STL_3D]:
         num_classes[args.task] = Tasks.CLASSIFICATION
     else:
-        possible_tasks = [Tasks.ARE, Tasks.GRADE, Tasks.LRF, Tasks.MALIGNANCY, Tasks.SUBTYPE]
+        c_tasks = [Tasks.ARE, Tasks.GRADE, Tasks.LRF, Tasks.MALIGNANCY, Tasks.SUBTYPE]
+        r_tasks = [task for task in tasks_list if task not in c_tasks]
         are_used = [args.are, args.grade, args.lrf, args.malignancy, args.subtype]
 
-        for task, is_used in zip(possible_tasks, are_used):
+        for task, is_used in zip(c_tasks, are_used):
             if is_used:
                 num_classes[task] = Tasks.CLASSIFICATION
                 if args.malignancy and task in [Tasks.GRADE, Tasks.SUBTYPE]:
                     conditional_prob.append([task, Tasks.MALIGNANCY])
+
+        for task in r_tasks:
+            num_classes[task] = Tasks.REGRESSION
 
     if experimentation is Experimentation.HARD_SHARING:
         net = build_hardshared(args, in_shape=in_shape, num_classes=num_classes, tasks_list=tasks_list)

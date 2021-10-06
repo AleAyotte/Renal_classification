@@ -16,7 +16,7 @@ from torchsummary import summary
 from typing import Final
 
 from arg_parser import argument_parser
-from constant import DatasetName, Experimentation, ModelType, SplitName, Tasks
+from constant import AuxTaskSet, DatasetName, Experimentation, ModelType, SplitName, Tasks
 from data_manager.dataset_builder import build_datasets
 from model_creation import create_model
 from trainer_creation import create_trainer
@@ -36,21 +36,19 @@ if __name__ == "__main__":
     args = argument_parser()
     experimentation = Experimentation[args.experiment.upper()]
     dataset_name = DatasetName[args.dataset.upper()]
-    tasks_list = []
+    classification_tasks_list = []
 
     if experimentation in SINGLE_TASK_EXPERIMENT:
-        tasks_list.append(args.task)
+        classification_tasks_list.append(args.task)
     else:
         for task in list(BRAIN_METS_TASKS | RCC_TASKS):
             if args.__getattribute__(task):
-                tasks_list.append(task)
-
-        assert len(tasks_list) >= MIN_NUM_TASKS, "You have to select at least two task."
+                classification_tasks_list.append(task)
 
     if dataset_name is DatasetName.RCC:
-        assert set(tasks_list) <= RCC_TASKS, "Incorrect task choice"
+        assert set(classification_tasks_list) <= RCC_TASKS, "Incorrect task choice"
     else:
-        assert set(tasks_list) <= BRAIN_METS_TASKS, "Incorrect task choice"
+        assert set(classification_tasks_list) <= BRAIN_METS_TASKS, "Incorrect task choice"
 
     if experimentation is Experimentation.STL_2D:
         if args.task in ["subtype", "grade"]:
@@ -62,13 +60,32 @@ if __name__ == "__main__":
     else:
         clin_features = None
         num_clin_features = 0
+
+    if experimentation is Experimentation.LTB:
+        if args.aux_task_set == 1:
+            filepath = AuxTaskSet.SET1
+        elif args.aux_task_set == 2:
+            filepath = AuxTaskSet.SET2
+        else:
+            raise NotImplementedError
+        with open(filepath, 'r') as f:
+            regression_tasks_list = [line[:-1] for line in f]
+    else:
+        regression_tasks_list = []
+
+    tasks_list = classification_tasks_list + regression_tasks_list
+
+    if experimentation not in SINGLE_TASK_EXPERIMENT:
+        assert len(tasks_list) >= MIN_NUM_TASKS, "You have to select at least two task."
+
     # --------------------------------------------
     #               CREATE DATASET
     # --------------------------------------------
-    trainset, validset, testset = build_datasets(classification_tasks=tasks_list,
+    trainset, validset, testset = build_datasets(classification_tasks=classification_tasks_list,
                                                  clin_features=clin_features,
                                                  dataset_name=dataset_name,
                                                  num_chan=args.num_chan_data,
+                                                 regression_tasks=regression_tasks_list,
                                                  split_seed=args.seed,
                                                  testset_name=args.testset)
 
@@ -90,13 +107,13 @@ if __name__ == "__main__":
     # --------------------------------------------
     print_data_distribution(SplitName.TRAIN,
                             trainset.labels_bincount(),
-                            tasks_list)
+                            classification_tasks_list)
     print_data_distribution(SplitName.VALIDATION,
                             validset.labels_bincount(),
-                            tasks_list)
+                            classification_tasks_list)
     print_data_distribution(args.testset.upper(),
                             testset.labels_bincount(),
-                            tasks_list)
+                            classification_tasks_list)
     print("\n")
 
     # --------------------------------------------
@@ -189,7 +206,9 @@ if __name__ == "__main__":
 
         experiment.set_name("LTBResNet" + "_" + "MultiTask")
 
-        csv_path = get_predict_csv_path(experimentation.name, PROJECT_NAME, "_".join(tasks_list), args.testset)
+        csv_path = get_predict_csv_path(experimentation.name,
+                                        PROJECT_NAME, "_".join(classification_tasks_list),
+                                        args.testset)
         csv_path = list(csv_path)
     else:
         experiment = None

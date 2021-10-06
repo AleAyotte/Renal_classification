@@ -18,6 +18,11 @@ class AttentionBlock(Enum):
     CBAM: Final = 2
 
 
+class AuxTaskSet:
+    SET1: Final = "Data/r_task_g1.txt"
+    SET2: Final = "Data/r_task_g2.txt"
+
+
 @unique
 class BlockType(Enum):
     PREACT: Final = 1

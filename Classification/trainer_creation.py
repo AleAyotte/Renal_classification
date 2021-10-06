@@ -11,7 +11,7 @@ import argparse
 import os
 from typing import Dict, Final, List, Optional, Union
 
-from constant import Experimentation, ModelType
+from constant import Experimentation, ModelType, Tasks
 from trainer.single_task_trainer import SingleTaskTrainer as STLTrainer
 from trainer.multi_task_trainer import MultiTaskTrainer as MTLTrainer
 
@@ -62,13 +62,21 @@ def create_trainer(args: argparse.Namespace,
                              track_mode=args.track_mode)
     # Multi task experimentation
     else:
+        if experimentation is Experimentation.LTB:
+            aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
+            main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
+        else:
+            main_tasks = tasks_list
+            aux_tasks = []
+
         save_path = SAVE_PATH + experimentation.name
 
-        trainer = MTLTrainer(classes_weights=args.weights,
+        trainer = MTLTrainer(aux_tasks=aux_tasks,
+                             classes_weights=args.weights,
                              conditional_prob=conditional_prob,
                              early_stopping=args.early_stopping,
                              loss=args.loss,
-                             main_tasks=tasks_list,
+                             main_tasks=main_tasks,
                              mixed_precision=MIXED_PRECISION,
                              model_type=model_type,
                              num_classes=num_classes,
