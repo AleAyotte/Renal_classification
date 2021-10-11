@@ -149,13 +149,15 @@ class BranchingBlock(nn.Module):
         parents = torch.argmax(self.gumbel_softmax(), dim=-1).cpu().numpy()
         active_parents = [parents[child] for child in self.__active_children]
 
-        # The parent's index of each child. Will be used in the forward pass.
-        # Ex: [1, 4, 2, 4] -> [0, 1, 2, 1]
-        self.__active_parents = [active_parents.index(x) for x in active_parents]
-
         # Return the list of used parent without repetition. Ex: [1, 4, 2, 4] -> [1, 4, 2]
         _, index = np.unique(np.array(active_parents), return_index=True)
-        return active_parents, list(active_parents[np.sort(index)])
+        unique_parent = list(np.array(active_parents)[np.sort(index)])
+
+        # The parent's index of each child. Will be used in the forward pass.
+        # Ex: [1, 4, 2, 4] -> [0, 1, 2, 1]
+        self.__active_parents = [unique_parent.index(x) for x in active_parents]
+
+        return active_parents, unique_parent
 
 
 class CBAM(nn.Module):
