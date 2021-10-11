@@ -261,7 +261,7 @@ class Trainer(ABC):
         train_loader, valid_loader = self.__prepare_dataloarder(batch_size, trainset, validset)
 
         # Initialization of the optimizer and the scheduler
-        t_0 = t_0 if t_0 <= 0 else num_epoch
+        t_0 = t_0 if t_0 >= 0 else num_epoch
         optimizers, schedulers = self.__prepare_optim_and_schedulers(eta_min=eta_min,
                                                                      eps=eps,
                                                                      learning_rate=learning_rate,
