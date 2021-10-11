@@ -153,7 +153,9 @@ class BranchingBlock(nn.Module):
         _, index = np.unique(np.array(active_parents), return_index=True)
         unique_parent = list(np.array(active_parents)[np.sort(index)])
 
-        # The parent's index of each child. Will be used in the forward pass.
+        # The parent's index of each child. Since only the active parents will produce an output, the length
+        # of the input vector will be equal to the length of unique_parent and not the total number of parents.
+        # So we need to shift the indices and put them in the correct order.
         # Ex: [1, 4, 2, 4] -> [0, 1, 2, 1]
         self.__active_parents = [unique_parent.index(x) for x in active_parents]
 

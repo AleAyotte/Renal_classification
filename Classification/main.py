@@ -163,12 +163,12 @@ if __name__ == "__main__":
                 shared_lr=shared_lr,
                 shared_l2=shared_l2,
                 trainset=trainset,
-                t_0=args.num_epoch,
+                t_0=args.branch_num_epoch if experimentation is Experimentation.LTB else args.num_epoch,
                 validset=validset,
                 warm_up_epoch=args.warm_up)
 
     if experimentation is Experimentation.LTB:
-        parents_list, _ = net.freeze_branching()
+        parents_list, ltb_task_list = net.freeze_branching()
 
         trainer = create_trainer(args,
                                  experimentation=experimentation,
@@ -216,6 +216,7 @@ if __name__ == "__main__":
 
     if experimentation is Experimentation.LTB:
         print(f"{parents_list=}")
+        print(f"{ltb_task_list=}")
 
     # Print the score in the terminal
     set_list = [trainset, validset, testset]
