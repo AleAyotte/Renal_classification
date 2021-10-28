@@ -1,0 +1,10 @@
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
+python main.py ltb --subtype --worker=8 --drop_rate=0.3 --b_size=8 --num_cumu_batch=4 --l2=3e-6 --lr=1e-4 --mixed_precision --tau=5.0 --width=6 --in_channels=32 --aux_coeff=0.05 --aux_task_set=1
