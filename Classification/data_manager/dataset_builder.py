@@ -144,7 +144,8 @@ def get_data_augmentation(dataset_name: DatasetName,
         if dataset_name is DatasetName.RCC:
             all_imgs_keys = ["t1", "t2", "roi_t1", "roi_t2"] if num_chan == 4 else ["t1", "t2", "roi"]
             partial_imgs_key = ["t1", "t2"]
-            crop_size = [64, 64, 24]
+            # crop_size = [64, 64, 24]
+            crop_size = [82, 82, 28]
             intensity_factor = 0.2
             pad_size = [96, 96, 32]
         else:
