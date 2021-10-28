@@ -27,7 +27,7 @@ DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME = "oct-2021-radiomics1"
+PROJECT_NAME = "nov-2021-radiomics2"
 RCC_TASKS: Final = {Tasks.GRADE, Tasks.MALIGNANCY, Tasks.SUBTYPE}
 SINGLE_TASK_EXPERIMENT: Final = [Experimentation.STL_2D, Experimentation.STL_3D]
 
