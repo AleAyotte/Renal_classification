@@ -22,7 +22,6 @@ RCC_SLICE: Final = [48, 48, 16]
 RCC_STRATIFICATION_KEYS: Final = ["malignancy", "subtype", "grade"]
 
 # Data Augmentation Constant
-"""
 ALIGN_CORNERS: Final = True
 KEEP_SIZE: Final = False
 MAX_ZOOM_2D: Final = 1.05
@@ -43,8 +42,9 @@ SPATIAL_AXIS: Final = [0]
 SPLIT_SIZE: Final = 0.2
 TRANSLATE_RANGE_2D: Final = 0.1
 TRANSLATE_RANGE_3D: Final = 0.66
-"""
 
+
+"""
 ALIGN_CORNERS: Final = True
 KEEP_SIZE: Final = False
 MAX_ZOOM_2D: Final = 1.05
@@ -65,3 +65,4 @@ SPATIAL_AXIS: Final = [0]
 SPLIT_SIZE: Final = 0.2
 TRANSLATE_RANGE_2D: Final = 0.1
 TRANSLATE_RANGE_3D: Final = 0.1
+"""

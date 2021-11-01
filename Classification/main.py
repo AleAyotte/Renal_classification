@@ -202,9 +202,26 @@ if __name__ == "__main__":
                                 auto_metric_logging=False,
                                 log_git_metadata=False,
                                 auto_param_logging=False,
-                                log_code=True)
-
+                                log_code=False)
         experiment.set_name("LTBResNet" + "_" + "MultiTask")
+        experiment.log_code("arg_parser.py")
+        experiment.log_code("main.py")
+        experiment.log_code("constant.py")
+        experiment.log_code("model_creation.py")
+        experiment.log_code("trainer_creation.py")
+        experiment.log_code("utils.py")
+        experiment.log_code("model/block.py")
+        experiment.log_code("model/hard_shared_resnet.py")
+        experiment.log_code("model/ltb_resnet.py")
+        experiment.log_code("model/module.py")
+        experiment.log_code("model/mtan.py")
+        experiment.log_code("model/neural_net.py")
+        experiment.log_code("model/resnet.py")
+        experiment.log_code("model/shared_net.py")
+        experiment.log_code("trainer/trainer.py")
+        experiment.log_code("trainer/multi_task_trainer.py")
+        experiment.log_code("trainer/single_task_trainer.py")
+
 
         csv_path = get_predict_csv_path(experimentation.name,
                                         PROJECT_NAME, "_".join(classification_tasks_list),
