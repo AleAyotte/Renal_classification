@@ -23,6 +23,8 @@ RCC_STRATIFICATION_KEYS: Final = ["malignancy", "subtype", "grade"]
 
 # Data Augmentation Constant
 ALIGN_CORNERS: Final = True
+CROP_SIZE_RCC: Final = [64, 64, 24]
+CROP_SIZE_BMET: Final = [48, 48, 24]
 KEEP_SIZE: Final = False
 MAX_ZOOM_2D: Final = 1.05
 MAX_ZOOM_3D: Final = 1.23

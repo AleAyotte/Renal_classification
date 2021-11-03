@@ -144,14 +144,13 @@ def get_data_augmentation(dataset_name: DatasetName,
         if dataset_name is DatasetName.RCC:
             all_imgs_keys = ["t1", "t2", "roi_t1", "roi_t2"] if num_chan == 4 else ["t1", "t2", "roi"]
             partial_imgs_key = ["t1", "t2"]
-            # crop_size = [64, 64, 24]
-            crop_size = [82, 82, 28]
+            crop_size = CROP_SIZE_RCC
             intensity_factor = 0.2
             pad_size = [96, 96, 32]
         else:
             all_imgs_keys = ["t1ce", "dose", "roi"]
             partial_imgs_key = ["t1ce"]
-            crop_size = [48, 48, 24]
+            crop_size = CROP_SIZE_BMETS
             intensity_factor = 0.1
             pad_size = [64, 64, 32]
 
