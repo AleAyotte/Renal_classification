@@ -329,7 +329,7 @@ class Trainer(ABC):
         self.model.restore(self.__save_path)
 
         # Compute the optimal threshold
-        # self.__get_threshold(train_loader)
+        self.__get_threshold(train_loader)
 
     def score(self,
               testset: Union[BrainDataset, RenalDataset],
