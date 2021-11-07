@@ -24,6 +24,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from constant import ModelType, Tasks
+from model.hard_shared_resnet import HardSharedResNet
 from model.ltb_resnet import LTBResNet
 from model.module import MarginLoss
 from trainer.trainer import Trainer
@@ -259,7 +260,7 @@ class MultiTaskTrainer(Trainer):
 
                 # Compute final loss
                 if len(self._aux_tasks) > 0:
-                    if isinstance(self.model, LTBResNet) and len(self._aux_tasks) > 0:
+                    if isinstance(self.model, LTBResNet) or isinstance(self.model, HardSharedResNet):
                         loss = self.model.loss(torch.stack(losses), torch.stack(aux_losses))
                     else:
                         losses.extend(aux_losses)
