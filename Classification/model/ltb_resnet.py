@@ -141,7 +141,7 @@ class LTBResNet(NeuralNet):
         # --------------------------------------------
         if loss == Loss.UNCERTAINTY:
             self.main_tasks_loss = UncertaintyLoss(num_task=len(main_tasks))
-            self.aux_tasks_loss = UncertaintyLoss(num_task=self.__num_aux_tasks)
+            self.aux_tasks_loss = UncertaintyLoss(num_task=len(aux_tasks))
         else:
             self.main_tasks_loss = UniformLoss()
             self.aux_tasks_loss = UniformLoss()
