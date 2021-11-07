@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 08/2021
+    @Last modification: 1/2021
 
     @Description:       Contain the class MultiTaskTrainer which inherit from the class trainer. This class is used
                         to train the MultiLevelResNet and the SharedNet on the three task (malignancy, subtype and
@@ -33,7 +33,7 @@ from trainer.utils import to_one_hot, compute_recall, get_mean_accuracy
 class MultiTaskTrainer(Trainer):
     """
     The MultiTaskTrainer class inherit of the trainer class. It handle the training and the assess of a given
-    model on the malignancy and subtype tasks at the same time.
+    model on multiple tasks at the same time.
 
     ...
     Attributes
