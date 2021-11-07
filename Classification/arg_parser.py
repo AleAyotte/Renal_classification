@@ -165,6 +165,8 @@ def argument_parser() -> argparse.Namespace:
                                      help="Parser of the hard sharing experimentation",
                                      parents=[parent_parser, _3d_parser, mtl_parser])
 
+    hs_parser.add_argument('--aux_coeff', type=float, default=0.25,
+                           help="The coefficient that is applied to the losses of the auxiliary in the total loss.")
     hs_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                            help="The config used to determine the depth of each sub-network. The depth of the shared "
                                 "layers is determined by the most commun depth (see constant.py SubNetDepth).")
@@ -226,7 +228,7 @@ def argument_parser() -> argparse.Namespace:
     ltb_parser = subparser.add_parser("LTB", aliases=["ltb"],
                                       help="Parser of the ltb experimentation",
                                       parents=[parent_parser, _3d_parser, mtl_parser])
-    ltb_parser.add_argument('--aux_coeff', type=float, default=0.15,
+    ltb_parser.add_argument('--aux_coeff', type=float, default=0.25,
                             help="The coefficient that is applied to the losses of the auxiliary in the total loss.")
     ltb_parser.add_argument('--aux_task_set', type=int, default=1, choices=[1, 2],
                             help="The set of auxiliary task that will be used in the experimentation."

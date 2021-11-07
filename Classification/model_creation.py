@@ -42,11 +42,13 @@ def build_hardshared(args: argparse.Namespace,
     """
     task_block = {}
 
-    possible_tasks = [Tasks.ARE, Tasks.GRADE, Tasks.LRF, Tasks.MALIGNANCY, Tasks.SUBTYPE]
-    are_used = [args.are, args.grade, args.lrf, args.malignancy, args.subtype]
-    for task, is_used in zip(possible_tasks, are_used):
-        if is_used:
-            task_block[task] = BlockType.POSTACT if task is Tasks.SUBTYPE else BlockType.PREACT
+    aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
+    main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
+
+    for task in main_tasks:
+        task_block[task] = BlockType.POSTACT if task is Tasks.SUBTYPE else BlockType.PREACT
+    for task in aux_tasks:
+        task_block[task] = BlockType.POSTACT if Tasks.SUBTYPE in main_tasks else BlockType.PREACT
 
     if args.depth_config == 1:
         commun_depth = 18
@@ -62,14 +64,16 @@ def build_hardshared(args: argparse.Namespace,
     #                NEURAL NETWORK
     # --------------------------------------------
     net = HardSharedResNet(act=args.activation,
+                           aux_tasks=aux_tasks,
+                           aux_tasks_coeff=args.aux_coeff,
                            commun_depth=commun_depth,
                            drop_rate=args.drop_rate,
                            drop_type=DropType[args.drop_type.upper()],
                            first_channels=args.in_channels,
                            in_shape=in_shape,
+                           main_tasks=main_tasks,
                            num_classes=num_classes,
                            split_level=args.split_level,
-                           tasks=tasks_list,
                            task_block=task_block,
                            task_depth=depth_config).to(args.device)
     return net

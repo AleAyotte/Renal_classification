@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 07/2021
+    @Last modification: 11/2021
 
     @Description:       This file contain the classe HardSharedResNet that inherit from the NeuralNet class.
 
@@ -13,7 +13,7 @@ from monai.networks.blocks.convolutions import Convolution
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, Final, List, Optional, Sequence, Tuple, Type, Union
+from typing import Callable, Dict, Final, List, Optional, Sequence, Tuple, Type, Union
 
 from constant import BlockType, DropType, Loss, Tasks
 from model.block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
@@ -67,9 +67,11 @@ class HardSharedResNet(NeuralNet):
         modules will be disable.
     """
     def __init__(self,
+                 main_tasks: List[str],
                  num_classes: Dict[str, int],
-                 tasks: Sequence[str],
                  act: str = "ReLU",
+                 aux_tasks: List[str] = None,
+                 aux_tasks_coeff: float = 0.05,
                  backend_tasks: Optional[str] = None,
                  commun_block: Union[BlockType, List[BlockType]] = BlockType.PREACT,
                  commun_depth: int = 18,
@@ -131,25 +133,26 @@ class HardSharedResNet(NeuralNet):
                                 4: After the third residual level,
                                 5: After the last residual level so just before the fully connected layers.
         """
-        assert len(tasks) > 0, "You should specify the name of each task"
         super().__init__()
+        aux_tasks = [] if aux_tasks is None else aux_tasks
         self.__split = split_level
         self.__in_channels = first_channels
-        self.__tasks = tasks
+        self.__tasks = main_tasks + aux_tasks
         self.__backend_tasks = self.__tasks if backend_tasks is None else backend_tasks
 
         assert set(self.__backend_tasks) <= set(self.__tasks), "Every backend tasks should be in tasks."
-        nb_task = len(tasks)
 
         # --------------------------------------------
         #                NUM_CLASSES
         # --------------------------------------------
-        # If num_classes has not been defined, then we assume that every task are binary classification.
+        # If num_classes has not been defined, then we assume that every main task are binary classification and
+        # every auxiliary task are regression.
         if num_classes is None:
             num_classes = {}
-            for task in self.__tasks:
+            for task in main_tasks:
                 num_classes[task] = Tasks.CLASSIFICATION
-
+            for task in aux_tasks:
+                num_classes[task] = Tasks.REGRESSION
         # If num_classes has been defined for some tasks but not all, we assume that the remaining are regression task
         else:
             key_set = set(num_classes.keys())
@@ -164,9 +167,12 @@ class HardSharedResNet(NeuralNet):
         #              UNCERTAINTY LOSS
         # --------------------------------------------
         if loss == Loss.UNCERTAINTY:
-            self.loss = UncertaintyLoss(num_task=nb_task)
+            self.main_tasks_loss = UncertaintyLoss(num_task=len(main_tasks))
+            self.aux_tasks_loss = UncertaintyLoss(num_task=len(aux_tasks))
         else:
-            self.loss = UniformLoss()
+            self.main_tasks_loss = UniformLoss()
+            self.aux_tasks_loss = UniformLoss()
+        self.loss = self.__define_loss(aux_tasks_coeff=aux_tasks_coeff if len(aux_tasks) > 0 else 0.0)
 
         # --------------------------------------------
         #                   DEPTH
@@ -214,7 +220,7 @@ class HardSharedResNet(NeuralNet):
         #                TASKS BLOCKS
         # --------------------------------------------
         if type(task_block) is not dict:
-            task_block = {task: task_block for task in tasks}
+            task_block = {task: task_block for task in self.__tasks}
 
         task_block_list = {}
         for task, blocks in list(task_block.items()):
@@ -230,7 +236,7 @@ class HardSharedResNet(NeuralNet):
         # --------------------------------------------
         shared_layers = []
         task_specific_layer = {}
-        for task in tasks:
+        for task in self.__tasks:
             task_specific_layer[task] = []
 
         assert 1 <= split_level <= 5, "The split level should be an integer between 1 and 5."
@@ -258,7 +264,7 @@ class HardSharedResNet(NeuralNet):
 
             else:
                 in_channels = self.__in_channels
-                for task in tasks:
+                for task in self.__tasks:
                     idx = i - (split_level - 1)
                     self.__in_channels = in_channels
                     temp_layers = self.__make_layer(task_block_list[task][idx],
@@ -280,15 +286,40 @@ class HardSharedResNet(NeuralNet):
 
         self.__num_flat_features = self.__in_channels
 
-        for task in tasks:
-            task_specific_layer[task].extend([nn.AvgPool3d(kernel_size=out_shape),
-                                              nn.Flatten(start_dim=1),
-                                              torch.nn.Linear(self.__num_flat_features, num_classes[task])])
+        if split_level == 5:
+            shared_layers.extend([nn.AvgPool3d(kernel_size=out_shape),
+                                  nn.Flatten(start_dim=1)])
+            task_specific_layer = {task: [torch.nn.Linear(self.__num_flat_features, num_classes[task])]
+                                   for task in self.__tasks}
+        else:
+            for task in self.__tasks:
+                task_specific_layer[task].extend([nn.AvgPool3d(kernel_size=out_shape),
+                                                  nn.Flatten(start_dim=1),
+                                                  torch.nn.Linear(self.__num_flat_features, num_classes[task])])
 
         self.shared_layers = nn.Sequential(*shared_layers)
-        self.tasks_layers = nn.ModuleDict({task: nn.Sequential(*task_specific_layer[task]) for task in tasks})
+        self.tasks_layers = nn.ModuleDict({task: nn.Sequential(*task_specific_layer[task]) for task in self.__tasks})
 
         self.apply(init_weights)
+
+    def __define_loss(self, aux_tasks_coeff: float) -> Union[Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+                                                             Callable[[torch.Tensor], torch.Tensor]]:
+        """
+        Build the method that will be used to compute the loss.
+
+        :param aux_tasks_coeff: The coefficient that will multiply the loss of the auxiliary tasks.
+        :return: A function that compute the multi-task loss.
+        """
+        if aux_tasks_coeff:
+            def multi_task_loss(losses: torch.Tensor,
+                                aux_tasks_losses: torch.Tensor) -> torch.Tensor:
+                aux_coeff = aux_tasks_coeff / aux_tasks_losses.size(dim=0)
+                return self.main_tasks_loss(losses) + aux_coeff * self.aux_tasks_loss(aux_tasks_losses)
+        else:
+            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
+                return self.loss_module(losses)
+
+        return multi_task_loss
 
     @staticmethod
     def __get_block(block_type: BlockType,
