@@ -13,7 +13,7 @@ from monai.networks.blocks.convolutions import Convolution
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Callable, Dict, Final, List, Optional, Sequence, Tuple, Type, Union
+from typing import Callable, Dict, Final, Iterator, List, Optional, Sequence, Tuple, Type, Union
 
 from constant import BlockType, DropType, Loss, Tasks
 from model.block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
@@ -39,8 +39,10 @@ class HardSharedResNet(NeuralNet):
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
         The last series of residual block.
-    loss: Union[UncertaintyLoss, UniformLoss]
+    loss : Union[UncertaintyLoss, UniformLoss]
         A torch.module that will be used to compute the multi-task loss during the training.
+    __main_tasks : list
+        A list of string that indicate the name of the
     __num_flat_features : int
         Number of features at the output of the last convolution.
     shared_layers : nn.Sequentiel
@@ -137,6 +139,7 @@ class HardSharedResNet(NeuralNet):
         aux_tasks = [] if aux_tasks is None else aux_tasks
         self.__split = split_level
         self.__in_channels = first_channels
+        self.__main_tasks = main_tasks
         self.__tasks = main_tasks + aux_tasks
         self.__backend_tasks = self.__tasks if backend_tasks is None else backend_tasks
 
@@ -384,7 +387,27 @@ class HardSharedResNet(NeuralNet):
         out = self.shared_layers(x)
 
         preds = {}
-        for task in self.__tasks:
+        for task in self.__tasks if self.training() else self.__main_tasks:
             preds[task] = self.tasks_layers[task](out if task in self.__backend_tasks else out.detach())
 
         return preds
+
+    def get_weights(self, split_weights: bool = False) -> Tuple[List[Iterator[torch.nn.Parameter]],
+                                                                Optional[List[torch.nn.Parameter]]]:
+        """
+        Get the model parameters and the loss parameters.
+
+        :param split_weights: If true, the shared weights and the specific weights will be split.
+        :return: A list of parameters that represent the weights of the network and another list of parameters
+                 that represent the weights of the loss.
+        """
+        if split_weights:
+            parameters = [self.shared_layers.parameters(), self.tasks_layers.parameters()]
+        else:
+            parameters = [list(self.shared_layers.parameters()) + list(self.tasks_layers.parameters())]
+
+        if isinstance(self.main_tasks_loss, UncertaintyLoss):
+            loss_parameters = list(self.main_tasks_loss.parameters()) + list(self.aux_tasks_loss.parameters())
+        else:
+            loss_parameters = None
+        return parameters, loss_parameters

@@ -12,7 +12,7 @@
 """
 import torch
 import torch.nn as nn
-from typing import Dict, Final, List, Sequence, Tuple, Union
+from typing import Dict, Final, Iterator, List, Optional, Sequence, Tuple, Union
 
 from constant import AttentionBlock, BlockType, DropType, Loss, Tasks
 from model.block import CBAM, ChannelAttBlock, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck, SpatialAttBlock
@@ -279,3 +279,24 @@ class MTAN(NeuralNet):
             preds[task] = self.fc_layers[task](att_out)
 
         return preds
+
+    def get_weights(self) -> Tuple[List[Iterator[torch.nn.Parameter]],
+                                   Optional[List[torch.nn.Parameter]]]:
+        """
+        Get the model parameters and the loss parameters.
+
+        :return: A list of parameters that represent the weights of the network and another list of parameters
+                 that represent the weights of the loss.
+        """
+        parameters = list(self.conv.parameters)
+        parameters += list(self.shared_layers1_base) + list(self.shared_layers1_last)
+        parameters += list(self.shared_layers2_base) + list(self.shared_layers2_last)
+        parameters += list(self.shared_layers3_base) + list(self.shared_layers3_last)
+        parameters += list(self.shared_layers4_base) + list(self.shared_layers4_last)
+        parameters += list(self.att_layers.parameters()) + list(self.fc_layers.parameters())
+
+        if isinstance(self.main_tasks_loss, UncertaintyLoss):
+            loss_parameters = self.loss.parameters()
+        else:
+            loss_parameters = None
+        return [parameters], loss_parameters

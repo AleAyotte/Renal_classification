@@ -20,7 +20,7 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 
 from model.module import MarginLoss
 from trainer.trainer import Trainer
@@ -345,3 +345,40 @@ class SingleTaskTrainer(Trainer):
             fpr, tpr, _ = roc_curve(y_true=labels.numpy(), y_score=outs[:, 1].cpu().numpy())
             auc_score = auc(fpr, tpr)
             return conf_mat, auc_score
+
+    def _prepare_optim_and_schedulers(self,
+                                      eta_min: float,
+                                      eps: float,
+                                      learning_rate: float,
+                                      l2_coeff: float,
+                                      mom: float,
+                                      optim: str,
+                                      t_0: int,
+                                      **kwargs) -> Tuple[List[torch.optim.Optimizer],
+                                                         List[CosineAnnealingWarmRestarts]]:
+        """
+        Initalize all optimizers and schedulers object.
+
+        :param eta_min: Minimum value of the learning rate.
+        :param eps: The epsilon parameter of the Adam Optimizer.
+        :param learning_rate: Start learning rate of the optimizer.
+        :param l2_coeff: L2 regularization coefficient.
+        :param mom: The momentum parameter of the SGD Optimizer.
+        :param optim: A string that indicate the optimizer that will be used for training.
+        :param t_0: Number of epoch before the first restart.
+        :return: A list of optimizers and a list of learning rate schedulers
+        """
+        assert optim.lower() in ["adam", "sgd", "novograd"]
+        eta_list = [eta_min]
+        lr_list = [learning_rate]
+        l2_list = [l2_coeff]
+        parameters = [self.model.parameters()]
+
+        return self._build_optim_and_schdulers(eta_list=eta_list,
+                                               eps=eps,
+                                               lr_list=lr_list,
+                                               l2_list=l2_list,
+                                               mom=mom,
+                                               optim=optim,
+                                               parameters_list=parameters,
+                                               t_0=t_0)

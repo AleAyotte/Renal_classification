@@ -324,27 +324,31 @@ class LTBResNet(NeuralNet):
 
         return nn.Sequential(*layers)
 
-    def get_weights(self, gumbel_softmax_weights: bool = False) -> List[torch.nn.Parameter]:
+    def get_weights(self) -> Tuple[List[List[torch.nn.Parameter]],
+                                   Optional[List[torch.nn.Parameter]]]:
         """
-        get the branching or the nodes parameters.
+        get the branching and the nodes parameters.
 
-        :param gumbel_softmax_weights: If true the branching weights will be return. Else, it will be the nodes weights.
-        :return: A list of torch.Parameter that represent the weights of either the nodes or the branching.
+        :return: A list of torch.Parameter that represent the weights of the nodes and the branching and another
+                 list of torch.Parameter that represent the weight of the loss.
         """
-        weights = list(self.conv.parameters()) if not gumbel_softmax_weights else []
-
-        if not gumbel_softmax_weights:
-            for loss_module in [self.aux_tasks_loss, self.main_tasks_loss]:
-                weights += list(loss_module.parameters())
+        weights = list(self.conv.parameters())
+        gumbel_softmax_weights = []
 
         for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
             for layer in layers:
-                weights += layer.get_weights(gumbel_softmax_weights)
+                weights += layer.get_weights(gumbel_softmax_weights=False)
+                gumbel_softmax_weights += layer.get_weights(gumbel_softmax_weights=True)
 
         for task in self.__tasks:
-            weights += self.last_layers[task].get_weights(gumbel_softmax_weights)
+            weights += self.last_layers[task].get_weights(gumbel_softmax_weights=False)
+            gumbel_softmax_weights += self.last_layers[task].get_weights(gumbel_softmax_weights=True)
 
-        return weights
+        if isinstance(self.main_tasks_loss, UncertaintyLoss):
+            loss_parameters = list(self.main_tasks_loss.parameters()) + list(self.aux_tasks_loss.parameters())
+        else:
+            loss_parameters = None
+        return [weights, gumbel_softmax_weights], loss_parameters
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """

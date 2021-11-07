@@ -17,7 +17,7 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn as nn
-from typing import Callable, Dict, Final, List, Optional, Sequence, Union
+from typing import Callable, Dict, Final, Iterator, List, Optional, Sequence, Tuple, Union
 
 from constant import Loss, SharingUnits
 from model.module import CrossStitchUnit, SluiceUnit, UncertaintyLoss, UniformLoss
@@ -265,3 +265,20 @@ class SharedNet(NeuralNet):
                 return self.loss_module(losses)
 
         return multi_task_loss
+
+    def get_weights(self) -> Tuple[List[Iterator[torch.nn.Parameter]],
+                                   Optional[List[torch.nn.Parameter]]]:
+        """
+        Get the model parameters and the loss parameters.
+
+        :return: A list of parameters that represent the weights of the network and another list of parameters
+                 that represent the weights of the loss.
+        """
+        parameters = [self.nets.parameters(),
+                      self.sharing_units_dict.parameters()]
+
+        if isinstance(self.main_tasks_loss, UncertaintyLoss):
+            loss_parameters = self.loss_module.parameters()
+        else:
+            loss_parameters = None
+        return parameters, loss_parameters
