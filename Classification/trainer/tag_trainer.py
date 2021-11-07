@@ -19,7 +19,6 @@ from sklearn.metrics import auc, confusion_matrix, roc_curve
 import torch
 from torch import nn
 from torch.cuda import amp
-from torch.cuda.amp.grad_scaler import GradScaler
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -29,7 +28,6 @@ from constant import ModelType, Tasks
 from data_manager.brain_dataset import BrainDataset
 from data_manager.renal_dataset import RenalDataset
 from model.hard_shared_resnet import HardSharedResNet
-from model.ltb_resnet import LTBResNet
 from model.module import MarginLoss
 from model.neural_net import NeuralNet
 from trainer.trainer import Trainer
