@@ -141,7 +141,7 @@ class LTBResNet(NeuralNet):
         # --------------------------------------------
         if loss == Loss.UNCERTAINTY:
             self.main_tasks_loss = UncertaintyLoss(num_task=len(main_tasks))
-            self.aux_tasks_loss = UncertaintyLoss(num_task=len(aux_tasks))
+            self.aux_tasks_loss = UncertaintyLoss(num_task=self.__num_aux_tasks)
         else:
             self.main_tasks_loss = UniformLoss()
             self.aux_tasks_loss = UniformLoss()
@@ -270,7 +270,8 @@ class LTBResNet(NeuralNet):
         if aux_tasks_coeff:
             def multi_task_loss(losses: torch.Tensor,
                                 aux_tasks_losses: torch.Tensor) -> torch.Tensor:
-                return self.main_tasks_loss(losses) + aux_tasks_coeff * self.aux_tasks_loss(aux_tasks_losses)
+                aux_coeff = aux_tasks_coeff / aux_tasks_losses.size(dim=0)
+                return self.main_tasks_loss(losses) + aux_coeff * self.aux_tasks_loss(aux_tasks_losses)
         else:
             def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
                 return self.loss_module(losses)
