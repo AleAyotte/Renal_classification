@@ -205,7 +205,7 @@ class Trainer(ABC):
 
         :param model: The model to train.
         :param trainset: The dataset that will be used to train the model.
-        :param validset: The dataset that will be used to mesure the model performan
+        :param validset: The dataset that will be used to measure the model performance
         :param batch_size: The batch size that will be used during the training. (Default=32).
         :param device: The device on which the training will be done. (Default="cuda:0", first GPU)
         :param eps: The epsilon parameter of the Adam Optimizer. (Default=1e-4)
