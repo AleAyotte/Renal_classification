@@ -62,7 +62,7 @@ if __name__ == "__main__":
         num_clin_features = 0
 
     if experimentation in [Experimentation.HARD_SHARING, Experimentation.LTB, Experimentation.TAG]:
-        if args.aux_task_set == 1:
+        if args.aux_task_set == 0:
             filepath = AuxTaskSet.SET0
         elif args.aux_task_set == 1:
             filepath = AuxTaskSet.SET1
