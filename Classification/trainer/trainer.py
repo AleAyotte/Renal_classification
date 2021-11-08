@@ -407,7 +407,7 @@ class Trainer(ABC):
 
         preds = {}
         with torch.no_grad():
-            for task in self._tasks:
+            for task in self._main_tasks:
                 preds[task] = self._soft(outs[task]) if self._num_classes[task] > 1 else outs[task]
 
         with open(save_path, mode="w") as csv_file:
@@ -419,7 +419,7 @@ class Trainer(ABC):
 
             for i in range(len(labels[self._tasks[0]])):
                 row = [patient_id[i]]
-                for task in self._tasks:
+                for task in self._main_tasks:
                     label = labels[task][i].item()
                     pred = preds[task][i] if self._num_classes[task] == 1 else preds[task][i][-1]
                     row.extend([label, pred.cpu().item()])
