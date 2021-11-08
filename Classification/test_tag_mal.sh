@@ -1,0 +1,10 @@
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
+python main.py tag --lr=1e-4 --worker=0 --in_channels=32 --split_level=5 --drop_rate=0.3 --l2=3e-6 --num_epoch=100 --aux_task_set=0 --malignancy
