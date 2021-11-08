@@ -5,9 +5,9 @@
     @Creation Date:     11/2021
     @Last modification: 11/2021
 
-    @Description:       Contain the class MultiTaskTrainer which inherit from the class trainer. This class is used
-                        to train the MultiLevelResNet and the SharedNet on the three task (malignancy, subtype and
-                        grade prediction).
+    @Description:       Contain the class TagTrainer which inherit from the class trainer. This class is used
+                        to train multi-task network for both classification and regression task and calculate
+                        the inter-task affinity between a set of auxiliary tasks and a set of main tasks.
 """
 
 from copy import deepcopy
@@ -143,7 +143,6 @@ class TagTrainer(Trainer):
         # We merge the main tasks with the auxiliary tasks.
         tasks = list(set(main_tasks).union(set(aux_tasks)))
         self._aux_tasks = deepcopy(aux_tasks)
-        self._main_tasks = deepcopy(main_tasks)
 
         # If num_classes has not been defined, then we assume that every task are binary classification.
         if num_classes is None:
@@ -167,7 +166,7 @@ class TagTrainer(Trainer):
         # Define the number of classes for the tasks created by the conditionnal probability.
         self.__cond_prob = [] if conditional_prob is None else deepcopy(conditional_prob)
         for cond_tasks in self.__cond_prob:
-            assert set(cond_tasks) <= set(self._main_tasks), "Tasks using in condition_pro should be part of " \
+            assert set(cond_tasks) <= set(main_tasks), "Tasks using in condition probability should be part of " \
                                                              "the main tasks set."
             task1, task2 = cond_tasks
             task_name = task1 + "|" + task2
@@ -181,6 +180,7 @@ class TagTrainer(Trainer):
                          num_workers=num_workers,
                          pin_memory=pin_memory,
                          save_path=save_path,
+                         main_tasks=deepcopy(main_tasks),
                          model_type=model_type,
                          tasks=tasks,
                          tol=tol,
@@ -219,7 +219,8 @@ class TagTrainer(Trainer):
             t_0: int = 0,
             transfer_path: str = None,
             verbose: bool = True,
-            warm_up_epoch: int = 0) -> None:
+            warm_up_epoch: int = 0,
+            **kwargs) -> None:
         """
         Train the model on the given dataset
 
@@ -246,21 +247,26 @@ class TagTrainer(Trainer):
         :param shared_lr: Learning rate of the sharing/branching unit. if equal to 0, then shared_lr will be
                           equal to learning_rate*100. Only used when shared_net is True.
         :param shared_l2: L2 coefficient of the sharing/branching unit. Only used when shared_net is True.
-        :param tag_iter_frequency: An integer that indicate at which frequency (number of iteration) the inter task
-                                   affinity will be compute. (Default=5)
         :param t_0: Number of epoch before the first restart. If equal to 0, then t_0 will be equal to num_epoch.
                     (Default=0).
         :param transfer_path: If not None, initialize the model with transfer learning by loading the weight of
                               the model at the given path.
         :param verbose: If true, show the progress of the training. (Default=True)
         :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
+        :param tag_iter_frequency: Parameter of the kwargs. An integer that indicate at which frequency (number of
+                                   iteration) the inter task affinity will be compute. (Default=5)
         """
         assert isinstance(model, HardSharedResNet), "You can only use an HardSharingResNet with the TagTrainer."
-        self.__affinities_weights = {main_task: [] for main_task in self.__main_tasks}
+        self.__affinities_weights = {main_task: [] for main_task in self._main_tasks}
         self.__iter_count = 0
         self.__tag_frequency = tag_iter_frequency
-        self.__tasks_affinities = {main_task: {aux_task: [] for aux_task in self.__aux_tasks}
-                                   for main_task in self.__main_tasks}
+        self.__tasks_affinities = {main_task: {aux_task: [] for aux_task in self._aux_tasks}
+                                   for main_task in self._main_tasks}
+
+        if "tag_iter_frequency" in kwargs.keys():
+            self.__tag_frequency = kwargs["tag_iter_frequency"]
+        else:
+            self.__tag_frequency = 5
 
         super().fit(batch_size=batch_size,
                     device=device,
@@ -294,7 +300,7 @@ class TagTrainer(Trainer):
         :return: A pandas dataframe that indicate the inter-task affinities between the main tasks and the auxiliary
                  tasks.
         """
-        agg_affinities = self.__aggregate_affinity()
+        agg_affinities = self.__aggregate_affinities()
         affinities = {"aux task": self._aux_tasks}
         for main_task in self._main_tasks:
             affinities[main_task] = [agg_affinities[main_task][aux_task] for aux_task in self._aux_tasks]
@@ -395,17 +401,16 @@ class TagTrainer(Trainer):
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
         for it, data in enumerate(train_loader, 0):
             images, labels = data["sample"].to(self._device), data["labels"]
+            labels = {task: labels[task].to(self._device) for task in self._tasks}
             features = data["features"].to(self._device) if "features" in list(data.keys()) else None
 
-            # training step
+            # Training step
             with amp.autocast(enabled=self._mixed_precision):
                 preds = self.model(images) if features is None else self.model(images, features)
                 losses = []
                 aux_losses = []
                 metrics = {}
                 for task in self._tasks:
-                    labels[task] = labels[task].to(self._device)
-
                     # Compute the loss only where we have labels (label != -1).
                     if task in self._classification_tasks:
                         mask = torch.where(labels[task] > -1, 1, 0).bool()
@@ -415,7 +420,6 @@ class TagTrainer(Trainer):
 
                     losses.append(loss) if task in self._main_tasks else aux_losses.append(loss)
                     metrics[task] = loss.item()
-
                 loss = self.model.loss(torch.stack(losses), torch.stack(aux_losses))
 
             # Inter-task affinity
@@ -424,7 +428,7 @@ class TagTrainer(Trainer):
                                          images=images,
                                          labels=labels,
                                          main_losses=losses,
-                                         optimizers=optimizers,
+                                         optimizer=optimizers[0],
                                          features=features)
 
             self._update_model(grad_clip, loss, optimizers, scaler, schedulers)
@@ -463,7 +467,7 @@ class TagTrainer(Trainer):
                 accuracy = get_mean_accuracy(rec, geometric_mean=True)
 
                 all_acc[task] = accuracy  # Include accuracy of conditionnal probability related task
-                if task in self._tasks:
+                if task in self._main_tasks:
                     acc[task] = accuracy
 
             mean_acc = get_mean_accuracy(list(acc.values()), geometric_mean=True)
@@ -571,7 +575,7 @@ class TagTrainer(Trainer):
                                       **kwargs) -> Tuple[List[torch.optim.Optimizer],
                                                          List[CosineAnnealingWarmRestarts]]:
         """
-        Initalize all optimizers and schedulers object.
+        Initialize all optimizers and schedulers object.
 
         :param eta_min: Minimum value of the learning rate.
         :param eps: The epsilon parameter of the Adam Optimizer.
@@ -586,7 +590,7 @@ class TagTrainer(Trainer):
         eta_list = [eta_min, eta_min]
         lr_list = [learning_rate, learning_rate]
         l2_list = [l2_coeff, l2_coeff]
-        parameters, loss_parameters = self.model.get_weights(split_weigths=False)
+        parameters, loss_parameters = self.model.get_weights(split_weights=True)
 
         if loss_parameters is not None:
             eta_list.append(eta_min)
@@ -610,7 +614,7 @@ class TagTrainer(Trainer):
         :return: A dictionary of dictionary that indicate the inter-task affinity of each aux_task per main_task.
                  (Keys of first dic: main task name, keys of embedded dictionary: auxiliary task name).
         """
-        final_affinity = {main_task: {} for main_task in self.__main_tasks}
+        final_affinity = {main_task: {} for main_task in self._main_tasks}
         for main_task in self._main_tasks:
             weights = np.array(self.__affinities_weights[main_task]) / np.sum(self.__affinities_weights[main_task])
             for aux_task in self._aux_tasks:
@@ -624,8 +628,8 @@ class TagTrainer(Trainer):
                             images: torch.Tensor,
                             labels: Dict[str, torch.Tensor],
                             main_losses: List[torch.Tensor],
-                            optimizers: List[Union[torch.optim.Optimizer, Novograd]],
-                            features: Optional[torch.Tensor] = None):
+                            optimizer: Union[torch.optim.Optimizer, Novograd],
+                            features: Optional[torch.Tensor] = None) -> None:
         """
         Compute the inter-task affinities
 
@@ -634,13 +638,9 @@ class TagTrainer(Trainer):
         :param labels: A dictionary of torch.tensor that represent the labels batch for each task.
         :param main_losses: A list of torch.Tensor that represent the main tasks losses.
         :param optimizer: A torch.optim that will be used to update the weight of the shared layer.
-        :param features: A
-        :return:
+        :param features: A torch.Tensor that represent some clinical variable that will be feed to the network.
         """
         scaler = amp.grad_scaler.GradScaler() if self._mixed_precision else None
-        torch.save({"model_state_dict": self.model.state_dict(),
-                    "optimizers": optimizers},
-                   TAG_SAVE_PATH)
         affinities_weights = {main_task: 0 for main_task in self._main_tasks}
 
         # We need the task name in the same order as the are ordered in the losses list.
@@ -648,20 +648,33 @@ class TagTrainer(Trainer):
         main_tasks = [task for task in self._tasks if task in self._main_tasks]
 
         for aux_task, aux_loss in zip(aux_tasks, aux_losses):
+            # Copy the model and create an new optimizer.
+            temp_model = deepcopy(self.model)
+            temp_layers, base_layers = temp_model.shared_layers, self.model.shared_layers
+            optim = torch.optim.Adam(temp_layers.parameters())
+            optim.load_state_dict(optimizer.state_dict())
 
-            optimizer = optimizers[0]
-            # Update the shared weights
+            adj_loss = aux_loss * self.model.aux_tasks_coeff  # Adjusted loss
+
+            # Compute the gradient
             if self._mixed_precision:
-                scaler.scale(aux_loss).backward(retain_graph=True)
-                scaler.step(optimizer)
+                scaler.scale(adj_loss).backward(retain_graph=True, inputs=list(base_layers.parameters()))
             else:
-                optimizer.step()
-                aux_loss.backward()
+                adj_loss.backward(retain_graph=True, inputs=list(base_layers.parameters()))
+
+            # Copy the gradient
+            for temp_weight, base_weight in zip(list(temp_layers.parameters()), list(base_layers.parameters())):
+                temp_weight.grad = base_weight.grad
+
+            # Update the weights of the temp_model
+            scaler.step(optim) if self._mixed_precision else optim.step()
+            scaler.update()
+            self.model.zero_grad()
 
             self.model.eval()
             with amp.autocast(enabled=self._mixed_precision):
                 with torch.no_grad():
-                    preds = self.model(images) if features is None else self.model(images, features)
+                    preds = temp_model(images) if features is None else temp_model(images, features)
 
                     for count, task in enumerate(main_tasks):
                         mask = torch.where(labels[task] > -1, 1, 0).bool()
@@ -669,16 +682,14 @@ class TagTrainer(Trainer):
 
                         # Compute the inter-task affinity
                         affinity = 1 - (new_loss / main_losses[count]).item()
-                        self.__tasks_affinities[task][aux_task] = affinity
+                        self.__tasks_affinities[task][aux_task].append(affinity)
 
                         if affinities_weights[task] == 0:
                             affinities_weights[task] = len(labels[task][mask])
-                self.model.train()
+            self.model.train()
 
-            # Restore the weights and the optimizer
-            checkpoint = torch.load(TAG_SAVE_PATH)
-            self.model.load_state_dict(checkpoint["model_state_dict"])
-            optimizers = checkpoint["optimizers"]
+        for task in self._main_tasks:
+            self.__affinities_weights[task].append(affinities_weights[task])
 
     @torch.no_grad()
     def __compute_conditional_prob(self,
