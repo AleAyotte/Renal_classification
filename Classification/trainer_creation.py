@@ -14,6 +14,7 @@ from typing import Dict, Final, List, Optional, Union
 from constant import Experimentation, ModelType, Tasks
 from trainer.single_task_trainer import SingleTaskTrainer as STLTrainer
 from trainer.multi_task_trainer import MultiTaskTrainer as MTLTrainer
+from trainer.tag_trainer import TagTrainer
 
 MIXED_PRECISION: Final = True
 PIN_MEMORY: Final = False
@@ -62,7 +63,7 @@ def create_trainer(args: argparse.Namespace,
                              track_mode=args.track_mode)
     # Multi task experimentation
     else:
-        if experimentation is Experimentation.LTB:
+        if experimentation is Experimentation.LTB or experimentation is Experimentation.TAG:
             aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
             main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
         else:
@@ -71,18 +72,35 @@ def create_trainer(args: argparse.Namespace,
 
         save_path = SAVE_PATH + experimentation.name
 
-        trainer = MTLTrainer(aux_tasks=aux_tasks,
-                             classes_weights=args.weights,
-                             conditional_prob=conditional_prob,
-                             early_stopping=args.early_stopping,
-                             loss=args.loss,
-                             main_tasks=main_tasks,
-                             mixed_precision=MIXED_PRECISION,
-                             model_type=model_type,
-                             num_classes=num_classes,
-                             num_workers=args.worker,
-                             pin_memory=PIN_MEMORY,
-                             save_path=save_path,
-                             tol=TOL,
-                             track_mode=args.track_mode)
+        if experimentation is Experimentation.TAG:
+            trainer = TagTrainer(aux_tasks=aux_tasks,
+                                 classes_weights=args.weights,
+                                 conditional_prob=conditional_prob,
+                                 early_stopping=args.early_stopping,
+                                 loss=args.loss,
+                                 main_tasks=main_tasks,
+                                 mixed_precision=MIXED_PRECISION,
+                                 model_type=model_type,
+                                 num_classes=num_classes,
+                                 num_workers=args.worker,
+                                 pin_memory=PIN_MEMORY,
+                                 save_path=save_path,
+                                 tag_iter_frequency=args.tag_freq,
+                                 tol=TOL,
+                                 track_mode=args.track_mode)
+        else:
+            trainer = MTLTrainer(aux_tasks=aux_tasks,
+                                 classes_weights=args.weights,
+                                 conditional_prob=conditional_prob,
+                                 early_stopping=args.early_stopping,
+                                 loss=args.loss,
+                                 main_tasks=main_tasks,
+                                 mixed_precision=MIXED_PRECISION,
+                                 model_type=model_type,
+                                 num_classes=num_classes,
+                                 num_workers=args.worker,
+                                 pin_memory=PIN_MEMORY,
+                                 save_path=save_path,
+                                 tol=TOL,
+                                 track_mode=args.track_mode)
     return trainer
