@@ -19,6 +19,7 @@ class AttentionBlock(Enum):
 
 
 class AuxTaskSet:
+    SET0: Final = "Data/r_task_all.txt"
     SET1: Final = "Data/r_task_g1_2.txt"
     SET2: Final = "Data/r_task_g2.txt"
     SET3: Final = "Data/r_task_g3.txt"
