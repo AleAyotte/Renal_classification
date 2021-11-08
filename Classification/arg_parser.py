@@ -275,6 +275,6 @@ def argument_parser() -> argparse.Namespace:
                                  "5: After the last residual level so just before the fully connected layers.")
     tag_parser.add_argument('--tag_freq', type=int, default=5,
                             help="Frequency at which the inter-task affinity will be computed")
-                                 
+
     tag_parser.set_defaults(warm_up=0)
     return parser.parse_args()

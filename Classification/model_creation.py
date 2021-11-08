@@ -310,7 +310,7 @@ def create_model(args: argparse.Namespace,
         for task in r_tasks:
             num_classes[task] = Tasks.REGRESSION
 
-    if experimentation is Experimentation.HARD_SHARING:
+    if experimentation is Experimentation.HARD_SHARING or experimentation is Experimentation.TAG:
         net = build_hardshared(args, in_shape=in_shape, num_classes=num_classes, tasks_list=tasks_list)
 
     elif experimentation is Experimentation.LTB:

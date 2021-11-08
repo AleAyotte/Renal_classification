@@ -61,7 +61,7 @@ if __name__ == "__main__":
         clin_features = None
         num_clin_features = 0
 
-    if experimentation is Experimentation.LTB:
+    if experimentation in [Experimentation.HARD_SHARING, Experimentation.LTB, Experimentation.TAG]:
         if args.aux_task_set == 1:
             filepath = AuxTaskSet.SET1
         elif args.aux_task_set == 2:
@@ -234,6 +234,10 @@ if __name__ == "__main__":
     if experimentation is Experimentation.LTB:
         print(f"{parents_list=}")
         print(f"{ltb_task_list=}")
+
+    elif experimentation is Experimentation.TAG and args.num_epoch > MIN_NUM_EPOCH:
+        affinity = trainer.get_task_affinity()
+        experiment.log_dataframe_profile(affinity)
 
     # Print the score in the terminal
     set_list = [trainset, validset, testset]
