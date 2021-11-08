@@ -253,4 +253,28 @@ def argument_parser() -> argparse.Namespace:
     ltb_parser.add_argument('--width', type=int, default=2,
                             help="The number of parallel layers (possible path) in the Learn-To-Branch model.")
 
+    # --------------------------------------------
+    #               HARD SHARED 3D
+    # --------------------------------------------
+    tag_parser = subparser.add_parser("TAG", aliases=["tag"],
+                                      help="Parser of the task affinity grouping experimentation",
+                                      parents=[parent_parser, _3d_parser, mtl_parser])
+
+    tag_parser.add_argument('--aux_coeff', type=float, default=0.25,
+                            help="The coefficient that is applied to the losses of the auxiliary in the total loss.")
+    tag_parser.add_argument('--aux_task_set', type=int, default=1, choices=[1, 2],
+                            help="The set of auxiliary task that will be used in the experimentation."
+                                 "(see constant.py AuxTaskSet).")
+    tag_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
+                            help="The config used to determine the depth of each sub-network. The depth of the shared "
+                                 "layers is determined by the most commun depth (see constant.py SubNetDepth).")
+    tag_parser.add_argument('--split_level', type=int, default=4,
+                            help="At which level the multi level resnet should split into sub net.\n"
+                                 "1: After the first convolution, \n2: After the first residual level, \n"
+                                 "3: After the second residual level, \n4: After the third residual level, \n"
+                                 "5: After the last residual level so just before the fully connected layers.")
+    tag_parser.add_argument('--tag_freq', type=int, default=5,
+                            help="Frequency at which the inter-task affinity will be computed")
+                                 
+    tag_parser.set_defaults(warm_up=0)
     return parser.parse_args()
