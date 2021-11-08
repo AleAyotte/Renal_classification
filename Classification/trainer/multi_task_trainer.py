@@ -6,8 +6,7 @@
     @Last modification: 1/2021
 
     @Description:       Contain the class MultiTaskTrainer which inherit from the class trainer. This class is used
-                        to train the MultiLevelResNet and the SharedNet on the three task (malignancy, subtype and
-                        grade prediction).
+                        to train multi-task network for both classification and regression task.
 """
 
 from copy import deepcopy
@@ -130,7 +129,6 @@ class MultiTaskTrainer(Trainer):
         # We merge the main tasks with the auxiliary tasks.
         tasks = list(set(main_tasks).union(set(aux_tasks))) if aux_tasks is not None else deepcopy(main_tasks)
         self._aux_tasks = deepcopy(aux_tasks) if aux_tasks is not None else []
-        self._main_tasks = deepcopy(main_tasks)
 
         # If num_classes has not been defined, then we assume that every task are binary classification.
         if num_classes is None:
@@ -154,7 +152,7 @@ class MultiTaskTrainer(Trainer):
         # Define the number of classes for the tasks created by the conditionnal probability.
         self.__cond_prob = [] if conditional_prob is None else deepcopy(conditional_prob)
         for cond_tasks in self.__cond_prob:
-            assert set(cond_tasks) <= set(self._main_tasks), "Tasks using in condition_pro should be part of " \
+            assert set(cond_tasks) <= set(main_tasks), "Tasks using in condition_pro should be part of " \
                                                              "the main tasks set."
             task1, task2 = cond_tasks
             task_name = task1 + "|" + task2
@@ -168,6 +166,7 @@ class MultiTaskTrainer(Trainer):
                          num_workers=num_workers,
                          pin_memory=pin_memory,
                          save_path=save_path,
+                         main_tasks=deepcopy(main_tasks),
                          model_type=model_type,
                          tasks=tasks,
                          tol=tol,
@@ -448,7 +447,7 @@ class MultiTaskTrainer(Trainer):
                                       **kwargs) -> Tuple[List[torch.optim.Optimizer],
                                                          List[CosineAnnealingWarmRestarts]]:
         """
-        Initalize all optimizers and schedulers object.
+        Initialize all optimizers and schedulers object.
 
         :param eta_min: Minimum value of the learning rate.
         :param eps: The epsilon parameter of the Adam Optimizer.

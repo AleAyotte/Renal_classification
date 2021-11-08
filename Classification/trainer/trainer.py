@@ -21,7 +21,7 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-from typing import Dict, Iterator, List, Sequence, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 from constant import ModelType
 from data_manager.brain_dataset import BrainDataset
@@ -96,11 +96,12 @@ class Trainer(ABC):
         Compute the accuracy of the model on a given data loader.
     """
     def __init__(self,
-                 tasks: Sequence[str],
                  num_classes: Dict[str, int],
+                 tasks: Sequence[str],
                  classes_weights: str = "balanced",
                  early_stopping: bool = False,
                  loss: str = "ce",
+                 main_tasks: Optional[Sequence[str]] = None,
                  mixed_precision: bool = False,
                  model_type: ModelType = ModelType.STANDARD,
                  num_workers: int = 0,
@@ -111,9 +112,9 @@ class Trainer(ABC):
         """
         The constructor of the trainer class.
 
-        :param tasks: A list of tasks on which the model will be train.
         :param num_classes: A dictionnary that indicate the number of classes of each. For regression task, the number
                             of classes should be 1.
+        :param tasks: A list of tasks on which the model will be train.
         :param classes_weights: The configuration of weights that will be applied on the loss during the training.
                                 Flat: All classes have the same weight during the training.
                                 Balanced: The weights are inversionaly proportional to the number of data of each
@@ -122,6 +123,7 @@ class Trainer(ABC):
         :param early_stopping: If true, the training will be stop after the third of the training if the model did
                                not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
+        :param main_tasks: A list of tasks on which the model will be train and evaluated.
         :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
         :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on opmizers
                            and the training. See ModelType in constant.py (Default=ModelType.STANDARD)
@@ -155,8 +157,10 @@ class Trainer(ABC):
         self.__early_stopping = early_stopping
         self.__experiment = None
         self._loss = loss.lower()
+        self._main_tasks = main_tasks if main_tasks is not None else tasks
         self._mixed_precision = mixed_precision
         self.model = None
+        self._model_type = model_type
         self._num_classes = num_classes
         self.__num_cumulated_batch = 1
         self.__num_work = num_workers
@@ -164,7 +168,6 @@ class Trainer(ABC):
         self.__pin_memory = pin_memory
         self._regression_tasks = [task for task in tasks if num_classes[task] == 1]
         self.__save_path = save_path
-        self._model_type = model_type
         self._soft = nn.Softmax(dim=-1)
         self._tasks = tasks
         self.__tol = tol
@@ -199,7 +202,8 @@ class Trainer(ABC):
             t_0: int = 0,
             transfer_path: str = None,
             verbose: bool = True,
-            warm_up_epoch: int = 0) -> None:
+            warm_up_epoch: int = 0,
+            **kwargs) -> None:
         """
         Train the model on the given dataset
 
@@ -365,7 +369,7 @@ class Trainer(ABC):
         outs = {}
         labels = {}
         # Two dictionnary that contain a torch.Tensor associated to each task (keys)
-        for task in self._tasks:
+        for task in self._main_tasks:
             labels[task] = torch.empty(0).long()
             outs[task] = torch.empty(0, self._num_classes[task]).to(self._device)
 
@@ -379,7 +383,7 @@ class Trainer(ABC):
             with torch.no_grad():
                 out = self.model(images) if features is None else self.model(images, features)
 
-                for task in self._tasks:
+                for task in self._main_tasks:
                     labels[task] = torch.cat([labels[task], label[task]])
                     outs[task] = torch.cat([outs[task],
                                             out if len(self._tasks) == 1 else out[task]])
@@ -508,7 +512,7 @@ class Trainer(ABC):
                                    t_0: int) -> Tuple[List[torch.optim.Optimizer],
                                                       List[CosineAnnealingWarmRestarts]]:
         """
-        Initalize all optimizers and schedulers object.
+        Initialize all optimizers and schedulers object.
 
         :param eta_list: A list of minimum value of the learning rate.
         :param eps: The epsilon parameter of the Adam Optimizer.
