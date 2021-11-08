@@ -103,6 +103,7 @@ class TagTrainer(Trainer):
                  num_workers: int = 0,
                  pin_memory: bool = False,
                  save_path: str = "",
+                 tag_iter_frequency: int = 5,
                  tol: float = 0.01,
                  track_mode: str = "all"):
         """
@@ -133,6 +134,8 @@ class TagTrainer(Trainer):
         :param pin_memory: The pin_memory option of the DataLoader. If true, the data tensor will
                            copied into the CUDA pinned memory. (Default=False)
         :param save_path: Indicate where the weights of the network and the result will be saved.
+        :param tag_iter_frequency: Parameter of the kwargs. An integer that indicate at which frequency (number of
+                                   iteration) the inter task affinity will be compute. (Default=5)
         :param tol: Minimum difference between the best and the current loss to consider that there is an improvement.
                     (Default=0.01)
         :param track_mode: Control information that are registered by tensorboard. none: no information will be saved.
@@ -191,7 +194,7 @@ class TagTrainer(Trainer):
         # TAG algorithm attribute
         self.__affinities_weights = None
         self.__iter_count = 0  # Count the number of iteration.
-        self.__tag_frequency = None
+        self.__tag_frequency = tag_iter_frequency
         self.__tasks_affinities = None
 
     def fit(self,
@@ -215,7 +218,6 @@ class TagTrainer(Trainer):
             shared_eta_min: float = 0,
             shared_lr: float = 0,
             shared_l2: float = 0,
-            tag_iter_frequency: int = 5,
             t_0: int = 0,
             transfer_path: str = None,
             verbose: bool = True,
@@ -253,13 +255,11 @@ class TagTrainer(Trainer):
                               the model at the given path.
         :param verbose: If true, show the progress of the training. (Default=True)
         :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
-        :param tag_iter_frequency: Parameter of the kwargs. An integer that indicate at which frequency (number of
-                                   iteration) the inter task affinity will be compute. (Default=5)
+
         """
         assert isinstance(model, HardSharedResNet), "You can only use an HardSharingResNet with the TagTrainer."
         self.__affinities_weights = {main_task: [] for main_task in self._main_tasks}
         self.__iter_count = 0
-        self.__tag_frequency = tag_iter_frequency
         self.__tasks_affinities = {main_task: {aux_task: [] for aux_task in self._aux_tasks}
                                    for main_task in self._main_tasks}
 
