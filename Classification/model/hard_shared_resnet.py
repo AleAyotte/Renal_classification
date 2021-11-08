@@ -137,9 +137,10 @@ class HardSharedResNet(NeuralNet):
         """
         super().__init__()
         aux_tasks = [] if aux_tasks is None else aux_tasks
-        self.__split = split_level
+        self.aux_tasks_coeff = aux_tasks_coeff
         self.__in_channels = first_channels
         self.__main_tasks = main_tasks
+        self.__split = split_level
         self.__tasks = main_tasks + aux_tasks
         self.__backend_tasks = self.__tasks if backend_tasks is None else backend_tasks
 
@@ -387,7 +388,7 @@ class HardSharedResNet(NeuralNet):
         out = self.shared_layers(x)
 
         preds = {}
-        for task in self.__tasks if self.training() else self.__main_tasks:
+        for task in self.__tasks if self.training else self.__main_tasks:
             preds[task] = self.tasks_layers[task](out if task in self.__backend_tasks else out.detach())
 
         return preds
