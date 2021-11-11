@@ -539,7 +539,7 @@ class ResBlock(nn.Module):
         """
         super().__init__()
 
-        self.res = ResidualUnit(spatial_dims=3, in_channels=fmap_in, out_channels=fmap_out,
+        self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
                                 kernel_size=kernel, strides=strides, dropout=drop_rate,
                                 dropout_dim=3, norm=norm, last_conv_only=False, bias=bias,
                                 act=activation if activation != "PReLU" else ("prelu", {"init": 0.01}))
