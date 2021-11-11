@@ -651,7 +651,9 @@ class TagTrainer(Trainer):
             # Copy the model and create an new optimizer.
             temp_model = deepcopy(self.model)
             temp_layers, base_layers = temp_model.shared_layers, self.model.shared_layers
-            optim = torch.optim.Adam(temp_layers.parameters())
+            optim = torch.optim.Adam(temp_layers.parameters(),
+                                     eps=optimizer.defaults['eps'],
+                                     weight_decay=optimizer.defaults['weight_decay'])
             optim.load_state_dict(optimizer.state_dict())
 
             adj_loss = aux_loss * self.model.aux_tasks_coeff  # Adjusted loss
