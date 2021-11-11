@@ -66,12 +66,12 @@ def build_hardshared(args: argparse.Namespace,
         for task in aux_tasks:
             depth_config[task] = 18
 
-    if args.split_level == 4:
-        commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT]
-    elif args.split_level == 5:
-        commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
-    else:
-        commun_block = BlockType.PREACT
+    commun_block = BlockType.PREACT
+    if Tasks.MALIGNANCY not in main_tasks and Tasks.GRADE not in main_tasks:
+        if args.split_level == 4:
+            commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT]
+        elif args.split_level == 5:
+            commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
 
     # --------------------------------------------
     #                NEURAL NETWORK
