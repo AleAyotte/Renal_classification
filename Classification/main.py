@@ -223,6 +223,7 @@ if __name__ == "__main__":
         experiment.log_code("model/neural_net.py")
         experiment.log_code("model/resnet.py")
         experiment.log_code("model/shared_net.py")
+        experiment.log_code("trainer/tag_trainer.py")
         experiment.log_code("trainer/trainer.py")
         experiment.log_code("trainer/multi_task_trainer.py")
         experiment.log_code("trainer/single_task_trainer.py")
