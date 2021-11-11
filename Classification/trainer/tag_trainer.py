@@ -11,6 +11,8 @@
 """
 
 from copy import deepcopy
+from itertools import product
+import math
 from monai.losses import FocalLoss
 from monai.optimizers import Novograd
 import numpy as np
@@ -195,6 +197,7 @@ class TagTrainer(Trainer):
         # TAG algorithm attribute
         self.__affinities_weights = None
         self.__iter_count = 0  # Count the number of iteration.
+        self.__optimal_tasks_affinities = None  # All tasks affinities before the best epoch.
         self.__tag_frequency = tag_iter_frequency
         self.__tasks_affinities = None
 
@@ -262,6 +265,8 @@ class TagTrainer(Trainer):
         self.__iter_count = 0
         self.__tasks_affinities = {main_task: {aux_task: [] for aux_task in self._aux_tasks}
                                    for main_task in self._main_tasks}
+        self.__optimal_tasks_affinities = {main_task: {aux_task: [] for aux_task in self._aux_tasks}
+                                           for main_task in self._main_tasks}
 
         if "tag_iter_frequency" in kwargs.keys():
             self.__tag_frequency = kwargs["tag_iter_frequency"]
@@ -293,20 +298,29 @@ class TagTrainer(Trainer):
                     verbose=verbose,
                     warm_up_epoch=warm_up_epoch)
 
-    def get_task_affinity(self) -> pd.DataFrame:
+        # Get all task affinities before that has been compute before the best_epoch.
+        opt_len = math.ceil(len(self.__affinities_weights[self._main_tasks[0]]) * num_epoch / self._best_epoch)
+        for main_task, aux_task in product(self._main_tasks, self._aux_tasks):
+            affinities = np.array(self.__tasks_affinities[main_task][aux_task])[:opt_len]
+            self.__optimal_tasks_affinities[main_task][aux_task] = list(affinities)
+
+    def get_task_affinity(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Aggregate the inter-task affinities and transfer them into a pandas dataframe.
 
         :return: A pandas dataframe that indicate the inter-task affinities between the main tasks and the auxiliary
                  tasks.
         """
-        agg_affinities = self.__aggregate_affinities()
+        agg_affinities, opt_agg_affinities = self.__aggregate_affinities()
         affinities = {"aux task": self._aux_tasks}
+        opt_affinities = {"aux task": self._aux_tasks}
         for main_task in self._main_tasks:
             affinities[main_task] = [agg_affinities[main_task][aux_task] for aux_task in self._aux_tasks]
+            opt_affinities[main_task] = [opt_agg_affinities[main_task][aux_task] for aux_task in self._aux_tasks]
 
         affinities_df = pd.DataFrame(data=affinities)
-        return affinities_df
+        opt_affinities_df = pd.DataFrame(data=opt_affinities)
+        return affinities_df, opt_affinities_df
 
     def _init_loss(self, gamma: float) -> None:
         """
@@ -621,7 +635,7 @@ class TagTrainer(Trainer):
                                                parameters_list=parameters,
                                                t_0=t_0)
 
-    def __aggregate_affinities(self) -> Dict[str, Dict[str, int]]:
+    def __aggregate_affinities(self) -> Tuple[Dict[str, Dict[str, int]], Dict[str, Dict[str, int]]]:
         """
         Aggregate the inter-task affinities that has been compute during the training.
 
@@ -629,13 +643,18 @@ class TagTrainer(Trainer):
                  (Keys of first dic: main task name, keys of embedded dictionary: auxiliary task name).
         """
         final_affinity = {main_task: {} for main_task in self._main_tasks}
+        opt_final_affinity = {main_task: {} for main_task in self._main_tasks}
         for main_task in self._main_tasks:
             weights = np.array(self.__affinities_weights[main_task]) / np.sum(self.__affinities_weights[main_task])
             for aux_task in self._aux_tasks:
                 mean_affinity = np.dot(self.__tasks_affinities[main_task][aux_task], weights)
                 final_affinity[main_task][aux_task] = mean_affinity
 
-        return final_affinity
+                num_affinities = len(self.__optimal_tasks_affinities[main_task][aux_task])
+                mean_affinity = np.dot(self.__optimal_tasks_affinities[main_task][aux_task], weights[:num_affinities])
+                opt_final_affinity[main_task][aux_task] = mean_affinity
+
+        return final_affinity, opt_final_affinity
 
     def __compute_affiniies(self,
                             aux_losses: List[torch.Tensor],

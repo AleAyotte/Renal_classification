@@ -11,6 +11,7 @@
 
 from abc import ABC, abstractmethod
 import csv
+from copy import deepcopy
 from monai.optimizers import Novograd
 import numpy as np
 import torch
@@ -150,6 +151,7 @@ class Trainer(ABC):
             "The number of classes should be given for each task. " \
             "For a regression task num_classes should be equal to 1."
 
+        self._best_epoch = 0
         self._classes_weights = classes_weights
         self._classification_tasks = [task for task in tasks if num_classes[task] > 1]
         self.__cumulate_counter = 0
@@ -239,7 +241,7 @@ class Trainer(ABC):
         """
         # Indicator for early stopping
         best_accuracy = 0
-        best_epoch = 0
+        self._best_epoch = 0
         current_mode = "Standard"
         early_stopping_epoch = int(num_epoch / 3) - 1
         last_saved_loss = float("inf")
@@ -319,11 +321,11 @@ class Trainer(ABC):
                     self.__save_checkpoint(epoch, val_loss, val_acc)
                     best_accuracy = val_acc
                     last_saved_loss = val_loss
-                    best_epoch = epoch + 1
+                    self._best_epoch = epoch + 1
 
                 if verbose:
                     t.postfix = f"{train_loss=:.4f}, {train_acc=:.2%}, {val_loss=:.4f}, {val_acc=:.2%}, " \
-                                f"{best_accuracy=:.2%}, {best_epoch=}"
+                                f"{best_accuracy=:.2%}, {self._best_epoch=}"
                 t.update()
 
                 if self.__early_stopping and epoch == early_stopping_epoch and best_accuracy < MINIMUM_ACCURACY:
