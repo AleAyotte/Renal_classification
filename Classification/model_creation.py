@@ -53,12 +53,25 @@ def build_hardshared(args: argparse.Namespace,
     if args.depth_config == 1:
         commun_depth = 18
         depth_config: Final = SubNetDepth.CONFIG1
+        for task in aux_tasks:
+            depth_config[task] = 18
     elif args.depth_config == 2:
         commun_depth = 34
         depth_config: Final = SubNetDepth.CONFIG2
+        for task in aux_tasks:
+            depth_config[task] = 34
     else:
         commun_depth = 18
         depth_config: Final = SubNetDepth.CONFIG3
+        for task in aux_tasks:
+            depth_config[task] = 18
+
+    if args.split_level == 4:
+        commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT]
+    elif args.split_level == 5:
+        commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
+    else:
+        commun_block = BlockType.PREACT
 
     # --------------------------------------------
     #                NEURAL NETWORK
@@ -66,6 +79,7 @@ def build_hardshared(args: argparse.Namespace,
     net = HardSharedResNet(act=args.activation,
                            aux_tasks=aux_tasks,
                            aux_tasks_coeff=args.aux_coeff,
+                           commun_block=commun_block,
                            commun_depth=commun_depth,
                            drop_rate=args.drop_rate,
                            drop_type=DropType[args.drop_type.upper()],
@@ -309,8 +323,13 @@ def create_model(args: argparse.Namespace,
 
         for task in r_tasks:
             num_classes[task] = Tasks.REGRESSION
+    if experimentation is Experimentation.TAG:
+        if args.model == "hs":
+            net = build_hardshared(args, in_shape=in_shape, num_classes=num_classes, tasks_list=tasks_list)
+        else:
+            net = build_ltb(args, in_shape=in_shape, num_classes=num_classes, tasks_list=tasks_list)
 
-    if experimentation is Experimentation.HARD_SHARING or experimentation is Experimentation.TAG:
+    elif experimentation is Experimentation.HARD_SHARING:
         net = build_hardshared(args, in_shape=in_shape, num_classes=num_classes, tasks_list=tasks_list)
 
     elif experimentation is Experimentation.LTB:
