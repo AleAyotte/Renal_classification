@@ -34,6 +34,7 @@ from trainer.trainer import Trainer
 from trainer.utils import to_one_hot, compute_recall, get_mean_accuracy
 
 
+DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
 TAG_SAVE_PATH: Final = "tag_checkpoint.pt"
 
 
@@ -257,7 +258,6 @@ class TagTrainer(Trainer):
         :param warm_up_epoch: Number of iteration before activating mixup. (Default=True)
 
         """
-        assert isinstance(model, HardSharedResNet), "You can only use an HardSharingResNet with the TagTrainer."
         self.__affinities_weights = {main_task: [] for main_task in self._main_tasks}
         self.__iter_count = 0
         self.__tasks_affinities = {main_task: {aux_task: [] for aux_task in self._aux_tasks}
@@ -587,10 +587,24 @@ class TagTrainer(Trainer):
         :return: A list of optimizers and a list of learning rate schedulers
         """
         assert optim.lower() in ["adam", "sgd", "novograd"]
-        eta_list = [eta_min, eta_min]
-        lr_list = [learning_rate, learning_rate]
-        l2_list = [l2_coeff, l2_coeff]
-        parameters, loss_parameters = self.model.get_weights(split_weights=True)
+        eta_list = [eta_min]
+        lr_list = [learning_rate]
+        l2_list = [l2_coeff]
+
+        shared_eta_min = kwargs["shared_eta_min"]
+        shared_lr = kwargs["shared_lr"]
+        shared_l2 = kwargs["shared_l2"]
+
+        if self._model_type is ModelType.STANDARD:
+            eta_list.append(eta_min)
+            lr_list.append(learning_rate)
+            l2_list.append(l2_coeff)
+            parameters, loss_parameters = self.model.get_weights(split_weights=True)
+        else:
+            eta_list.append(eta_min * DEFAULT_SHARED_LR_SCALE if shared_eta_min == 0 else shared_eta_min)
+            lr_list.append(learning_rate * DEFAULT_SHARED_LR_SCALE if shared_lr == 0 else shared_lr)
+            l2_list.append(shared_l2)
+            parameters, loss_parameters = self.model.get_weights()
 
         if loss_parameters is not None:
             eta_list.append(eta_min)
@@ -650,8 +664,17 @@ class TagTrainer(Trainer):
         for aux_task, aux_loss in zip(aux_tasks, aux_losses):
             # Copy the model and create an new optimizer.
             temp_model = deepcopy(self.model)
-            temp_layers, base_layers = temp_model.shared_layers, self.model.shared_layers
-            optim = torch.optim.Adam(temp_layers.parameters(),
+
+            if self._model_type is ModelType.STANDARD:
+                base_weights = list(self.model.shared_layers.parameters())
+                temp_weights = list(temp_model.shared_layers.parameters())
+
+            else:  # If this is an LTB model, we just dont care and we update all layers except gumbel softmax.
+                base_weights, _ = self.model.get_weights()
+                temp_weights, _ = temp_model.get_weights()
+                base_weights, temp_weights = base_weights[0], temp_weights[0]
+
+            optim = torch.optim.Adam(temp_weights,
                                      eps=optimizer.defaults['eps'],
                                      weight_decay=optimizer.defaults['weight_decay'])
             optim.load_state_dict(optimizer.state_dict())
@@ -660,12 +683,12 @@ class TagTrainer(Trainer):
 
             # Compute the gradient
             if self._mixed_precision:
-                scaler.scale(adj_loss).backward(retain_graph=True, inputs=list(base_layers.parameters()))
+                scaler.scale(adj_loss).backward(retain_graph=True, inputs=base_weights)
             else:
-                adj_loss.backward(retain_graph=True, inputs=list(base_layers.parameters()))
+                adj_loss.backward(retain_graph=True, inputs=base_weights)
 
             # Copy the gradient
-            for temp_weight, base_weight in zip(list(temp_layers.parameters()), list(base_layers.parameters())):
+            for temp_weight, base_weight in zip(temp_weights, base_weights):
                 temp_weight.grad = base_weight.grad
 
             # Update the weights of the temp_model

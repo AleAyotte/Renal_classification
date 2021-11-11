@@ -94,6 +94,15 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                 CREATE MODEL
     # --------------------------------------------
+    if experimentation is Experimentation.SOFT_SHARING:
+        model_type = ModelType.SHARED_NET
+    elif experimentation is Experimentation.LTB:
+        model_type = ModelType.LTB_NET
+    elif experimentation is Experimentation.TAG and args.model == "ltb":
+        model_type = ModelType.LTB_NET
+    else:
+        model_type = ModelType.STANDARD
+
     in_shape = tuple(testset[0]["sample"].size()[1:])
     net, num_classes, conditional_prob = create_model(args,
                                                       experimentation=experimentation,
@@ -101,7 +110,7 @@ if __name__ == "__main__":
                                                       num_clin_features=num_clin_features,
                                                       tasks_list=tasks_list)
 
-    if experimentation is not Experimentation.LTB:
+    if model_type is not ModelType.LTB_NET:
         summary(net, tuple(trainset[0]["sample"].size()))
 
     # --------------------------------------------
@@ -121,12 +130,6 @@ if __name__ == "__main__":
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
-    if experimentation is Experimentation.SOFT_SHARING:
-        model_type = ModelType.SHARED_NET
-    elif experimentation is Experimentation.LTB:
-        model_type = ModelType.LTB_NET
-    else:
-        model_type = ModelType.STANDARD
 
     trainer = create_trainer(args,
                              experimentation=experimentation,
@@ -135,11 +138,11 @@ if __name__ == "__main__":
                              num_classes=num_classes,
                              tasks_list=tasks_list)
 
-    if experimentation is Experimentation.SOFT_SHARING:
+    if model_type is ModelType.SHARED_NET:
         shared_eta_min = args.eta_min * DEFAULT_SHARED_LR_SCALE if args.pretrained else args.eta_min
         shared_lr = args.lr * DEFAULT_SHARED_LR_SCALE if args.pretrained else args.lr
         shared_l2 = args.sharing_l2
-    elif experimentation is Experimentation.LTB:
+    elif model_type is ModelType.LTB_NET:
         shared_eta_min = args.branch_eta
         shared_lr = args.branch_lr
         shared_l2 = args.branch_l2

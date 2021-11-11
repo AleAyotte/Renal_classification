@@ -30,6 +30,9 @@ from trainer.trainer import Trainer
 from trainer.utils import to_one_hot, compute_recall, get_mean_accuracy
 
 
+DEFAULT_SHARED_LR_SCALE = 10  # Default rate between shared_lr and lr if shared_lr == 0
+
+
 class MultiTaskTrainer(Trainer):
     """
     The MultiTaskTrainer class inherit of the trainer class. It handle the training and the assess of a given

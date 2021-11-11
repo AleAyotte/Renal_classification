@@ -114,6 +114,7 @@ class LTBResNet(NeuralNet):
         assert len(main_tasks) > 0, "You should specify the name of each task"
         super().__init__()
         aux_tasks = [] if aux_tasks is None else aux_tasks
+        self.aux_tasks_coeff = aux_tasks_coeff
         self.__tasks = main_tasks + aux_tasks
         # --------------------------------------------
         #                NUM_CLASSES

@@ -249,7 +249,7 @@ def argument_parser() -> argparse.Namespace:
                                  "(see constant.py LTBConfig).")
     ltb_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                             help="The number of layer in the ResNet.")
-    ltb_parser.add_argument('--tau', type=float, default=0.1,
+    ltb_parser.add_argument('--tau', type=float, default=5,
                             help="The tau parameter of the gumbel softmax block.")
     ltb_parser.add_argument('--warm_up', type=int, default=5,
                             help="Number of epoch before training the branching unit.")
@@ -257,7 +257,7 @@ def argument_parser() -> argparse.Namespace:
                             help="The number of parallel layers (possible path) in the Learn-To-Branch model.")
 
     # --------------------------------------------
-    #               HARD SHARED 3D
+    #           TASK-AFFINITY GROUPING
     # --------------------------------------------
     tag_parser = subparser.add_parser("TAG", aliases=["tag"],
                                       help="Parser of the task affinity grouping experimentation",
@@ -268,9 +268,26 @@ def argument_parser() -> argparse.Namespace:
     tag_parser.add_argument('--aux_task_set', type=int, default=1, choices=[0, 1, 2],
                             help="The set of auxiliary task that will be used in the experimentation."
                                  "(see constant.py AuxTaskSet).")
+    tag_parser.add_argument('--branch_eta', type=float, default=1e-6,
+                            help="The final learning rate parameter of the gumbel softmax block.")
+    tag_parser.add_argument('--branch_lr', type=float, default=1e-4,
+                            help="The learning rate parameter of the gumbel softmax block.")
+    tag_parser.add_argument('--branch_l2', type=float, default=0,
+                            help="The l2 penalty of the gumbel softmax block.")
+    tag_parser.add_argument('--branch_num_epoch', type=int, default=200,
+                            help="The number of training epoch that is use to find the optimal architecture.")
+    tag_parser.add_argument('--config', type=int, default=2, choices=[1, 2, 3],
+                            help="The config used to determine the that will be used in the LTBResNet "
+                                 "(see constant.py LTBConfig).")
+    tag_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
+                            help="The number of layer in the ResNet.")
     tag_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                             help="The config used to determine the depth of each sub-network. The depth of the shared "
                                  "layers is determined by the most commun depth (see constant.py SubNetDepth).")
+    tag_parser.add_argument('--model', type=str, default="hs",
+                            help="Indicate the type of model that will be train."
+                                 " Options = (hard-sharing, ltb).",
+                            choices=["hs", "ltb"])
     tag_parser.add_argument('--split_level', type=int, default=4,
                             help="At which level the multi level resnet should split into sub net.\n"
                                  "1: After the first convolution, \n2: After the first residual level, \n"
@@ -278,6 +295,9 @@ def argument_parser() -> argparse.Namespace:
                                  "5: After the last residual level so just before the fully connected layers.")
     tag_parser.add_argument('--tag_freq', type=int, default=5,
                             help="Frequency at which the inter-task affinity will be computed")
-
+    tag_parser.add_argument('--tau', type=float, default=5,
+                            help="The tau parameter of the gumbel softmax block.")
+    tag_parser.add_argument('--width', type=int, default=6,
+                            help="The number of parallel layers (possible path) in the Learn-To-Branch model.")
     tag_parser.set_defaults(warm_up=0)
     return parser.parse_args()
