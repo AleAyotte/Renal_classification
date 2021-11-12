@@ -300,7 +300,7 @@ class TagTrainer(Trainer):
         self._best_epoch = 2
 
         # Get all task affinities before that has been compute before the best_epoch.
-        opt_len = math.ceil(len(self.__affinities_weights[self._main_tasks[0]]) * self.__best_epoch / num_epoch)
+        opt_len = math.ceil(len(self.__affinities_weights[self._main_tasks[0]]) * self._best_epoch / num_epoch)
         for main_task, aux_task in product(self._main_tasks, self._aux_tasks):
             affinities = np.array(self.__tasks_affinities[main_task][aux_task])[:opt_len]
             self.__optimal_tasks_affinities[main_task][aux_task] = list(affinities)
