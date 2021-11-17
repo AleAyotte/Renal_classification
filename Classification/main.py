@@ -68,6 +68,8 @@ if __name__ == "__main__":
             filepath = AuxTaskSet.SET1
         elif args.aux_task_set == 2:
             filepath = AuxTaskSet.SET2
+        elif args.aux_task_set == 3:
+            filepath = AuxTaskSet.SET3
         else:
             raise NotImplementedError
         with open(filepath, 'r') as f:
