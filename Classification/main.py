@@ -64,14 +64,9 @@ if __name__ == "__main__":
     if experimentation in [Experimentation.HARD_SHARING, Experimentation.LTB, Experimentation.TAG]:
         if args.aux_task_set == 0:
             filepath = AuxTaskSet.SET0
-        elif args.aux_task_set == 1:
-            filepath = AuxTaskSet.SET1
-        elif args.aux_task_set == 2:
-            filepath = AuxTaskSet.SET2
-        elif args.aux_task_set == 3:
-            filepath = AuxTaskSet.SET3
         else:
-            raise NotImplementedError
+            filepath = f"Data/r_task_g{args.aux_task_set}.txt"
+
         with open(filepath, 'r') as f:
             regression_tasks_list = [line[:-1] for line in f]
     else:
