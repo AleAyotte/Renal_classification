@@ -9,10 +9,10 @@
                         MultiLevelResNet and SharedNet. The module are SluiceUnit, CrossStitchUnit, Mixup and
                         UncertaintyLoss.
 
-    @Reference:         1) I. Misra, et al. Cross-stitch networks formulti-task learning. IEEE Conference on Computer
+    @Reference:         1) I. Misra, et al. Cross-stitch networks for multi-task learning. IEEE Conference on Computer
                            Vision and PatternRecognition (CVPR), 2016
                         2) S. Ruder et al. Latent Multi-Task Architecture Learning. Proceedings of the AAAI
-                           Conferenceon Artificial Intelligence, 2019
+                           Conferencen Artificial Intelligence, 2019
                         3) R. Cipolla et al. Multi-task Learning UsingUncertainty to Weigh Losses for Scene Geometry
                            and Semantics. IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2018
                         4) Learning to Branch for Multi-Task Learning, Guo, P. et al., CoRR 2020
@@ -38,6 +38,9 @@ class CrossStitchUnit(torch.nn.Module):
         a matrix NxN that learned how the information between N subspace should be shared.
     Methods
     -------
+    forward(x: torch.Tensor)
+        The forward pass of the CrossStitch Unit. This unit perform a linear combination between the subspace of
+        different network to shared the information between those network.
     penalty() -> torch.Tensor:
         Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
         be equal to 1.
@@ -70,7 +73,14 @@ class CrossStitchUnit(torch.nn.Module):
 
         self.alpha = torch.nn.Parameter(data=alpha, requires_grad=True)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        The forward pass of the CrossStitch Unit. This unit perform a linear combination between the subspace of
+        different network to shared the information between those network.
+
+        :param x: A torch.Tensor that represent the input of the SluiceUnit.
+        :return: A torch.Tensor that represent the output of the SluiceUnit.
+        """
         # Output, Task, Batch, Channels, Depth, Width, Height
         out = torch.mul(self.alpha[:, :, None, :, None, None, None], x[None, :, :, :, :, :, :])
         return out.sum(1)
@@ -104,8 +114,10 @@ class GumbelSoftmax(nn.Module):
         The logits weights that are used in the gumbel softmax
     Methods
     -------
-    forward() -> torch.Tensor
+    forward()
         The forward pass of the gumbel softmax layer.
+    update_epoch(num_epoch: Optional[int] = None)
+        Update the attribute named num_epoch.
     """
     def __init__(self,
                  num_input: int,
@@ -150,11 +162,26 @@ class GumbelSoftmax(nn.Module):
 class MarginLoss(nn.Module):
     """
     An implementation of the margin loss.
+
+    ...
+    Methods
+    -------
+    forward(pred: torch.Tensor,  labels: torch.Tensor)
+        Compute the margin loss for capsule network.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def forward(self, pred, labels):
+    def forward(self,
+                pred: torch.Tensor,
+                labels: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the margin loss for capsule network
+
+        :param pred: A torch.Tensor that represent the predictions of the capsule network.
+        :param labels: A torch.Tensor that represent the label of the data.
+        :return: A torch.Tensor that represent the MarginLoss.
+        """
         labels = to_one_hot(labels, num_classes=2)
         left = F.relu(0.9 - pred, inplace=True) ** 2
         right = F.relu(pred - 0.1, inplace=True) ** 2
@@ -181,12 +208,14 @@ class Mixup(torch.nn.Module):
         If true, the current module will mix the next batch of images.
     Methods
     -------
-    get_mix_params() -> Tuple[float, Sequence[int]]:
+    forward(x: torch.Tensor)
+        Forward pass of the mixup module. This is here were we mix the data.
+    get_mix_params()
         Return the last sampled lambda parameter that will used in the forward pass to perform a linear combination
         on the data of same batch and the permutation index list that indicate how the data will be combine.
-    sample() -> Tuple[float, Sequence[int]]:
+    sample()
         Sample a point in a beta distribution and define the permutation index list to prepare the mixup module.
-    set_batch_size(b_size: int) -> None:
+    set_batch_size(b_size: int)
         Change the value of the __batch_size attribut.
     """
     def __init__(self, beta_params: float) -> None:
@@ -265,7 +294,9 @@ class SluiceUnit(torch.nn.Module):
         a matrix NxN that learned how the information between N subspace should be shared.
     Methods
     -------
-    penalty() -> torch.Tensor:
+    forward(x: torch.Tensor)
+        The forward pass of the Sluice Unit. This unit perform a linear combination of a given set of subspaces.
+    penalty()
         Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
         be equal to 1.
     """
@@ -291,7 +322,13 @@ class SluiceUnit(torch.nn.Module):
         alpha = torch.from_numpy(alpha).float()
         self.alpha = torch.nn.Parameter(data=alpha, requires_grad=True)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        The forward pass of the Sluice Unit. This unit perform a linear combination of a given set of subspaces.
+
+        :param x: A torch.Tensor that represent the input of the SluiceUnit.
+        :return: A torch.Tensor that represent the output of the SluiceUnit.
+        """
         # Batch, Subspace, Channels, Depth, Height, Width -> Batch, Width, Channels, Depth, Height, Subspace
         x = x.transpose(1, x.ndim - 1)  # We transpose the subspace dimension with the last dimension
         out = torch.matmul(x[:, :, :, :, :, None, :], self.alpha).squeeze()
@@ -319,8 +356,12 @@ class UncertaintyLoss(torch.nn.Module):
     ...
     Attributes
     ----------
-    phi: torch.nn.Parameter
-
+    phi : torch.nn.Parameter
+        The scaling weights of the uncertainty loss.
+    Methods
+    -------
+    forward(x: losses: torch.Tensor)
+        Compute the uncertainty loss.
     """
     def __init__(self, num_task) -> None:
         """
@@ -345,6 +386,12 @@ class UniformLoss(torch.nn.Module):
     """
     An implementation of the Uniform loss for multi-task learning. This loss does not scale the different losses, it
     only sum them.
+
+    ...
+    Methods
+    -------
+    forward(losses: torch.Tensor)
+        Compute the uncertainty loss.
     """
     def __init__(self) -> None:
         super().__init__()
