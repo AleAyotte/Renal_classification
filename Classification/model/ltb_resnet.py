@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     08/2021
-    @Last modification: 10/2021
+    @Last modification: 12/2021
 
     @Description:       This file contain the class LTBResNet (Learn-To-Branch ResNet) that inherit from the NeuralNet
                         class.

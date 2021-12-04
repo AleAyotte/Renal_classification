@@ -3,11 +3,10 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 08/2021
+    @Last modification: 12/2021
 
-    @Description:       This file contain some generic module used to create several model like the ResNet,
-                        MultiLevelResNet and CapsNet. The module are DynamicHighCapsule, PrimaryCapsule, Resblock and
-                        ResBottleneck.
+    @Description:       This file contain some generic block used to create several model like the ResNet,
+                        MultiLevelResNet and CapsNet.
 
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
                         2) CBAM: Convolutional Block Attention Module, Woo, S et al., ECCV 2018
@@ -26,6 +25,8 @@ from typing import Final, List, NewType, Optional, Sequence, Tuple, Type, Union
 
 from model.module import GumbelSoftmax
 
+NB_DIMS: Final = 3
+
 
 class BranchingBlock(nn.Module):
     """
@@ -43,17 +44,19 @@ class BranchingBlock(nn.Module):
     __frozen : bool
         A boolean that indicate if the architecture search is finish.
     gumbel_softmax : GumbelSoftmax
-        The gumbel softmax layer that learn which parents should be connected to the childrens.
+        The gumbel softmax layer that learn which parents should be connected to the children.
     __layer_type : str
         Indicate the type of layer that is use in the current block. Can be 'conv' or 'linear'.
     __num_block : int
         The number of children nodes.
     Methods
     -------
-    get_weights() -> Union[torch.nn.Parameter, Iterator[torch.nn.Parameter]]
-        Get the blocks or gumbel softmax parameters.
-    forward() -> torch.Tensor
+    forward(x: torch.Tensor)
         The forward pass of the gumbel softmax layer.
+    freeze_branch(children: Optional[List[int]] = None)
+        Freeze the branching operation for an optimized forward pass and return a list that indicate the active parents.
+    get_weights(gumbel_softmax_weights: bool = False)
+        Get the blocks or gumbel softmax parameters.
     """
     BLOCK_LIST_TYPE: Final = Union[NewType("PreResBlock", type),
                                    NewType("PreResBottleneck", type),
@@ -65,7 +68,7 @@ class BranchingBlock(nn.Module):
                  block_list: Sequence[BLOCK_LIST_TYPE],
                  num_input: int,
                  tau: float = 1,
-                 **kwargs):
+                 **kwargs) -> None:
         """
         Create a gumbel softmax block
 
@@ -78,9 +81,9 @@ class BranchingBlock(nn.Module):
         self.__num_block = len(block_list)
         self.__active_children = range(self.__num_block)
         self.__active_parents = range(num_input)
+        self.blocks = nn.ModuleList()
         self.__frozen = False
         self.gumbel_softmax = GumbelSoftmax(num_input=num_input, num_output=self.__num_block, tau=tau)
-        self.blocks = nn.ModuleList()
 
         for block in block_list:
             if block is nn.modules.linear.Linear:
@@ -96,21 +99,6 @@ class BranchingBlock(nn.Module):
                                          drop_rate=kwargs["drop_rate"],
                                          activation=kwargs["activation"],
                                          norm=kwargs["norm"]))
-
-    def get_weights(self, gumbel_softmax_weights: bool = False) -> Union[torch.nn.Parameter,
-                                                                         List[torch.nn.Parameter]]:
-        """
-        Get the blocks or gumbel softmax parameters.
-
-        :param gumbel_softmax_weights: If true, the gumbel softmax layer weights will be returned. Else, it will be
-                                       the blocks weights that will be returned.
-        :return: The parameters blocks parameters or the gumbel softmax parameters.
-        """
-
-        if gumbel_softmax_weights:
-            return list(self.gumbel_softmax.parameters())
-        else:
-            return list(self.blocks.parameters())
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -161,10 +149,25 @@ class BranchingBlock(nn.Module):
 
         return active_parents, unique_parent
 
+    def get_weights(self, gumbel_softmax_weights: bool = False) -> Union[torch.nn.Parameter,
+                                                                         List[torch.nn.Parameter]]:
+        """
+        Get the blocks or gumbel softmax parameters.
+
+        :param gumbel_softmax_weights: If true, the gumbel softmax layer weights will be returned. Else, it will be
+                                       the blocks weights that will be returned.
+        :return: The parameters blocks parameters or the gumbel softmax parameters.
+        """
+
+        if gumbel_softmax_weights:
+            return list(self.gumbel_softmax.parameters())
+        else:
+            return list(self.blocks.parameters())
+
 
 class CBAM(nn.Module):
     """
-    A 3D version of the Convolutional Block Attention Module as described in Ref 2).
+    A 3D version of the Convolutional Block Attention Module (CBAM) as described in Ref 2).
 
     ...
     Attributes
@@ -173,6 +176,10 @@ class CBAM(nn.Module):
         A 3D version of the Channel Attention Block that will be applied before the Spatial Attention Block
     spatial_att_block: SpatialAttBlock
         A 3D version of the Spatial Attention Block
+    Methods
+    -------
+    forward(x: torch.Tensor, to_mask: torch.Tensor)
+        Define the forward pass of the CBAM Block.
     """
 
     def __init__(self,
@@ -181,7 +188,7 @@ class CBAM(nn.Module):
                  kernel: Union[Sequence[int], int] = 1,
                  norm: str = "batch",
                  squeeze_factor: int = 8,
-                 subsample: Optional[nn.Module] = None):
+                 subsample: Optional[nn.Module] = None) -> None:
         """
         Create a Convolutional Block Attention Module.
 
@@ -195,10 +202,13 @@ class CBAM(nn.Module):
                           of the output.
         """
         super().__init__()
-        self.channel_att_block = ChannelAttBlock(fmap_in=fmap_in, fmap_out=fmap_out,
+        self.channel_att_block = ChannelAttBlock(fmap_in=fmap_in,
+                                                 fmap_out=fmap_out,
                                                  squeeze_factor=squeeze_factor)
-        self.spatial_att_block = SpatialAttBlock(fmap_in=fmap_out, fmap_out=fmap_out,
-                                                 kernel=kernel, norm=norm,
+        self.spatial_att_block = SpatialAttBlock(fmap_in=fmap_out,
+                                                 fmap_out=fmap_out,
+                                                 kernel=kernel,
+                                                 norm=norm,
                                                  squeeze_factor=squeeze_factor,
                                                  subsample=subsample)
 
@@ -206,7 +216,7 @@ class CBAM(nn.Module):
                 x: torch.Tensor,
                 to_mask: torch.Tensor) -> torch.Tensor:
         """
-        Define the forward pass of the Channel Attention Block.
+        Define the forward pass of the CBAM Block.
 
         :param x: Input tensor of the attention module.
         :param to_mask: Tensor that will be multiply with the mask produced by the attention module.
@@ -229,13 +239,17 @@ class ChannelAttBlock(nn.Module):
     subsample: nn.Module
         A pytorch module or a block that reduce the dimension of the output tensor. If subsample block is given during
         __init__, then an identity layer will be used.
+    Methods
+    -------
+    forward(x: torch.Tensor)
+        Define the forward pass of the Channel Attention Block.
     """
 
     def __init__(self,
                  fmap_in: int,
                  fmap_out: int,
                  squeeze_factor: int,
-                 subsample: Optional[nn.Module] = None):
+                 subsample: Optional[nn.Module] = None) -> None:
         """
         Create a Channel Attention Block
 
@@ -280,7 +294,6 @@ class ChannelAttBlock(nn.Module):
 class PreResBlock(nn.Module):
     """
     A 3D version of the preactivation residual bottleneck block as described in Ref 1).
-    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
 
     ...
     Attributes
@@ -290,12 +303,16 @@ class PreResBlock(nn.Module):
     first_normalization: nn.module
         The normalization layer that is applied before the forward pass in the residual mapping.
     residual_layer: nn.Sequential
-        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+        A series of convolution, normalization and activation layer to play the role of residual mapping function.
     sub_conv: nn.Sequential
-        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shortcut output
         with the dimension of the residual mapping.
     __subsample: boolean
         A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    Methods
+    -------
+    forward(x: torch.Tensor)
+        Define the forward pass of the Preactivation Residual block.
     """
     expansion = 1
 
@@ -309,9 +326,9 @@ class PreResBlock(nn.Module):
                  kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
                  split_layer: bool = False,
-                 strides: Union[Sequence[int], int] = 1):
+                 strides: Union[Sequence[int], int] = 1) -> None:
         """
-        Create a PreActivation Residual Block
+        Create a PreActivation Residual block
 
         :param fmap_in: Number of input feature maps.
         :param fmap_out: Number of output feature maps.
@@ -333,7 +350,11 @@ class PreResBlock(nn.Module):
             self.__subsample = False
         else:
             self.__subsample = True
-            self.sub_conv = nn.Conv3d(fmap_in, fmap_out, kernel_size=1, stride=strides, bias=bias,
+            self.sub_conv = nn.Conv3d(fmap_in,
+                                      fmap_out,
+                                      kernel_size=1,
+                                      stride=strides,
+                                      bias=bias,
                                       groups=groups if split_layer is False else 1)
 
         if type(kernel) == int:
@@ -351,13 +372,21 @@ class PreResBlock(nn.Module):
         self.first_activation = Act[activation](**args)
 
         res_layer = [
-            nn.Conv3d(fmap_in, fmap_out, kernel_size=kernel, stride=strides,
-                      padding=padding, bias=bias,
+            nn.Conv3d(fmap_in,
+                      fmap_out,
+                      kernel_size=kernel,
+                      stride=strides,
+                      padding=padding,
+                      bias=bias,
                       groups=groups if split_layer is False else 1),
-            Norm[norm, 3](fmap_out),
+            Norm[norm, NB_DIMS](fmap_out),
             Act[activation](**args),
-            nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel, stride=1,
-                      padding=padding, bias=bias,
+            nn.Conv3d(fmap_out,
+                      fmap_out,
+                      kernel_size=kernel,
+                      stride=1,
+                      padding=padding,
+                      bias=bias,
                       groups=groups)
         ]
 
@@ -368,10 +397,10 @@ class PreResBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Define the forward pass of the Residual layer
+        Define the forward pass of the Preactivation Residual block.
 
-        :param x: Input tensor of the convolutional layer
-        :return: Output tensor of the residual block
+        :param x: Input tensor of the convolutional layer.
+        :return: Output tensor of the residual block.
         """
 
         out = self.first_normalization(x)
@@ -389,8 +418,7 @@ class PreResBlock(nn.Module):
 
 class PreResBottleneck(nn.Module):
     """
-    A 3D version of the preactivation residual block as described in Ref 1).
-    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
+    A 3D version of the preactivation Bottleneck residual block as described in Ref 1).
 
     ...
     Attributes
@@ -400,12 +428,16 @@ class PreResBottleneck(nn.Module):
     first_normalization: nn.module
         The normalization layer that is applied before the forward pass in the residual mapping.
     residual_layer: nn.Sequential
-        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+        A series of convolution, normalization and activation layer to play the role of residual mapping function.
     sub_conv: nn.Sequential
-        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shortcut output
         with the dimension of the residual mapping.
     __subsample: boolean
         A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    Methods
+    -------
+    forward(x: torch.Tensor)
+        Define the forward pass of the Preactivation Residual Bottleneck block.
     """
     expansion = 4
 
@@ -419,9 +451,9 @@ class PreResBottleneck(nn.Module):
                  kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
                  split_layer: bool = False,
-                 strides: Union[Sequence[int], int] = 1):
+                 strides: Union[Sequence[int], int] = 1) -> None:
         """
-        Create a PreActivation Residual Block
+        Create a PreActivation Residual Bottleneck block
 
         :param fmap_in: Number of input feature maps.
         :param fmap_out: Number of output feature maps.
@@ -443,8 +475,11 @@ class PreResBottleneck(nn.Module):
             self.__subsample = False
         else:
             self.__subsample = True
-            self.sub_conv = nn.Conv3d(fmap_in, fmap_out*self.expansion, kernel_size=1,
-                                      stride=strides, bias=bias,
+            self.sub_conv = nn.Conv3d(fmap_in,
+                                      fmap_out*self.expansion,
+                                      kernel_size=1,
+                                      stride=strides,
+                                      bias=bias,
                                       groups=groups if split_layer is False else 1)
 
         if type(kernel) == int:
@@ -462,18 +497,28 @@ class PreResBottleneck(nn.Module):
         self.first_activation = Act[activation](**args)
 
         res_layer = [
-            nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
-                      stride=1, bias=bias,
+            nn.Conv3d(fmap_in,
+                      fmap_out,
+                      kernel_size=1,
+                      stride=1,
+                      bias=bias,
                       groups=groups if split_layer is False else 1,),
-            Norm[norm, 3](fmap_out),
+            Norm[norm, NB_DIMS](fmap_out),
             Act[activation](**args),
-            nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
-                      stride=strides, padding=padding, bias=bias,
+            nn.Conv3d(fmap_out,
+                      fmap_out,
+                      kernel_size=kernel,
+                      stride=strides,
+                      padding=padding,
+                      bias=bias,
                       groups=groups),
-            Norm[norm, 3](fmap_out),
+            Norm[norm, NB_DIMS](fmap_out),
             Act[activation](**args),
-            nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
-                      stride=1, bias=bias,
+            nn.Conv3d(fmap_out,
+                      fmap_out*self.expansion,
+                      kernel_size=1,
+                      stride=1,
+                      bias=bias,
                       groups=groups),
         ]
 
@@ -484,7 +529,7 @@ class PreResBottleneck(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Define the forward pass of the Residual layer
+        Define the forward pass of the Preactivation Residual Bottleneck block
 
         :param x: Input tensor of the convolutional layer
         :return: Output tensor of the residual block
@@ -506,13 +551,16 @@ class PreResBottleneck(nn.Module):
 class ResBlock(nn.Module):
     """
     A 3D version of the residual block as described in Ref 1).
-    (Conv(kernel), Norm, Act, Conv(kernel), Norm, Add, Act, Dropout)
 
     ...
     Attributes
     ----------
     res: ResidualUnit
         A MONAI implementation of the Residual block. Act like an nn.Sequential.
+    Methods
+    -------
+    forward(x: torch.Tensor)
+        Define the forward pass of the Residual block.
     """
     expansion = 1
 
@@ -524,7 +572,7 @@ class ResBlock(nn.Module):
                  drop_rate: float = 0,
                  kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
-                 strides: Union[Sequence[int], int] = 1):
+                 strides: Union[Sequence[int], int] = 1) -> None:
         """
         Create a Residual Block using MONAI
 
@@ -539,12 +587,25 @@ class ResBlock(nn.Module):
         """
         super().__init__()
 
-        self.res = ResidualUnit(dimensions=3, in_channels=fmap_in, out_channels=fmap_out,
-                                kernel_size=kernel, strides=strides, dropout=drop_rate,
-                                dropout_dim=3, norm=norm, last_conv_only=False, bias=bias,
+        self.res = ResidualUnit(dimensions=NB_DIMS,
+                                in_channels=fmap_in,
+                                out_channels=fmap_out,
+                                kernel_size=kernel,
+                                strides=strides,
+                                dropout=drop_rate,
+                                dropout_dim=NB_DIMS,
+                                norm=norm,
+                                last_conv_only=False,
+                                bias=bias,
                                 act=activation if activation != "PReLU" else ("prelu", {"init": 0.01}))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Define the forward pass of the Residual block.
+
+        :param x: A torch.Tensor that represent the block input.
+        :return: A torch.Tensor that represent the block output.
+        """
         out = self.res(x)
 
         return out
@@ -553,20 +614,23 @@ class ResBlock(nn.Module):
 class ResBottleneck(nn.Module):
     """
     A 3D version of the residual bottleneck block as described in Ref 1).
-    (Conv(1x1x1), Norm, Act, Conv(kernel), Norm, Act, Conv(1x1x1), Norm, Add, Act, Dropout)
 
     ...
     Attributes
     ----------
     last_activation: nn.module
-        The non linear activation function that is applied after adding the shorcut to the residual mapping.
+        The non linear activation function that is applied after adding the shortcut to the residual mapping.
     residual_layer: nn.Sequential
-        A serie of convolution, normalization and activation layer to play the role of residual mapping function.
+        A series of convolution, normalization and activation layer to play the role of residual mapping function.
     sub_conv: nn.Sequential
-        A 3D convolution layer used to subsample the input features and to match the dimension of the shorcut output
+        A 3D convolution layer used to subsample the input features and to match the dimension of the shortcut output
         with the dimension of the residual mapping.
     __subsample: boolean
         A boolean that indicate if the input features will be subsample with a convolution layer with a stride of 2.
+    Methods
+    -------
+    forward(x: torch.Tensor)
+        Define the forward pass of the Residual Bottleneck block.
     """
     expansion = 4
 
@@ -580,7 +644,7 @@ class ResBottleneck(nn.Module):
                  kernel: Union[Sequence[int], int] = 3,
                  norm: str = "batch",
                  split_layer: bool = False,
-                 strides: Union[Sequence[int], int] = 1):
+                 strides: Union[Sequence[int], int] = 1) -> None:
         """
         Create a PreActivation Residual Block
 
@@ -620,20 +684,30 @@ class ResBottleneck(nn.Module):
             _, args = split_args(activation)
 
         res_layer = [
-            nn.Conv3d(fmap_in, fmap_out, kernel_size=1,
-                      stride=1, bias=bias,
+            nn.Conv3d(fmap_in,
+                      fmap_out,
+                      kernel_size=1,
+                      stride=1,
+                      bias=bias,
                       groups=groups if split_layer is False else 1,),
-            Norm[norm, 3](fmap_out),
+            Norm[norm, NB_DIMS](fmap_out),
             Act[activation](**args),
-            nn.Conv3d(fmap_out, fmap_out, kernel_size=kernel,
-                      stride=strides, padding=padding, bias=bias,
+            nn.Conv3d(fmap_out,
+                      fmap_out,
+                      kernel_size=kernel,
+                      stride=strides,
+                      padding=padding,
+                      bias=bias,
                       groups=groups),
-            Norm[norm, 3](fmap_out),
+            Norm[norm, NB_DIMS](fmap_out),
             Act[activation](**args),
-            nn.Conv3d(fmap_out, fmap_out*self.expansion, kernel_size=1,
-                      stride=1, bias=bias,
+            nn.Conv3d(fmap_out,
+                      fmap_out*self.expansion,
+                      kernel_size=1,
+                      stride=1,
+                      bias=bias,
                       groups=groups),
-            Norm[norm, 3](fmap_out*self.expansion)
+            Norm[norm, NB_DIMS](fmap_out*self.expansion)
         ]
 
         if drop_rate > 0:
@@ -644,7 +718,7 @@ class ResBottleneck(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Define the forward pass of the Residual layer
+        Define the forward pass of the Residual Bottleneck block.
 
         :param x: Input tensor of the convolutional layer
         :return: Output tensor of the residual block
@@ -672,6 +746,10 @@ class SpatialAttBlock(nn.Module):
     subsample: nn.Module
         A pytorch module or a block that reduce the dimension of the output tensor. If subsample block is given during
         __init__, then an identity layer will be used.
+    Methods
+    -------
+    forward(x: torch.Tensor, to_mask: torch.tensor)
+        Define the forward pass of the Spatial Attention Block.
     """
     def __init__(self,
                  fmap_in: int,
@@ -679,7 +757,7 @@ class SpatialAttBlock(nn.Module):
                  kernel: Union[Sequence[int], int] = 1,
                  norm: str = "batch",
                  squeeze_factor: int = 8,
-                 subsample: Optional[nn.Module] = None):
+                 subsample: Optional[nn.Module] = None) -> None:
         """
         Create a Spatial Attention Block.
 
@@ -703,10 +781,10 @@ class SpatialAttBlock(nn.Module):
 
         self.att = nn.Sequential(
             nn.Conv3d(fmap_in, num_int_map, kernel_size=kernel, padding=padding),
-            Norm[norm, 3](num_int_map),
+            Norm[norm, NB_DIMS](num_int_map),
             nn.ReLU(),
             nn.Conv3d(num_int_map, fmap_out, kernel_size=kernel, padding=padding),
-            Norm[norm, 3](fmap_out),
+            Norm[norm, NB_DIMS](fmap_out),
             nn.Sigmoid()
         )
 

@@ -3,9 +3,9 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 06/2021
+    @Last modification: 12/2021
 
-    @Description:       This file contain the classe ResNet that inherit from the NeuralNet class. This ResNet version
+    @Description:       This file contain the class ResNet that inherit from the NeuralNet class. This ResNet version
                         can only be use for single task trainer on 3D images.
 
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016

@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     07/2021
-    @Last modification: 07/2021
+    @Last modification: 12/2021
 
     @Description:       This file contain the classe MTAN that inherit from the NeuralNet class. This Multi-task
                         Attention Network can only be use for multitask trainer on 3D images.

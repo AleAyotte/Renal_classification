@@ -3,12 +3,12 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     02/2021
-    @Last modification: 07/2021
+    @Last modification: 12/2021
 
     @Description:       This file contain the SharedNet class. This class used three different neural network and
                         connect them with SluiceUnit or CrossStitchUnit to create a unique MultiTaskNetwork.
 
-    @Reference:         1) I. Misra, et al. Cross-stitch networks formulti-task learning. IEEE Conference on Computer
+    @Reference:         1) I. Misra, et al. Cross-stitch networks for multi-task learning. IEEE Conference on Computer
                            Vision and PatternRecognition (CVPR), 2016
                         2) S. Ruder et al. Latent Multi-Task Architecture Learning. Proceedings of the AAAI
                            Conferenceon Artificial Intelligence, 2019

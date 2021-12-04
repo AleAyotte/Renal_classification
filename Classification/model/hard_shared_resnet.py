@@ -3,9 +3,9 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     03/2021
-    @Last modification: 11/2021
+    @Last modification: 12/2021
 
-    @Description:       This file contain the classe HardSharedResNet that inherit from the NeuralNet class.
+    @Description:       This file contain the class HardSharedResNet that inherit from the NeuralNet class.
 
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
 """
