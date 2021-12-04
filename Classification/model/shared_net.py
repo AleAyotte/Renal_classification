@@ -37,16 +37,18 @@ class SharedNet(NeuralNet):
      ...
     Attributes
     ----------
-    loss: Callable[[torch.Tensor], torch.Tensor]
+    loss : Callable[[torch.Tensor], torch.Tensor]
         A method that will be used to compute the multi-task loss during the training.
+    loss_module : Union[UncertaintyLoss, UniformLoss]
+        A torch.module that will be used to compute the multi-task loss without penalty.
     nets : nn.ModuleDict
-        A dictionnary that contain several neural network. One for each task.
+        A dictionary that contain several neural network. One for each task.
     __nb_task : int
         The number of tasks.
     __sharing_unit : SharingUnits
         Indicate which type of sharing unit are present in the neural network.
     sharing_units_dict : nn.ModuleDict
-        A dictionnary that contain all the sharing_unit module.
+        A dictionary that contain all the sharing_unit module.
         These sharing unit modules are referenced by their level.
     __subspace : np.array[int]
         A list of int that indicate the number of subspace for each network.
@@ -54,17 +56,20 @@ class SharedNet(NeuralNet):
         The list of all tasks name.
     Methods
     -------
-    forward(x: torch.Tensor) -> torch.Tensor:
-        Execute the forward on a given torch.Tensor.
-    set_mixup(b_size : int):
-        Set the b_size parameter of each mixup module.
     activate_mixup() -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]:
         Choose randomly a mixup module and activate it.
     disable_mixup(key: int = -1):
         Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
         modules will be disable.
+    forward(x: torch.Tensor) -> torch.Tensor:
+        Execute the forward on a given torch.Tensor.
+    set_mixup(b_size : int):
+        Set the b_size parameter of each mixup module.
     shared_forward(sharing_level: int, x: Sequence[torch.Tensor]) -> List[torch.Tensor]:
-        Reshape the features and compute the forward pass of the shared unit at a gived sharing level.
+        Reshape the features and compute the forward pass of the shared unit at a given sharing level.
+    save_histogram_sharing_unit(current_iter: int, writer: SummaryWriter, prefix: Optional[str] = "")
+        Save an histogram of the weights of each sharing unit with a given tensorboard writer.
+
     """
     def __init__(self,
                  sub_nets: nn.ModuleDict,
@@ -85,7 +90,7 @@ class SharedNet(NeuralNet):
         :param c: A float that represent the conservation parameter of the sharing units.
         :param num_shared_channels: A list of int that indicate the number of channels per network before the
                                     cross-stitch unit. Only used if sharing_unit == "cross_stitch"
-        :param penalty_coeff: The penalty coeff that will be applied on the sharing module.
+        :param penalty_coeff: The penalty coefficient that will be applied on the sharing module.
         :param sharing_unit: The sharing unit that will be used to shared the information between the 3 network.
         :param spread: A float that represent the spread parameter of the sharing units.
         :param subspace_1: A list of int that indicate the number of subspace in each network before the sluice unit 1.
@@ -144,60 +149,34 @@ class SharedNet(NeuralNet):
             self.loss_module = UniformLoss()
         self.loss = self.__define_loss(penalty_coeff)
 
-    def save_histogram_sharing_unit(self,
-                                    current_iter: int,
-                                    writer: SummaryWriter,
-                                    prefix: Optional[str] = "") -> None:
+    def __define_loss(self, penalty_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
         """
-        Save an histogram of the weights of each sharing unit with a given tensorboard writer.
+        Build the method that will be used to compute the loss.
 
-        :param current_iter: An integer that indicate the current iteration.
-        :param writer: The tensorboard writer that will be used to save the histogram.
-        :param prefix: A string that will be used as prefix of the histogram name.
+        :param penalty_coeff: The coefficient that will multiply the penalty applied on the shared units.
+        :return: A function that compute the multi-task loss.
         """
-        for key, mod in self.sharing_units_dict.items():
-            weights = mod.alpha.detach().cpu().numpy()
-            writer.add_histogram(prefix + f"Sharing units {key}", weights.flatten(), current_iter)
-
-    def shared_forward(self,
-                       sharing_level: int,
-                       x: List[torch.Tensor]) -> List[torch.Tensor]:
-        """
-        Reshape the features and compute the forward pass of the shared unit at the sharing level i.
-
-        :param sharing_level: An integer that indicate which sharing unit will be used.
-        :param x: A list of torch.Tensor that represent the features extract by each sub neural net before the
-                  given sharing level.
-        :return: A tuple of torch.Tensor that represent the shared features representation for each sub neural net.
-        """
-
-        if str(sharing_level) in list(self.sharing_units_dict.keys()):
-            num_chan = [tensor.size()[1] for tensor in x]
-            b_size, _, depth, width, height = x[0].size()
-
-            if self.__sharing_unit is SharingUnits.SLUICE:
-                num_sub = self.__subspace[sharing_level - 1]
-                out = torch.cat(
-                    [x[i].view(b_size, num_sub[i], int(num_chan[i] / num_sub[i]), depth, width, height)
-                        for i in range(self.__nb_task)],
-                    dim=1
-                )
-
-                out = self.sharing_units_dict[str(sharing_level)](out)
-                out = list(torch.split(out, tuple(num_sub), dim=1))
-
-                for i in range(len(out)):
-                    out[i] = out[i].reshape(b_size, num_chan[i], depth, width, height)
-
-            else:
-                out = list(self.sharing_units_dict[str(sharing_level)](torch.stack(x, dim=0)))
-
-            return out
-        # Skip the sharing level
+        if penalty_coeff:
+            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
+                penalty = []
+                for key, mod in self.sharing_units_dict.items():
+                    penalty.append(mod.penalty())
+                penalty = torch.stack(penalty)
+                return self.loss_module(losses) + penalty_coeff * torch.mean(penalty)
         else:
-            return x
+            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
+                return self.loss_module(losses)
+
+        return multi_task_loss
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """
+        The forward pass of the SharedNet
+
+        :param x: A torch.Tensor that represent a batch of 3D images.
+        :return: A dictionary of torch.tensor that represent the output per task.
+                 The keys correspond to the tasks name.
+        """
         mixup_key_list = list(self.mixup.keys())
 
         out = self.mixup["0"](x) if "0" in mixup_key_list else x
@@ -246,26 +225,6 @@ class SharedNet(NeuralNet):
 
         return preds
 
-    def __define_loss(self, penalty_coeff: float) -> Callable[[torch.Tensor], torch.Tensor]:
-        """
-        Build the method that will be used to compute the loss.
-
-        :param penalty_coeff: The coefficient that will multiply the penalty applied on the shared units.
-        :return: A function that compute the multi-task loss.
-        """
-        if penalty_coeff:
-            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
-                penalty = []
-                for key, mod in self.sharing_units_dict.items():
-                    penalty.append(mod.penalty())
-                penalty = torch.stack(penalty)
-                return self.loss_module(losses) + penalty_coeff * torch.mean(penalty)
-        else:
-            def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
-                return self.loss_module(losses)
-
-        return multi_task_loss
-
     def get_weights(self) -> Tuple[List[Iterator[torch.nn.Parameter]],
                                    Optional[List[torch.nn.Parameter]]]:
         """
@@ -282,3 +241,56 @@ class SharedNet(NeuralNet):
         else:
             loss_parameters = None
         return parameters, loss_parameters
+
+    def shared_forward(self,
+                       sharing_level: int,
+                       x: List[torch.Tensor]) -> List[torch.Tensor]:
+        """
+        Reshape the features and compute the forward pass of the shared unit at the sharing level i.
+
+        :param sharing_level: An integer that indicate which sharing unit will be used.
+        :param x: A list of torch.Tensor that represent the features extract by each sub neural net before the
+                  given sharing level.
+        :return: A tuple of torch.Tensor that represent the shared features representation for each sub neural net.
+        """
+
+        if str(sharing_level) in list(self.sharing_units_dict.keys()):
+            num_chan = [tensor.size()[1] for tensor in x]
+            b_size, _, depth, width, height = x[0].size()
+
+            if self.__sharing_unit is SharingUnits.SLUICE:
+                num_sub = self.__subspace[sharing_level - 1]
+                out = torch.cat(
+                    [x[i].view(b_size, num_sub[i], int(num_chan[i] / num_sub[i]), depth, width, height)
+                        for i in range(self.__nb_task)],
+                    dim=1
+                )
+
+                out = self.sharing_units_dict[str(sharing_level)](out)
+                out = list(torch.split(out, tuple(num_sub), dim=1))
+
+                for i in range(len(out)):
+                    out[i] = out[i].reshape(b_size, num_chan[i], depth, width, height)
+
+            else:
+                out = list(self.sharing_units_dict[str(sharing_level)](torch.stack(x, dim=0)))
+
+            return out
+        # Skip the sharing level
+        else:
+            return x
+
+    def save_histogram_sharing_unit(self,
+                                    current_iter: int,
+                                    writer: SummaryWriter,
+                                    prefix: Optional[str] = "") -> None:
+        """
+        Save an histogram of the weights of each sharing unit with a given tensorboard writer.
+
+        :param current_iter: An integer that indicate the current iteration.
+        :param writer: The tensorboard writer that will be used to save the histogram.
+        :param prefix: A string that will be used as prefix of the histogram name.
+        """
+        for key, mod in self.sharing_units_dict.items():
+            weights = mod.alpha.detach().cpu().numpy()
+            writer.add_histogram(prefix + f"Sharing units {key}", weights.flatten(), current_iter)

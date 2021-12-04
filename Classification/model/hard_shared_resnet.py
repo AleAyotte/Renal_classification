@@ -33,16 +33,22 @@ class HardSharedResNet(NeuralNet):
     Attributes
     ----------
 
+    aux_tasks_coeff : float
+        A float that will multiply the auxiliary tasks loss
+    aux_tasks_loss : Union[UncertaintyLoss, UniformLoss]
+        A torch.module that will be used to compute the main tasks loss during the training.
     __backend_tasks : List[str]
         The list of tasks on which the shared layers of the model will be train.
     __in_channels : int
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
         The last series of residual block.
-    loss : Union[UncertaintyLoss, UniformLoss]
-        A torch.module that will be used to compute the multi-task loss during the training.
+    loss : Callable
+        A method that will combine the main task loss and the auxiliary task loss.
     __main_tasks : list
         A list of string that indicate the name of the
+    main_tasks_loss : Union[UncertaintyLoss, UniformLoss]
+        A torch.module that will be used to compute the main tasks loss during the training.
     __num_flat_features : int
         Number of features at the output of the last convolution.
     shared_layers : nn.Sequentiel
@@ -58,15 +64,17 @@ class HardSharedResNet(NeuralNet):
         be used only for this task.
     Methods
     -------
-    forward(x: torch.Tensor) -> Dict[str, torch.Tensor]
-        Execute the forward on a given torch.Tensor.
-    set_mixup(b_size : int)
-        Set the b_size parameter of each mixup module.
-    activate_mixup() -> Tuple[int, Union[float, Sequence[float]], Sequence[int]]
+    activate_mixup()
         Choose randomly a mixup module and activate it.
-    disable_mixup(key: int = -1):
+    disable_mixup(key: int = -1)
         Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
         modules will be disable.
+    forward(x: torch.Tensor)
+        Execute the forward on a given torch.Tensor.
+    get_weights(split_weights: bool = False)
+        Get the model parameters and the loss parameters.
+    set_mixup(b_size : int)
+        Set the b_size parameter of each mixup module.
     """
     def __init__(self,
                  main_tasks: List[str],
@@ -95,10 +103,12 @@ class HardSharedResNet(NeuralNet):
         """
         Create a pre activation or post activation 3D Residual Network for multi-task learning.
 
+        :param main_tasks: A list of tasks name that represent the main tasks on which the model will be train.
         :param num_classes: A dictionnary that indicate the number of class for each task. For regression tasks,
                             the num_class shoule be equal to one.
-        :param tasks: A list of tasks on which the model will be train.
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
+        :param aux_tasks: A list of tasks name that represent the auxiliary tasks on which the model will be train.
+        :param aux_tasks_coeff: A float that will multiply the auxiliary tasks losses.
         :param backend_tasks: The list of tasks on which the shared layers of the model will be train.
         :param commun_block: A string or a sequence of string that indicate which type of block will be use to
                              create the shared layers of the network. If it is a list, it should be equal in length to
@@ -352,7 +362,7 @@ class HardSharedResNet(NeuralNet):
                      norm: str = "batch",
                      strides: Union[Sequence[int], int] = 1) -> nn.Sequential:
         """
-        Create a sequence of layer of a given class and of lenght num_block.
+        Create a sequence of layer of a given class and of length num_block.
 
         :param block: A class type that indicate which block should be create in the sequence.
         :param drop_rate: A sequence of float that indicate the drop_rate for each block.
@@ -382,7 +392,7 @@ class HardSharedResNet(NeuralNet):
         Perform the forward pass on a given batch of 3D images
 
         :param x: A torch.Tensor that represent a batch of 3D images.
-        :return: A dictionnary of torch.tensor that reprensent the output per task.
+        :return: A dictionary of torch.tensor that represent the output per task.
                  The keys correspond to the tasks name.
         """
         out = self.shared_layers(x)

@@ -73,6 +73,8 @@ class MTAN(NeuralNet):
     -------
     forward(x: torch.Tensor) -> torch.Tensor
         Execute the forward on a given torch.Tensor.
+    get_weights()
+        Get the model parameters and the loss parameters.
     """
     def __init__(self,
                  num_classes: Dict[str, int],
@@ -94,8 +96,8 @@ class MTAN(NeuralNet):
         """
         Create a pre activation or post activation 3D Residual Network.
 
-        :param num_classes: A dictionnary that indicate the number of class for each task. For regression tasks,
-                            the num_class shoule be equal to one.
+        :param num_classes: A dictionary that indicate the number of class for each task. For regression tasks,
+                            the num_class should be equal to one.
         :param tasks: A list of tasks on which the model will be train.
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param att_type: Indicate which type of attention module will be used. (Options: See AttentionBlock in

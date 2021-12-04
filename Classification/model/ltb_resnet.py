@@ -65,6 +65,11 @@ class LTBResNet(NeuralNet):
     -------
     forward(x: torch.Tensor) -> Dict[str, torch.Tensor]
         Execute the forward on a given torch.Tensor.
+    freeze_branching()
+        Freeze the gumbel softmax operation of all branching blocks in the model and return a list of list of int
+        that represent the result of the architecture search. Finally the weights are re initialized.
+    get_weights()
+        Get the model parameters and the loss parameters.
     update_epoch(num_epoch: Optional[int] = None) -> None
         Update the attribute named num_epoch of all gumbel_softmax layer in the LTBResNet.
     """
@@ -292,7 +297,7 @@ class LTBResNet(NeuralNet):
                      norm: str = "batch",
                      strides: Union[Sequence[int], int] = 1) -> nn.Sequential:
         """
-        Create a sequence of layer of a given class and of lenght num_block.
+        Create a sequence of layer of a given class and of length num_block.
 
         :param block_list: A list of class type that indicate which blocks should be create in the sequence.
         :param drop_rate: A list of float that indicate the drop_rate for each block.
@@ -325,38 +330,12 @@ class LTBResNet(NeuralNet):
 
         return nn.Sequential(*layers)
 
-    def get_weights(self) -> Tuple[List[List[torch.nn.Parameter]],
-                                   Optional[List[torch.nn.Parameter]]]:
-        """
-        get the branching and the nodes parameters.
-
-        :return: A list of torch.Parameter that represent the weights of the nodes and the branching and another
-                 list of torch.Parameter that represent the weight of the loss.
-        """
-        weights = list(self.conv.parameters())
-        gumbel_softmax_weights = []
-
-        for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
-            for layer in layers:
-                weights += layer.get_weights(gumbel_softmax_weights=False)
-                gumbel_softmax_weights += layer.get_weights(gumbel_softmax_weights=True)
-
-        for task in self.__tasks:
-            weights += self.last_layers[task].get_weights(gumbel_softmax_weights=False)
-            gumbel_softmax_weights += self.last_layers[task].get_weights(gumbel_softmax_weights=True)
-
-        if isinstance(self.main_tasks_loss, UncertaintyLoss):
-            loss_parameters = list(self.main_tasks_loss.parameters()) + list(self.aux_tasks_loss.parameters())
-        else:
-            loss_parameters = None
-        return [weights, gumbel_softmax_weights], loss_parameters
-
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         The forward pass of the LTBResNet
 
         :param x: A torch.Tensor that represent a batch of 3D images.
-        :return: A dictionnary of torch.tensor that reprensent the output per task.
+        :return: A dictionary of torch.tensor that represent the output per task.
                  The keys correspond to the tasks name.
         """
         out = torch.stack([conv(x) for conv in self.conv])
@@ -398,6 +377,32 @@ class LTBResNet(NeuralNet):
         parents_list.reverse()
         self.apply(init_weights)
         return parents_list, self.__tasks
+
+    def get_weights(self) -> Tuple[List[List[torch.nn.Parameter]],
+                                   Optional[List[torch.nn.Parameter]]]:
+        """
+        get the branching and the nodes parameters.
+
+        :return: A list of torch.Parameter that represent the weights of the nodes and the branching and another
+                 list of torch.Parameter that represent the weight of the loss.
+        """
+        weights = list(self.conv.parameters())
+        gumbel_softmax_weights = []
+
+        for layers in [self.layers1, self.layers2, self.layers3, self.layers4]:
+            for layer in layers:
+                weights += layer.get_weights(gumbel_softmax_weights=False)
+                gumbel_softmax_weights += layer.get_weights(gumbel_softmax_weights=True)
+
+        for task in self.__tasks:
+            weights += self.last_layers[task].get_weights(gumbel_softmax_weights=False)
+            gumbel_softmax_weights += self.last_layers[task].get_weights(gumbel_softmax_weights=True)
+
+        if isinstance(self.main_tasks_loss, UncertaintyLoss):
+            loss_parameters = list(self.main_tasks_loss.parameters()) + list(self.aux_tasks_loss.parameters())
+        else:
+            loss_parameters = None
+        return [weights, gumbel_softmax_weights], loss_parameters
 
     def update_epoch(self, num_epoch: Optional[int] = None) -> None:
         """

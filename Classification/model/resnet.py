@@ -84,8 +84,8 @@ class ResNet(NeuralNet):
 
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param blocks_type: A string or a list of string that indicate the type of block that will be used at each
-                            level. If only a string is gived, all blocks in the model will be of the same type.
-                            (Options: see BlockType in constant.py) (Defaut=BlockType.PREACT).
+                            level. If only a string is given, all blocks in the model will be of the same type.
+                            (Options: see BlockType in constant.py) (Default=BlockType.PREACT).
                             The 2 following example give the same result.
                             Example 1)
                                 blocks_type = BlockType.PREACT
@@ -103,7 +103,7 @@ class ResNet(NeuralNet):
         :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
         :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
         :param mixup: The The alpha parameter of each mixup module. Those alpha parameter are used to sample the
-                      dristribution Beta(alpha, alpha).
+                      distribution Beta(alpha, alpha).
         :param num_classes: The number of features at the output of the neural network. (Default=2)
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
@@ -226,7 +226,7 @@ class ResNet(NeuralNet):
                      norm: str = "batch",
                      strides: Union[Sequence[int], int] = 1) -> nn.Sequential:
         """
-        Create a sequence of layer of a given class and of lenght num_block.
+        Create a sequence of layer of a given class and of length num_block.
 
         :param block: A class type that indicate which block should be create in the sequence.
         :param drop_rate: A list of float that indicate the drop_rate for each block.
@@ -253,6 +253,12 @@ class ResNet(NeuralNet):
         return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        The forward pass of the resnet3D
+
+        :param x: A torch.Tensor that represent a batch of 3D images.
+        :return: A torch.Tensor that represent the model output.
+        """
         mixup_key_list = list(self.mixup.keys())
 
         out = self.mixup["0"](x) if "0" in mixup_key_list else x
