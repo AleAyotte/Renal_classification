@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 08/2021
+    @Last modification: 12/2021
 
     @Description:       Contain the mother class trainer from which the SingleTaskTrainer and MultiTaskTrainer will
                         inherit.
@@ -11,7 +11,6 @@
 
 from abc import ABC, abstractmethod
 import csv
-from copy import deepcopy
 from monai.optimizers import Novograd
 import numpy as np
 import torch
@@ -39,7 +38,7 @@ TEST_BATCH_SIZE = 1  # Batch size used to create the validation dataloader and t
 
 class Trainer(ABC):
     """
-    The trainer class define an object that will be used to train and evaluate a given model. It handle the 
+    The trainer class defines an object that will be used to train and evaluate a given model. It handles the
     mixed precision training, the mixup process and more.
 
     ...
@@ -58,13 +57,13 @@ class Trainer(ABC):
     _loss : str
         The name of the loss that will be used during the training.
     _mixed_precision : bool
-        If true, mixed_precision will be used during training and inferance.
+        If true, mixed_precision will be used during training and inference.
     model : NeuralNet
         The neural network to train and evaluate.
     _model_type: ModelType
         Indicate the type of model that will be train. Used because some model need a particular training.
     _num_classes: dict
-        A dictionnary that indicate the number of classes for each task. For a regression task, the number of classes
+        A dictionary that indicate the number of classes for each task. For a regression task, the number of classes
         should be equal to one.
     __num_work : int
         Number of parallel process used for the preprocessing of the data. If 0, the main process will 
@@ -83,9 +82,9 @@ class Trainer(ABC):
         Represent the tolerance factor. If the loss of a given epoch is below (1 - __tol) * best_loss, 
         then this is consider as an improvement.
     _track_mode : str
-        Control the information that are registred by tensorboard. Options: all, low, none.
+        Control the information that are registered by tensorboard. Options: all, low, none.
     _weights : dict
-        A dictionnary of np.array that represent the balanced weights that would be used to adjust the loss function
+        A dictionary of np.array that represent the balanced weights that would be used to adjust the loss function
         if __classes_weights == 'balanced'
     _writer : SummaryWriter
         Use to keep track of the training with tensorboard.
@@ -109,11 +108,11 @@ class Trainer(ABC):
                  pin_memory: bool = False,
                  save_path: str = "",
                  tol: float = 0.01,
-                 track_mode: str = "all"):
+                 track_mode: str = "all") -> None:
         """
         The constructor of the trainer class.
 
-        :param num_classes: A dictionnary that indicate the number of classes of each. For regression task, the number
+        :param num_classes: A dictionary that indicates the number of classes of each. For regression task, the number
                             of classes should be 1.
         :param tasks: A list of tasks on which the model will be train.
         :param classes_weights: The configuration of weights that will be applied on the loss during the training.
@@ -125,8 +124,8 @@ class Trainer(ABC):
                                not achieve at least 50% validation accuracy for at least one epoch. (Default=False)
         :param loss: The loss that will be use during mixup epoch. (Default="ce")
         :param main_tasks: A list of tasks on which the model will be train and evaluated.
-        :param mixed_precision: If true, mixed_precision will be used during training and inferance. (Default=False)
-        :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on opmizers
+        :param mixed_precision: If true, mixed_precision will be used during training and inference. (Default=False)
+        :param model_type: Indicate the type of NeuralNetwork that will be use. It will have an impact on optimizers
                            and the training. See ModelType in constant.py (Default=ModelType.STANDARD)
         :param num_workers: Number of parallel process used for the preprocessing of the data. If 0,
                             the main process will be used for the data augmentation. (Default=0)
@@ -343,7 +342,7 @@ class Trainer(ABC):
                                             Tuple[Sequence[np.array], Sequence[float]],
                                             Tuple[np.array, float]]:
         """
-        Compute the accuracy of the model on a given test dataset.
+        Computes the accuracy of the model on a given test dataset.
 
         :param testset: A torch dataset which contain our test data points and labels.
         :param save_path: The filepath of the csv that will be used to save the prediction.
@@ -361,10 +360,10 @@ class Trainer(ABC):
                  dt_loader: DataLoader) -> Tuple[Dict[str, torch.Tensor],
                                                  Dict[str, torch.Tensor]]:
         """
-        Take a data loader and compute the prediction for every data in the dataloader.
+        Take a data loader and computes the prediction for every data in the dataloader.
 
         :param dt_loader: A torch.Dataloader that use a BrainDataset or a RenalDataset object.
-        :return: A dictionnary that contain a list of prediction per task and a dictionnary that contain a
+        :return: A dictionary that contain a list of prediction per task and a dictionary that contain a
                  list of labels per task.
         """
 
@@ -400,8 +399,8 @@ class Trainer(ABC):
         """
         Save the prediction made by the model on a given dataset.
 
-        :param outs: A dictionnary of torch.tensor that represent the output of the model for each task.
-        :param labels: A dictionnary of torch.tensor that represent the labels and where the keys are the name
+        :param outs: A dictionary of torch.tensor that represent the output of the model for each task.
+        :param labels: A dictionary of torch.tensor that represent the labels and where the keys are the name
                        of each task.
         :param patient_id: A list that contain the patient id in the same order has the labels and the outputs.
         :param save_path: The filepath of the csv that will be used to save the prediction.
@@ -483,7 +482,7 @@ class Trainer(ABC):
 
         :param batch_size: The batch size that will be used during the training. (Default=32).
         :param trainset: The dataset that will be used to train the model.
-        :param validset: The dataset that will be used to mesure the model performan
+        :param validset: The dataset that will be used to measure the model performance.
         :return: A dataloader with training data and another one with the validation data.
         """
 
@@ -568,7 +567,7 @@ class Trainer(ABC):
 
     def __get_threshold(self, train_loader: DataLoader) -> None:
         """
-        Get the optimal threhold point based on the training set for all classification task.
+        Get the optimal threshold point based on the training set for all classification task.
 
         :param train_loader: The train dataloader
         """
@@ -584,8 +583,8 @@ class Trainer(ABC):
         """
         Compute the balanced weight according to a given distribution of data.
 
-        :param labels_bincounts: A dictionnary of numpy.array that give the distribution of data per class per task.
-                                 The tasks name are used has key in this dictionnary.
+        :param labels_bincounts: A dictionary of numpy.array that give the distribution of data per class per task.
+                                 The tasks name are used has key in this dictionary.
         """
 
         for key, value in labels_bincounts.items():
@@ -650,8 +649,8 @@ class Trainer(ABC):
 
         :param pred: A matrix of the prediction of the model.
         :param target: Vector of the ground truth.
-        :param lamb: The mixing paramater that has been used to produce the mixup during the foward pass.
-        :param permut: A numpy array that indicate which images has been shuffle during the foward pass.
+        :param lamb: The mixing parameter that has been used to produce the mixup during the forward pass.
+        :param permut: A numpy array that indicate which images has been shuffle during the forward pass.
         :return: The mixup loss as torch tensor.
         """
         raise NotImplementedError("Must override _mixup_criterion.")
@@ -687,7 +686,7 @@ class Trainer(ABC):
                                       **kwargs) -> Tuple[List[torch.optim.Optimizer],
                                                          List[CosineAnnealingWarmRestarts]]:
         """
-        Initalize all optimizers and schedulers object.
+        Initialize all optimizers and schedulers object.
 
         :param eta_min: Minimum value of the learning rate.
         :param eps: The epsilon parameter of the Adam Optimizer.
