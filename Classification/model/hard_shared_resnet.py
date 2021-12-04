@@ -99,7 +99,7 @@ class HardSharedResNet(NeuralNet):
                      Dict[str, Union[BlockType, List[BlockType]]],
                      BlockType
                  ] = BlockType.PREACT,
-                 split_level: int = 3):
+                 split_level: int = 3) -> None:
         """
         Create a pre activation or post activation 3D Residual Network for multi-task learning.
 

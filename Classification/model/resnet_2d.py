@@ -24,7 +24,7 @@ class ResNet2D(nn.Module):
     """
     def __init__(self,
                  nb_clinical_data: int = 10,
-                 drop_rate: float = 0.5):
+                 drop_rate: float = 0.5) -> None:
         super().__init__()
         assert nb_clinical_data > 0, "You should use at least on clinical features."
         self._nb_clin_features = nb_clinical_data

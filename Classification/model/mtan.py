@@ -92,7 +92,7 @@ class MTAN(NeuralNet):
                  kernel: Union[Sequence[int], int] = 3,
                  loss: Loss = Loss.UNCERTAINTY,
                  norm: str = "batch",
-                 num_in_chan: int = 4):
+                 num_in_chan: int = 4) -> None:
         """
         Create a pre activation or post activation 3D Residual Network.
 

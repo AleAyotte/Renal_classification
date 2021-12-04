@@ -78,7 +78,7 @@ class ResNet(NeuralNet):
                  mixup: Sequence[int] = None,
                  norm: str = "batch",
                  num_classes: int = 2,
-                 num_in_chan: int = 4):
+                 num_in_chan: int = 4) -> None:
         """
         Create a pre activation or post activation 3D Residual Network.
 

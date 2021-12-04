@@ -82,7 +82,7 @@ class SharedNet(NeuralNet):
                  subspace_1: Union[Dict[str, int], int] = 0,
                  subspace_2: Union[Dict[str, int], int] = 0,
                  subspace_3: Union[Dict[str, int], int] = 0,
-                 subspace_4: Union[Dict[str, int], int] = 0):
+                 subspace_4: Union[Dict[str, int], int] = 0) -> None:
         """
         Create a Shared network with Shared Module like Sluice Unit or Cross-Stitch Unit.
 

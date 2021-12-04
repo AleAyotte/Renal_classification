@@ -38,7 +38,7 @@ class NeuralNet(nn.Module):
     restore(checkpoint_path) -> Tuple[int, float, float]:
         Restore the weight from the last checkpoint saved during training
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.mixup = nn.ModuleDict()
 
