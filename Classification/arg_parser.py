@@ -167,12 +167,12 @@ def argument_parser() -> argparse.Namespace:
 
     hs_parser.add_argument('--aux_coeff', type=float, default=0.25,
                            help="The coefficient that is applied to the losses of the auxiliary in the total loss.")
-    hs_parser.add_argument('--aux_task_set', type=int, default=1, choices=[0, 1, 2],
+    hs_parser.add_argument('--aux_task_set', type=int, default=-1, choices=[-1, 0, 1, 2],
                            help="The set of auxiliary task that will be used in the experimentation."
                                 "(see constant.py AuxTaskSet).")
     hs_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                            help="The config used to determine the depth of each sub-network. The depth of the shared "
-                                "layers is determined by the most commun depth (see constant.py SubNetDepth).")
+                                "layers is determined by the most common depth (see constant.py SubNetDepth).")
     hs_parser.add_argument('--split_level', type=int, default=4,
                            help="At which level the multi level resnet should split into sub net.\n"
                                 "1: After the first convolution, \n2: After the first residual level, \n"
