@@ -49,7 +49,10 @@ def sample_hparam(hparam_dict):
     if b_size >= 28:
         hparam_dict.b_size = int(b_size / 2)
         hparam_dict.num_cumu_batch = 2
-
+    else:
+        hparam_dict.b_size = b_size
+        hparam_dict.num_cumu_batch = 1
+        
     activation = ['ReLU', 'PReLU', 'LeakyReLU', 'ELU']
     hparam_dict.act = activation[np.random.randint(0, 3)]
     args.split_level = np.random.randint(2, 4)
