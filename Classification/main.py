@@ -62,13 +62,16 @@ if __name__ == "__main__":
         num_clin_features = 0
 
     if experimentation in [Experimentation.HARD_SHARING, Experimentation.LTB, Experimentation.TAG]:
-        if args.aux_task_set == 0:
-            filepath = AuxTaskSet.SET0
-        else:
-            filepath = f"Data/r_task_g{args.aux_task_set}.txt"
+        if args.aux_task_set > -1:
+            if args.aux_task_set == 0:
+                filepath = AuxTaskSet.SET0
+            else:
+                filepath = f"Data/r_task_g{args.aux_task_set}.txt"
 
-        with open(filepath, 'r') as f:
-            regression_tasks_list = [line[:-1] for line in f]
+            with open(filepath, 'r') as f:
+                regression_tasks_list = [line[:-1] for line in f]
+        else:
+            regression_tasks_list = []
     else:
         regression_tasks_list = []
 
