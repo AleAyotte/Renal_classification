@@ -241,14 +241,16 @@ if __name__ == "__main__":
         print(f"{parents_list=}")
         print(f"{ltb_task_list=}")
 
-    elif experimentation is Experimentation.TAG and args.num_epoch > MIN_NUM_EPOCH:
+    elif experimentation is Experimentation.TAG and :
         affinity, opt_affinity = trainer.get_task_affinity()
-        experiment.log_dataframe_profile(affinity, "Affinity")
-        experiment.log_dataframe_profile(opt_affinity, "Optimal Affinity")
-    else:
-        affinity, opt_affinity = trainer.get_task_affinity()
-        print(affinity)
-        print(opt_affinity)
+        
+        if args.num_epoch > MIN_NUM_EPOCH:
+            experiment.log_dataframe_profile(affinity, "Affinity")
+            experiment.log_dataframe_profile(opt_affinity, "Optimal Affinity")
+        else:
+            print(affinity)
+            print(opt_affinity)    
+
     # Print the score in the terminal
     set_list = [trainset, validset, testset]
     split_list = [SplitName.TRAIN, SplitName.VALIDATION, args.testset.upper()]
