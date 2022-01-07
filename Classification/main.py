@@ -241,7 +241,7 @@ if __name__ == "__main__":
         print(f"{parents_list=}")
         print(f"{ltb_task_list=}")
 
-    elif experimentation is Experimentation.TAG and :
+    elif experimentation is Experimentation.TAG:
         affinity, opt_affinity = trainer.get_task_affinity()
         
         if args.num_epoch > MIN_NUM_EPOCH:
