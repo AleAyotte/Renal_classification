@@ -280,7 +280,7 @@ if __name__ == "__main__":
                 experiment.log_metric(name=name + " Recall 0", value=recall_0)
                 experiment.log_metric(name=name + " Recall 1", value=recall_1)
                 experiment.log_metric(name=name + " Mean Recall", value=mean_recall)
-        avg_balanced_acc = np.sqrt(avg_balanced_acc)
+        avg_balanced_acc = avg_balanced_acc ** (1/3)
         experiment.log_metric(name=f"{split} Avg Balanced Accuracy", value=avg_balanced_acc)
         
     if experiment is not None:
