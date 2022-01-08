@@ -266,19 +266,23 @@ if __name__ == "__main__":
     stats_dict = [train_stats, valid_stats, test_stats]
 
     for split, stats in zip(split_list, stats_dict):
+        avg_balanced_acc = 1
         for task in classification_tasks_list:
             auc = float(np.mean(stats[task]["auc"]))
             recall_0 = float(np.mean(stats[task]["recall 0"]))
             recall_1 = float(np.mean(stats[task]["recall 1"]))
             mean_recall = (recall_0 + recall_1) / 2
-
+            avg_balanced_acc *= mean_recall
+            
             if experiment is not None:
                 name = f"{split} {task.capitalize()}"
                 experiment.log_metric(name=name + " AUC", value=auc)
                 experiment.log_metric(name=name + " Recall 0", value=recall_0)
                 experiment.log_metric(name=name + " Recall 1", value=recall_1)
                 experiment.log_metric(name=name + " Mean Recall", value=mean_recall)
-
+        avg_balanced_acc = np.sqrt(avg_balanced_acc)
+        experiment.log_metric(name=f"{split} Avg Balanced Accuracy", value=avg_balanced_acc)
+        
     if experiment is not None:
         hparam = vars(deepcopy(args))
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
