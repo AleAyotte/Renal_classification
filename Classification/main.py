@@ -208,7 +208,6 @@ if __name__ == "__main__":
                                 log_git_metadata=False,
                                 auto_param_logging=False,
                                 log_code=False)
-        experiment.set_name("LTBResNet" + "_" + "MultiTask")
         experiment.log_code("arg_parser.py")
         experiment.log_code("main.py")
         experiment.log_code("constant.py")
