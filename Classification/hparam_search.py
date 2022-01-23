@@ -62,7 +62,7 @@ def sample_hparam(hparam_dict):
 
     elif experimentation is Experimentation.SOFT_SHARING:
         args.c = np.random.uniform(0.5, 1.0)
-        args.cs_config = np.random.randint(1, 5)
+        args.cs_config = np.random.randint(0, 4)
         args.depth_config = np.random.randint(1, 4)
         args.sharing_l2 = 10 ** (np.random.uniform(-2, -8))
         args.spread = np.random.uniform(0.01, 0.30)

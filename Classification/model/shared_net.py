@@ -236,7 +236,7 @@ class SharedNet(NeuralNet):
         parameters = [self.nets.parameters(),
                       self.sharing_units_dict.parameters()]
 
-        if isinstance(self.main_tasks_loss, UncertaintyLoss):
+        if isinstance(self.loss_module, UncertaintyLoss):
             loss_parameters = self.loss_module.parameters()
         else:
             loss_parameters = None

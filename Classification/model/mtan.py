@@ -297,7 +297,7 @@ class MTAN(NeuralNet):
         parameters += list(self.shared_layers4_base) + list(self.shared_layers4_last)
         parameters += list(self.att_layers.parameters()) + list(self.fc_layers.parameters())
 
-        if isinstance(self.main_tasks_loss, UncertaintyLoss):
+        if isinstance(self.loss, UncertaintyLoss):
             loss_parameters = self.loss.parameters()
         else:
             loss_parameters = None
