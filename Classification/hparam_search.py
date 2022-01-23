@@ -55,9 +55,18 @@ def sample_hparam(hparam_dict):
     else:
         hparam_dict.b_size = b_size
         hparam_dict.num_cumu_batch = 1
-        
-    args.split_level = np.random.randint(2, 5)
-    args.depth_config = np.random.randint(1, 4)
+
+    if experimentation is Experimentation.HARD_SHARING:
+        args.depth_config = np.random.randint(1, 4)
+        args.split_level = np.random.randint(2, 5)
+
+    elif experimentation is Experimentation.SOFT_SHARING:
+        args.c = np.random.uniform(0.5, 1.0)
+        args.cs_config = np.random.randint(1, 5)
+        args.depth_config = np.random.randint(1, 4)
+        args.sharing_l2 = 10 ** (np.random.uniform(-2, -8))
+        args.spread = np.random.uniform(0.01, 0.30)
+
 
 if __name__ == "__main__":
     args = argument_parser()
@@ -95,7 +104,6 @@ if __name__ == "__main__":
     if experimentation not in SINGLE_TASK_EXPERIMENT:
         assert len(tasks_list) >= MIN_NUM_TASKS, "You have to select at least two task."
 
-    
     train_stats = {task: {"recall 0": [], "recall 1": [], "auc": []} for task in classification_tasks_list}
     valid_stats = {task: {"recall 0": [], "recall 1": [], "auc": []} for task in classification_tasks_list}
     test_stats = {task: {"recall 0": [], "recall 1": [], "auc": []} for task in classification_tasks_list}
@@ -267,22 +275,28 @@ if __name__ == "__main__":
 
     for split, stats in zip(split_list, stats_dict):
         avg_balanced_acc = 1
+
         for task in classification_tasks_list:
             auc = float(np.mean(stats[task]["auc"]))
             recall_0 = float(np.mean(stats[task]["recall 0"]))
             recall_1 = float(np.mean(stats[task]["recall 1"]))
-            mean_recall = (recall_0 + recall_1) / 2
-            avg_balanced_acc *= mean_recall
+
+            balanced_acc_list = (np.array(stats[task]["recall 0"]) + np.array(stats[task]["recall 1"])) / 2
+            balanced_acc = np.mean(balanced_acc_list)
+            avg_balanced_acc *= balanced_acc
+
+            print(f"For {split=} and {task=} {balanced_acc=} with std of {np.std(balanced_acc_list)}")
             
             if experiment is not None:
                 name = f"{split} {task.capitalize()}"
                 experiment.log_metric(name=name + " AUC", value=auc)
                 experiment.log_metric(name=name + " Recall 0", value=recall_0)
                 experiment.log_metric(name=name + " Recall 1", value=recall_1)
-                experiment.log_metric(name=name + " Mean Recall", value=mean_recall)
+                experiment.log_metric(name=name + " Mean Recall", value=balanced_acc)
+
         avg_balanced_acc = avg_balanced_acc ** (1/3)
         experiment.log_metric(name=f"{split} Avg Balanced Accuracy", value=avg_balanced_acc)
-        
+
     if experiment is not None:
         hparam = vars(deepcopy(args))
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
