@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 12/2021
+    @Last modification: 02/2022
 
     @Description:       This file contain some generic module used to create several model like
                         MultiLevelResNet and SharedNet. The module are SluiceUnit, CrossStitchUnit, Mixup and
@@ -21,7 +21,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from typing import Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from trainer.utils import to_one_hot
 
@@ -78,8 +78,8 @@ class CrossStitchUnit(torch.nn.Module):
         The forward pass of the CrossStitch Unit. This unit perform a linear combination between the subspace of
         different network to shared the information between those network.
 
-        :param x: A torch.Tensor that represent the input of the SluiceUnit.
-        :return: A torch.Tensor that represent the output of the SluiceUnit.
+        :param x: A torch.Tensor that represent the input of the Cross Stitch Unit.
+        :return: A torch.Tensor that represent the output of the Cross Stitch Unit.
         """
         # Output, Task, Batch, Channels, Depth, Width, Height
         out = torch.mul(self.alpha[:, :, None, :, None, None, None], x[None, :, :, :, :, :, :])
@@ -95,6 +95,72 @@ class CrossStitchUnit(torch.nn.Module):
         features_selection_penalty = torch.prod(torch.abs(self.alpha) + 1, dim=1)
         simplex_penalty = torch.square(torch.sum(self.alpha, dim=1) - 1)
         return torch.mean(features_selection_penalty + simplex_penalty)
+
+
+class CrossStitchUnitV2(torch.nn.Module):
+    """
+    The real implementation of the cross stitch unit as described in Ref 1).
+
+    ...
+    Attributes
+    ----------
+    alpha : torch.nn.Parameter
+        A torch Tensor that represent parameters of the Cross-Stitch Unit. Those parameters are
+        a matrix NxN that learned how the information between N subspace should be shared.
+    __nb_task : int
+        An integer that indicate the number of subnetwork that will be connected by the cross-stitch unit.
+    Methods
+    -------
+    forward(x: torch.Tensor)
+        The forward pass of the CrossStitch Unit. This unit perform a linear combination between the subspace of
+        different network to shared the information between those network.
+    penalty() -> torch.Tensor:
+        Compute a penalty on the weight matrix that encourage the feature selection and force the sum of subspace to
+        be equal to 1.
+    """
+    def __init__(self,
+                 nb_channels: int,
+                 nb_task: int,
+                 c=0.9,
+                 spread=0.1) -> None:
+        """
+
+        :param nb_task: The number of network to combine.
+        :param nb_channels: Number of channels in the latent space PER NETWORK.
+        :param c: A float that represent the conservation parameter.
+        :param spread: A float that represent the spread parameters.
+        """
+        super().__init__()
+        self.__nb_task = nb_task
+
+        mean = (1 - c) / (nb_task - 1)
+        std = spread / (nb_task - 1)
+
+        alpha = []
+        for t in range(self.__nb_task):
+            temp = np.random.normal(mean, std, (nb_channels, self.__nb_task))
+            temp[:, t] = c
+            alpha.append(temp)
+
+        alpha = torch.from_numpy(np.array(alpha)).float()
+        alpha = torch.transpose(alpha, 1, 2)  # Output, Task, Channels
+
+        self.alpha = torch.nn.Parameter(data=alpha, requires_grad=True)
+
+    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+        """
+        The forward pass of the CrossStitch Unit. This unit perform a linear combination between the subspace of
+        different network to shared the information between those network.
+
+        :param x: A list of torch.Tensor that represents the inner representation of each subnetwork.
+        :return: A list of torch.Tensor that represents the shared representation of each subnetwork.
+        """
+        # Output, Task, Batch, Channels, Depth, Width, Height
+        out = []
+        for i in range(self.__nb_task):
+            inp = torch.stack([x[j].detach() if j != i else x[j] for j in range(self.__nb_task)], dim=0)
+            out.append(torch.mul(self.alpha[i, :, None, :, None, None, None], inp).sum(0))
+        return out
 
 
 class GumbelSoftmax(nn.Module):

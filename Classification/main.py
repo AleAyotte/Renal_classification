@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021
-    @Last modification: 09/2021
+    @Last modification: 02/2022
 
     @Description:       Contain the main function to train a neural network on one of those two dataset: BrainMets
                         and RCC.
@@ -18,6 +18,7 @@ from typing import Final
 from arg_parser import argument_parser
 from constant import AuxTaskSet, DatasetName, Experimentation, ModelType, SplitName, Tasks
 from data_manager.dataset_builder import build_datasets
+from model.cross_stitch import CrossStitch
 from model_creation import create_model
 from trainer_creation import create_trainer
 from utils import get_predict_csv_path, print_score, print_data_distribution, read_api_key, save_hparam_on_comet
@@ -110,7 +111,7 @@ if __name__ == "__main__":
                                                       num_clin_features=num_clin_features,
                                                       tasks_list=tasks_list)
 
-    if model_type is not ModelType.LTB_NET:
+    if model_type is not ModelType.LTB_NET and not isinstance(net, CrossStitch):
         summary(net, tuple(trainset[0]["sample"].size()))
 
     # --------------------------------------------

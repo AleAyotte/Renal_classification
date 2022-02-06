@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     09/2021
-    @Last modification: 09/2021
+    @Last modification: 02/2022
 
     @Description:       Contain the functions that will build the models for the different experiments.
 """
@@ -20,6 +20,7 @@ from model.neural_net import NeuralNet
 from model.resnet import ResNet
 from model.resnet_2d import ResNet2D
 from model.shared_net import SharedNet
+from model.cross_stitch import CrossStitch
 
 LOAD_PATH: Final = "save/STL3D_NET/"  # Loading path of the single task model.
 MIN_NUM_TASKS: Final = 2
@@ -273,17 +274,27 @@ def build_sharednet(args: argparse.Namespace,
             load_path = LOAD_PATH + f"{args.seed}/" + task + ".pth"
             sub_nets[task].restore(load_path)
 
-    net = SharedNet(
-        c=args.c,
-        sharing_unit=SharingUnits[args.sharing_unit.upper()],
-        spread=args.spread,
-        sub_nets=sub_nets,
-        subspace_1={task: SUBSPACE[0] for task in tasks_list},
-        subspace_2={task: SUBSPACE[1] for task in tasks_list},
-        subspace_3={task: SUBSPACE[2] for task in tasks_list},
-        subspace_4={task: SUBSPACE[3] for task in tasks_list},
-        num_shared_channels=[args.in_channels * conf for conf in CS_CONFIG[args.cs_config]]
-    ).to(args.device)
+    if args.real_cs:
+        net = CrossStitch(
+            c=args.c,
+            spread=args.spread,
+            sub_nets=sub_nets,
+            num_shared_channels=[args.in_channels * conf for conf in CS_CONFIG[args.cs_config]]
+        ).to(args.device)
+
+    else:
+        net = SharedNet(
+            c=args.c,
+            sharing_unit=SharingUnits[args.sharing_unit.upper()],
+            spread=args.spread,
+            sub_nets=sub_nets,
+            subspace_1={task: SUBSPACE[0] for task in tasks_list},
+            subspace_2={task: SUBSPACE[1] for task in tasks_list},
+            subspace_3={task: SUBSPACE[2] for task in tasks_list},
+            subspace_4={task: SUBSPACE[3] for task in tasks_list},
+            num_shared_channels=[args.in_channels * conf for conf in CS_CONFIG[args.cs_config]]
+        ).to(args.device)
+
     return net
 
 

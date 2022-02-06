@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     06/2021
-    @Last modification: 09/2021
+    @Last modification: 02/2022
 
     @Description:       Contain the argument parser that will be used by every Main file.
 """
@@ -200,6 +200,9 @@ def argument_parser() -> argparse.Namespace:
                            help="If True, then the SharedNet will be create with two subnet that has been pretrained "
                                 "on their corresponding task. Also, the shared_lr will be equal to lr * 100 and "
                                 "shared_eta_min will be equal to eta_min * 100.")
+    ss_parser.add_argument('--real_cs', type=bool, default=False, nargs='?', const=True,
+                           help="If true, the real cross stitch implementation will be trained instead "
+                                "of the SharedNet. By calling this, the sharing_unit parameter is ignored.")
     ss_parser.add_argument('--sharing_l2', type=float, default=3e-6,
                            help="The l2 penalty coefficient applied to the shared module.")
     ss_parser.add_argument('--sharing_unit', type=str, default="cross_stitch",
