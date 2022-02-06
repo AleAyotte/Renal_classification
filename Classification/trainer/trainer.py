@@ -3,7 +3,7 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 12/2021
+    @Last modification: 02/2022
 
     @Description:       Contain the mother class trainer from which the SingleTaskTrainer and MultiTaskTrainer will
                         inherit.
@@ -17,6 +17,7 @@ import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch import nn
 from torch.autograd import Variable
+from torch.cuda import amp
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -334,7 +335,8 @@ class Trainer(ABC):
         self.model.restore(self.__save_path)
 
         # Compute the optimal threshold
-        self.__get_threshold(train_loader)
+        with amp.autocast(enabled=self._mixed_precision):
+            self.__get_threshold(train_loader)
 
     def score(self,
               testset: Union[BrainDataset, RenalDataset],
@@ -351,10 +353,10 @@ class Trainer(ABC):
         test_loader = torch.utils.data.DataLoader(testset,
                                                   TEST_BATCH_SIZE,
                                                   shuffle=False)
-
         self.model.eval()
 
-        return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path, use_optimal_threshold=True)
+        with amp.autocast(enabled=self._mixed_precision):
+            return self._get_conf_matrix(dt_loader=test_loader, save_path=save_path, use_optimal_threshold=True)
 
     def _predict(self,
                  dt_loader: DataLoader) -> Tuple[Dict[str, torch.Tensor],
