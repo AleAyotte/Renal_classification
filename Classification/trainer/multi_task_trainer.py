@@ -342,7 +342,7 @@ class MultiTaskTrainer(Trainer):
                 accuracy = get_mean_accuracy(rec, geometric_mean=True)
 
                 all_acc[task] = accuracy  # Include accuracy of conditionnal probability related task
-                if task in self._tasks:
+                if task in self._main_tasks:
                     acc[task] = accuracy
 
             mean_acc = get_mean_accuracy(list(acc.values()), geometric_mean=True)
