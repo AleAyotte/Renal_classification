@@ -18,8 +18,9 @@ from torchsummary import summary
 from typing import Final
 
 from arg_parser import argument_parser
-from constant import  DatasetName, Experimentation, ModelType, SplitName, Tasks
+from constant import DatasetName, Experimentation, ModelType, SplitName, Tasks
 from data_manager.dataset_builder import build_datasets
+from model.cross_stitch import CrossStitch
 from model_creation import create_model
 from trainer_creation import create_trainer
 from trainer.utils import compute_recall
@@ -139,7 +140,7 @@ if __name__ == "__main__":
                                                           num_clin_features=num_clin_features,
                                                           tasks_list=tasks_list)
 
-        if model_type is not ModelType.LTB_NET:
+        if model_type is not ModelType.LTB_NET and not isinstance(net, CrossStitch):
             summary(net, tuple(trainset[0]["sample"].size()))
 
         # --------------------------------------------
