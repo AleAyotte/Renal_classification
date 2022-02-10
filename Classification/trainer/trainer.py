@@ -336,7 +336,7 @@ class Trainer(ABC):
 
         # Compute the optimal threshold
         with amp.autocast(enabled=self._mixed_precision):
-            self.__get_threshold(train_loader)
+            self.__get_threshold(valid_loader)
 
     def score(self,
               testset: Union[BrainDataset, RenalDataset],
@@ -579,7 +579,7 @@ class Trainer(ABC):
         for task in self._classification_tasks:
             mask = torch.where(labels[task] > -1, 1, 0).bool()
             self._optimal_threshold[task] = find_optimal_cutoff(labels[task][mask].numpy(),
-                                                                outs[task][mask][:, 1].cpu().numpy())
+                                                                self._soft(outs[task][mask])[:, 1].cpu().numpy())
 
     def __init_weights(self, labels_bincounts: dict) -> None:
         """

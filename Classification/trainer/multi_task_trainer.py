@@ -406,7 +406,7 @@ class MultiTaskTrainer(Trainer):
             masks[task] = torch.where(labels[task] > -1, 1, 0).bool()
 
             threshold = self._optimal_threshold[task] if use_optimal_threshold else 0.5
-            preds[task] = torch.where(outs[task][:, 1] >= threshold, 1, 0).cpu()
+            preds[task] = torch.where(self._soft(outs[task])[:, 1] >= threshold, 1, 0).cpu()
 
         # Compute the confusion matrix and the loss for each task.
         for task in main_classification_tasks:
