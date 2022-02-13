@@ -202,8 +202,9 @@ if __name__ == "__main__":
     #                    SCORE
     # --------------------------------------------
     if args.num_epoch > MIN_NUM_EPOCH:
+        proj_name = "february-2022-stl3d" if experimentation is Experimentation.STL_3D else PROJECT_NAME
         experiment = Experiment(api_key=read_api_key(),
-                                project_name=PROJECT_NAME,
+                                project_name=proj_name,
                                 workspace="aleayotte",
                                 log_env_details=False,
                                 auto_metric_logging=False,
