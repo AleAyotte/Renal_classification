@@ -68,6 +68,14 @@ def sample_hparam(hparam_dict):
         args.sharing_l2 = 10 ** (np.random.uniform(-2, -8))
         args.spread = np.random.uniform(0.01, 0.30)
 
+    elif experimentation is Experimentation.MTAN:
+        args.att_block = ["channel", "spatial", "cbam"][np.random.randint(0, 3)]
+        args.depth = [18, 34, 50][np.random.randint(0, 3)]
+
+    elif experimentation is Experimentation.STL_3D:
+        args.depth = [18, 34, 50][np.random.randint(0, 3)]
+        args.config = np.random.randint(0, 4)
+
 
 if __name__ == "__main__":
     args = argument_parser()
