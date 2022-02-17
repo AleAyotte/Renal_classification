@@ -243,8 +243,8 @@ if __name__ == "__main__":
             conf, auc = trainer.score(split_set, save_path="")
 
             for task in classification_tasks_list:
-                stats[task]["auc"].append(auc[task])
-                recall = compute_recall(conf[task])
+                stats[task]["auc"].append(auc[task] if experimentation is not Experimentation.STL_3D else auc)
+                recall = compute_recall(conf[task]  if experimentation is not Experimentation.STL_3D else conf)
                 stats[task]["recall 0"].append(recall[0])
                 stats[task]["recall 1"].append(recall[1])
 
