@@ -70,10 +70,10 @@ def sample_hparam(hparam_dict):
 
     elif experimentation is Experimentation.MTAN:
         args.att_block = ["channel", "spatial", "cbam"][np.random.randint(0, 3)]
-        args.depth = [18, 34, 50][np.random.randint(0, 3)]
+        args.depth = [18, 34][np.random.randint(0, 2)]
 
     elif experimentation is Experimentation.STL_3D:
-        args.depth = [18, 34, 50][np.random.randint(0, 3)]
+        args.depth = [18, 34][np.random.randint(0, 2)]
         args.config = np.random.randint(0, 4)
 
 
