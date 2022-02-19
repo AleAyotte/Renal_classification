@@ -290,11 +290,11 @@ class MTAN(NeuralNet):
         :return: A list of parameters that represent the weights of the network and another list of parameters
                  that represent the weights of the loss.
         """
-        parameters = list(self.conv.parameters)
-        parameters += list(self.shared_layers1_base) + list(self.shared_layers1_last)
-        parameters += list(self.shared_layers2_base) + list(self.shared_layers2_last)
-        parameters += list(self.shared_layers3_base) + list(self.shared_layers3_last)
-        parameters += list(self.shared_layers4_base) + list(self.shared_layers4_last)
+        parameters = list(self.conv.parameters())
+        parameters += list(self.shared_layers1_base.parameters()) + list(self.shared_layers1_last.parameters())
+        parameters += list(self.shared_layers2_base.parameters()) + list(self.shared_layers2_last.parameters())
+        parameters += list(self.shared_layers3_base.parameters()) + list(self.shared_layers3_last.parameters())
+        parameters += list(self.shared_layers4_base.parameters()) + list(self.shared_layers4_last.parameters())
         parameters += list(self.att_layers.parameters()) + list(self.fc_layers.parameters())
 
         if isinstance(self.loss, UncertaintyLoss):
