@@ -60,12 +60,22 @@ def build_hardshared(args: argparse.Namespace,
         for task in aux_tasks:
             task_block[task] = BlockType.POSTACT if Tasks.SUBTYPE in main_tasks else BlockType.PREACT
     else:
-        commun_block = BlockType.POSTACT
-
-        for task in main_tasks:
-            task_block[task] = BlockType.PREACT
-        for task in aux_tasks:
-            task_block[task] = BlockType.PREACT
+        if args.split_level == 3:
+            commun_block = BlockType.POSTACT
+            for task in main_tasks + aux_tasks:
+                task_block[task] = BlockType.PREACT
+        elif args.split_level == 4:
+            commun_block = [BlockType.POSTACT, BlockType.POSTACT, BlockType.PREACT]
+            for task in main_tasks + aux_tasks:
+                task_block[task] = BlockType.PREACT
+        elif args.split_level == 5:
+            commun_block = [BlockType.POSTACT, BlockType.POSTACT, BlockType.PREACT, BlockType]
+            for task in main_tasks + aux_tasks:
+                task_block[task] = BlockType.PREACT
+        else:
+            commun_block = BlockType.POSTACT
+            for task in main_tasks + aux_tasks:
+                task_block[task] = [BlockType.POSTACT, BlockType.PREACT, BlockType.PREACT]
 
     # Depth configuration
     if args.depth_config == 1:
