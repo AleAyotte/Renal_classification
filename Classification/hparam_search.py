@@ -60,6 +60,7 @@ def sample_hparam(hparam_dict):
     if experimentation is Experimentation.HARD_SHARING:
         args.depth_config = np.random.randint(1, 4)
         args.split_level = np.random.randint(2, 5)
+        args.config = np.random.randint(0, 2)
 
     elif experimentation is Experimentation.SOFT_SHARING:
         args.c = np.random.uniform(0.5, 1.0)

@@ -170,6 +170,9 @@ def argument_parser() -> argparse.Namespace:
     hs_parser.add_argument('--aux_task_set', type=int, default=-1, choices=[-1, 0, 1, 2],
                            help="The set of auxiliary task that will be used in the experimentation."
                                 "(see constant.py AuxTaskSet).")
+    hs_parser.add_argument('--block_config', type=int, default=0, choices=[0, 1],
+                           help="The config used to determine the block configuration of each sub-network. "
+                                "0 will be the common configuration. 1 is PostActX2 - PreActX2.")
     hs_parser.add_argument('--depth_config', type=int, default=1, choices=[1, 2, 3],
                            help="The config used to determine the depth of each sub-network. The depth of the shared "
                                 "layers is determined by the most common depth (see constant.py SubNetDepth).")

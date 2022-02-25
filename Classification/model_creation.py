@@ -46,11 +46,28 @@ def build_hardshared(args: argparse.Namespace,
     aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
     main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
 
-    for task in main_tasks:
-        task_block[task] = BlockType.POSTACT if task is Tasks.SUBTYPE else BlockType.PREACT
-    for task in aux_tasks:
-        task_block[task] = BlockType.POSTACT if Tasks.SUBTYPE in main_tasks else BlockType.PREACT
+    # Block configuration
+    if args.config == 0:
+        commun_block = BlockType.PREACT
+        if Tasks.MALIGNANCY not in main_tasks and Tasks.GRADE not in main_tasks:
+            if args.split_level == 4:
+                commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT]
+            elif args.split_level == 5:
+                commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
 
+        for task in main_tasks:
+            task_block[task] = BlockType.POSTACT if task is Tasks.SUBTYPE else BlockType.PREACT
+        for task in aux_tasks:
+            task_block[task] = BlockType.POSTACT if Tasks.SUBTYPE in main_tasks else BlockType.PREACT
+    else:
+        commun_block = BlockType.POSTACT
+
+        for task in main_tasks:
+            task_block[task] = BlockType.PREACT
+        for task in aux_tasks:
+            task_block[task] = BlockType.PREACT
+
+    # Depth configuration
     if args.depth_config == 1:
         commun_depth = 18
         depth_config: Final = SubNetDepth.CONFIG1
@@ -66,13 +83,6 @@ def build_hardshared(args: argparse.Namespace,
         depth_config: Final = SubNetDepth.CONFIG3
         for task in aux_tasks:
             depth_config[task] = 18
-
-    commun_block = BlockType.PREACT
-    if Tasks.MALIGNANCY not in main_tasks and Tasks.GRADE not in main_tasks:
-        if args.split_level == 4:
-            commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT]
-        elif args.split_level == 5:
-            commun_block = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
 
     # --------------------------------------------
     #                NEURAL NETWORK
