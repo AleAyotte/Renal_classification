@@ -63,12 +63,8 @@ def create_trainer(args: argparse.Namespace,
                              track_mode=args.track_mode)
     # Multi task experimentation
     else:
-        if experimentation is Experimentation.LTB or experimentation is Experimentation.TAG:
-            aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
-            main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
-        else:
-            main_tasks = tasks_list
-            aux_tasks = []
+        aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
+        main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
 
         save_path = SAVE_PATH + experimentation.name
 
