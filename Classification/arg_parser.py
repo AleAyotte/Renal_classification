@@ -167,7 +167,7 @@ def argument_parser() -> argparse.Namespace:
 
     hs_parser.add_argument('--aux_coeff', type=float, default=0.25,
                            help="The coefficient that is applied to the losses of the auxiliary in the total loss.")
-    hs_parser.add_argument('--aux_task_set', type=int, default=-1, choices=[-1, 0, 1, 2, 3, 4, 5, 6, 7],
+    hs_parser.add_argument('--aux_task_set', type=int, default=-1, choices=[-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                            help="The set of auxiliary task that will be used in the experimentation."
                                 "(see constant.py AuxTaskSet).")
     hs_parser.add_argument('--config', type=int, default=0, choices=[0, 1],
