@@ -1,90 +1,90 @@
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
-python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=3 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=4 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=5 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=6 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=7 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=8 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=9 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=10 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
+python main.py hs --worker=8 --aux_coeff=0.25 --split_level=4 --in_channels=32 --drop_rate=0.3 --l2=3e-6 --lr=1e-4 --b_size=8 --num_cumu_batch=4 --aux_task_set=11 --grade --config=1
