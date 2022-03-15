@@ -128,7 +128,7 @@ if __name__ == "__main__":
                             testset.labels_bincount(),
                             classification_tasks_list)
     print("\n")
-
+    print(f"Total number of data: {len(trainset) + len(validset) + len(testset)}")
     # --------------------------------------------
     #                   TRAINER
     # --------------------------------------------
