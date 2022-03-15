@@ -25,6 +25,7 @@ def build_datasets(classification_tasks: List[str],
                    clin_features: Optional[Sequence[str]] = None,
                    num_chan: int = 4,
                    num_dimension: int = 3,
+                   keep_unlabeled_data: bool = False,
                    regression_tasks: Optional[List[str]] = None,
                    split_seed: Optional[int] = None,
                    testset_name: str = "test") -> Union[Tuple[BrainDataset, BrainDataset, BrainDataset],
@@ -37,6 +38,8 @@ def build_datasets(classification_tasks: List[str],
     :param clin_features: A list of clinical features that will be used as input in the model.
     :param num_chan: The number images channels. Only use if num_dimension == 3.
     :param num_dimension: The number of dimension of the images in the dataset.
+    :param keep_unlabeled_data: If true, keep all data even those with missing label for the main task. Useful if label
+                                are present for auxiliary tasks.
     :param regression_tasks: A list of attribute name that will be used has regression tasks.
     :param testset_name: Determine the data that will be used in the testset. If testset == 'test' then the testset
                          will be sampled in the train set. Else, it will load the corresponding testset.
@@ -46,7 +49,9 @@ def build_datasets(classification_tasks: List[str],
     # --------------------------------------------
     #              DATA AUGMENTATION
     # --------------------------------------------
-    transform, test_transform = get_data_augmentation(dataset_name=dataset_name, num_dimension=num_dimension, num_chan=num_chan)
+    transform, test_transform = get_data_augmentation(dataset_name=dataset_name,
+                                                      num_dimension=num_dimension,
+                                                      num_chan=num_chan)
 
     if dataset_name is DatasetName.RCC:
         if num_dimension == 3:
@@ -123,7 +128,10 @@ def build_datasets(classification_tasks: List[str],
     #               PREPARE DATASET
     # --------------------------------------------
     for dataset in [trainset, validset, testset]:
-        dataset.remove_unlabeled_data() if dataset_name is DatasetName.RCC else dataset.prepare_dataset()
+        if dataset_name is DatasetName.RCC and not keep_unlabeled_data:
+            dataset.remove_unlabeled_data()
+        elif dataset_name is DatasetName.BMETS:
+            dataset.prepare_dataset()
 
     return trainset, validset, testset
 

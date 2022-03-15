@@ -42,6 +42,9 @@ def argument_parser() -> argparse.Namespace:
     parent_parser.add_argument('--grad_clip', type=float, default=0,
                                help="The gradient clipping hyperparameter. Represent the maximal norm of the gradient"
                                     " during the training.")
+    parent_parser.add_argument('--keep_unlabeled', type=bool, default=False, nargs='?', const=True,
+                               help="If true, keep unlabeled data for the main tasks in the RCC dataset. Useful if "
+                                    "label are present for the auxiliary tasks.")
     parent_parser.add_argument('--loss', type=str, default="ce",
                                help="The loss that will be use to train the model. 'ce' == cross entropy loss, "
                                     "'bce' == binary cross entropoy, 'focal' = focal loss",
