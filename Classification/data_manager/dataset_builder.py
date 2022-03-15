@@ -23,9 +23,9 @@ from data_manager.renal_dataset import RenalDataset
 def build_datasets(classification_tasks: List[str],
                    dataset_name: DatasetName,
                    clin_features: Optional[Sequence[str]] = None,
+                   keep_unlabeled_data: bool = False,
                    num_chan: int = 4,
                    num_dimension: int = 3,
-                   keep_unlabeled_data: bool = False,
                    regression_tasks: Optional[List[str]] = None,
                    split_seed: Optional[int] = None,
                    testset_name: str = "test") -> Union[Tuple[BrainDataset, BrainDataset, BrainDataset],
@@ -36,10 +36,10 @@ def build_datasets(classification_tasks: List[str],
     :param classification_tasks: A list of attribute that will be used has classification labels.
     :param dataset_name: Indicate which dataset will be used. (See DatasetName in constant.py)
     :param clin_features: A list of clinical features that will be used as input in the model.
-    :param num_chan: The number images channels. Only use if num_dimension == 3.
-    :param num_dimension: The number of dimension of the images in the dataset.
     :param keep_unlabeled_data: If true, keep all data even those with missing label for the main task. Useful if label
                                 are present for auxiliary tasks.
+    :param num_chan: The number images channels. Only use if num_dimension == 3.
+    :param num_dimension: The number of dimension of the images in the dataset.
     :param regression_tasks: A list of attribute name that will be used has regression tasks.
     :param testset_name: Determine the data that will be used in the testset. If testset == 'test' then the testset
                          will be sampled in the train set. Else, it will load the corresponding testset.

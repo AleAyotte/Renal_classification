@@ -126,6 +126,7 @@ if __name__ == "__main__":
         trainset, validset, testset = build_datasets(classification_tasks=classification_tasks_list,
                                                      clin_features=clin_features,
                                                      dataset_name=dataset_name,
+                                                     keep_unlabeled_data=args.keep_unlabeled,
                                                      num_chan=args.num_chan_data,
                                                      regression_tasks=regression_tasks_list,
                                                      split_seed=args.seed,
