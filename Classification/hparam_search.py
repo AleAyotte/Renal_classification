@@ -18,7 +18,7 @@ from torchsummary import summary
 from typing import Final
 
 from arg_parser import argument_parser
-from constant import DatasetName, Experimentation, ModelType, SplitName, Tasks
+from constant import AuxTaskSet, DatasetName, Experimentation, ModelType, SplitName, Tasks
 from data_manager.dataset_builder import build_datasets
 from model.cross_stitch import CrossStitch
 from model_creation import create_model
@@ -36,7 +36,6 @@ RCC_TASKS: Final = {Tasks.GRADE, Tasks.MALIGNANCY, Tasks.SUBTYPE}
 SINGLE_TASK_EXPERIMENT: Final = [Experimentation.STL_2D, Experimentation.STL_3D]
 
 NUM_CROSS_VAL: Final = 5
-NUM_EXPERIMENT: Final = 100
 
 
 def sample_hparam(hparam_dict):
@@ -58,9 +57,14 @@ def sample_hparam(hparam_dict):
         hparam_dict.num_cumu_batch = 1
 
     if experimentation is Experimentation.HARD_SHARING:
-        args.depth_config = np.random.randint(1, 4)
-        args.split_level = np.random.randint(2, 5)
-        args.config = np.random.randint(0, 2)
+        if args.aux_task_set == -1:
+            args.depth_config = np.random.randint(1, 4)
+            args.split_level = np.random.randint(2, 5)
+            args.config = np.random.randint(0, 2)
+        else:
+            args.aux_coeff = np.random.uniform(0.1, 0.8)
+            args.split_level = np.random.randint(3, 5)
+            args.depth_config = np.random.randint(1, 3)
 
     elif experimentation is Experimentation.SOFT_SHARING:
         args.c = np.random.uniform(0.5, 1.0)
@@ -107,7 +111,19 @@ if __name__ == "__main__":
         clin_features = None
         num_clin_features = 0
 
-    regression_tasks_list = []
+    if experimentation in [Experimentation.HARD_SHARING, Experimentation.LTB, Experimentation.TAG]:
+        if args.aux_task_set > -1:
+            if args.aux_task_set == 0:
+                filepath = AuxTaskSet.SET0
+            else:
+                filepath = f"Data/r_task_g{args.aux_task_set}.txt"
+
+            with open(filepath, 'r') as f:
+                regression_tasks_list = [line[:-1] for line in f]
+        else:
+            regression_tasks_list = []
+    else:
+        regression_tasks_list = []
 
     tasks_list = classification_tasks_list + regression_tasks_list
 
@@ -305,7 +321,7 @@ if __name__ == "__main__":
                 experiment.log_metric(name=name + " Recall 1", value=recall_1)
                 experiment.log_metric(name=name + " Mean Recall", value=balanced_acc)
 
-        avg_balanced_acc = avg_balanced_acc ** (1/3)
+        avg_balanced_acc = avg_balanced_acc ** (1/len(classification_tasks_list))
         experiment.log_metric(name=f"{split} Avg Balanced Accuracy", value=avg_balanced_acc)
 
     if experiment is not None:
