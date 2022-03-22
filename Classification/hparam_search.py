@@ -47,14 +47,14 @@ def sample_hparam(hparam_dict):
 
     b_size = np.random.randint(16, 48)
     if b_size >= 40:
+        hparam_dict.b_size = int(b_size / 4)
+        hparam_dict.num_cumu_batch = 4
+    elif b_size >= 24:
         hparam_dict.b_size = int(b_size / 3)
         hparam_dict.num_cumu_batch = 3
-    elif b_size >= 24:
+    else:
         hparam_dict.b_size = int(b_size / 2)
         hparam_dict.num_cumu_batch = 2
-    else:
-        hparam_dict.b_size = b_size
-        hparam_dict.num_cumu_batch = 1
 
     if experimentation is Experimentation.HARD_SHARING:
         if args.aux_task_set == -1:
