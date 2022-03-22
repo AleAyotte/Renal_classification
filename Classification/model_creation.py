@@ -80,20 +80,18 @@ def build_hardshared(args: argparse.Namespace,
     # Depth configuration
     if args.depth_config == 1:
         commun_depth = 18
-        depth_config: Final = SubNetDepth.CONFIG1
-        for task in aux_tasks:
-            depth_config[task] = 18
+        depth_config = {main_task: SubNetDepth.CONFIG1[main_task] for main_task in main_tasks}
+
     elif args.depth_config == 2:
         commun_depth = 34
-        depth_config: Final = SubNetDepth.CONFIG2
-        for task in aux_tasks:
-            depth_config[task] = 34
+        depth_config = {main_task: SubNetDepth.CONFIG2[main_task] for main_task in main_tasks}
+
     else:
         commun_depth = 18
-        depth_config: Final = SubNetDepth.CONFIG3
-        for task in aux_tasks:
-            depth_config[task] = 18
+        depth_config = {main_task: SubNetDepth.CONFIG3[main_task] for main_task in main_tasks}
 
+    for task in aux_tasks:
+        depth_config[task] = commun_depth
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
