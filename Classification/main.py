@@ -66,6 +66,15 @@ if __name__ == "__main__":
         if args.aux_task_set > -1:
             if args.aux_task_set == 0:
                 filepath = AuxTaskSet.SET0
+            elif args.aux_task_set > 11:
+                num_radio = 10 if args.aux_task_set == 12 else 5
+                if args.malignancy:
+                    file = f"Data/mal_mrmr_{num_radio}.txt"
+                elif args.subtype:
+                    file = f"Data/sub_mrmr_{num_radio}.txt"
+                else:
+                    file = f"Data/grade_mrmr_{num_radio}.txt"
+
             else:
                 filepath = f"Data/r_task_g{args.aux_task_set}.txt"
 
