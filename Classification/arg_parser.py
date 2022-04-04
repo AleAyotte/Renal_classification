@@ -171,9 +171,9 @@ def argument_parser() -> argparse.Namespace:
     hs_parser.add_argument('--aux_coeff', type=float, default=0.25,
                            help="The coefficient that is applied to the losses of the auxiliary in the total loss.")
     hs_parser.add_argument('--aux_task_set', type=int, default=-1, choices=[-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-                                                                            12, 13],
-                           help="The set of auxiliary task that will be used in the experimentation. 12 mean mrmr_10"
-                                " and 13 mean mrmr_5. (see constant.py AuxTaskSet).")
+                                                                            12, 13, 14, 15],
+                           help="The set of auxiliary task that will be used in the experimentation. 12 and 13 mrmr_10"
+                                "mrmr_5. 14 and 15 mean pb_10 and pb_5. (see constant.py AuxTaskSet).")
     hs_parser.add_argument('--config', type=int, default=0, choices=[0, 1],
                            help="The config used to determine the block configuration of each sub-network. "
                                 "0 will be the common configuration. 1 is PostActX2 - PreActX2.")
