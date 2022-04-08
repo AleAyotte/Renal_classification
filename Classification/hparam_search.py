@@ -115,6 +115,15 @@ if __name__ == "__main__":
         if args.aux_task_set > -1:
             if args.aux_task_set == 0:
                 filepath = AuxTaskSet.SET0
+            elif args.aux_task_set > 11:
+                measure = "mrmr" if args.aux_task_set in [12, 13] else "pb"
+                num_radio = 10 if args.aux_task_set in [12, 14] else 5
+                if args.malignancy:
+                    filepath = f"Data/mal_{measure}_{num_radio}.txt"
+                elif args.subtype:
+                    filepath = f"Data/sub_{measure}_{num_radio}.txt"
+                else:
+                    filepath = f"Data/grade_{measure}_{num_radio}.txt"
             else:
                 filepath = f"Data/r_task_g{args.aux_task_set}.txt"
 
