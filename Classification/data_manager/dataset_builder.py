@@ -96,7 +96,8 @@ def build_datasets(classification_tasks: List[str],
                               exclude_list=exclude_list,
                               imgs_keys=imgs_keys,
                               regression_tasks=regression_tasks,
-                              split=SplitName.HOLDOUT,
+                              # split=SplitName.HOLDOUT,
+                              split="test",
                               transform=test_transform)
     else:
         testset = split_dataset(classification_tasks=classification_tasks,
