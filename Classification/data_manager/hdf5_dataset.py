@@ -86,8 +86,8 @@ class HDF5Dataset(ABC, Dataset):
         :param split: A string that indicate which subset will be load. (Default=DatasetName.TRAIN)
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
-        if split is not None:
-            assert split.upper() in [SplitName.TRAIN, SplitName.HOLDOUT]
+        # if split is not None:
+        #     assert split.upper() in [SplitName.TRAIN, SplitName.HOLDOUT]
         super(ABC).__init__()
 
         self.transform = transform
