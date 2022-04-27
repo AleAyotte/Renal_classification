@@ -241,8 +241,8 @@ class HardSharedResNet(NeuralNet):
             if type(blocks) is not list:
                 task_block_list[task] = [self.__get_block(blocks, task_depth[task]) for _ in range(5 - split_level)]
             else:
-                assert len(task_block) == 5 - split_level, \
-                    "The lenght of shared_block do not match with the split_level."
+                assert len(task_block[task]) == 5 - split_level, \
+                    f"The lenght of task_block do not match with the split_level. {len(task_block)=}, {5-split_level=}"
                 task_block_list[task] = [self.__get_block(block, task_depth[task]) for block in blocks]
 
         # --------------------------------------------
