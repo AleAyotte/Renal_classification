@@ -280,7 +280,7 @@ class LTBResNet(NeuralNet):
                 return self.main_tasks_loss(losses) + aux_coeff * self.aux_tasks_loss(aux_tasks_losses)
         else:
             def multi_task_loss(losses: torch.Tensor) -> torch.Tensor:
-                return self.loss_module(losses)
+                return self.main_tasks_loss(losses)
 
         return multi_task_loss
 
