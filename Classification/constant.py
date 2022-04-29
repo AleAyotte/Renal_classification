@@ -80,6 +80,7 @@ class LTBConfig:
     CONFIG1: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.PREACT, BlockType.PREACT]
     CONFIG2: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
     CONFIG3: Final = [BlockType.PREACT, BlockType.POSTACT]
+    CONFIG4: Final = [BlockType.POSTACT, BlockType.POSTACT, BlockType.PREACT, BlockType.PREACT]
 
 
 @unique

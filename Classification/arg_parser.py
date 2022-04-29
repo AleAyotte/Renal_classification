@@ -243,9 +243,10 @@ def argument_parser() -> argparse.Namespace:
                                       parents=[parent_parser, _3d_parser, mtl_parser])
     ltb_parser.add_argument('--aux_coeff', type=float, default=0.25,
                             help="The coefficient that is applied to the losses of the auxiliary in the total loss.")
-    ltb_parser.add_argument('--aux_task_set', type=int, default=1, choices=[0, 1, 2, 3, 4, 5, 6, 7],
-                            help="The set of auxiliary task that will be used in the experimentation."
-                                 "(see constant.py AuxTaskSet).")
+    ltb_parser.add_argument('--aux_task_set', type=int, default=-1, choices=[-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+                                                                             12, 13, 14, 15],
+                            help="The set of auxiliary task that will be used in the experimentation. 12 and 13 mrmr_10"
+                                 "mrmr_5. 14 and 15 mean pb_10 and pb_5. (see constant.py AuxTaskSet).")
     ltb_parser.add_argument('--branch_eta', type=float, default=1e-6,
                             help="The final learning rate parameter of the gumbel softmax block.")
     ltb_parser.add_argument('--branch_lr', type=float, default=1e-4,
@@ -254,7 +255,7 @@ def argument_parser() -> argparse.Namespace:
                             help="The l2 penalty of the gumbel softmax block.")
     ltb_parser.add_argument('--branch_num_epoch', type=int, default=200,
                             help="The number of training epoch that is use to find the optimal architecture.")
-    ltb_parser.add_argument('--config', type=int, default=2, choices=[1, 2, 3],
+    ltb_parser.add_argument('--config', type=int, default=2, choices=[1, 2, 3, 4],
                             help="The config used to determine the that will be used in the LTBResNet "
                                  "(see constant.py LTBConfig).")
     ltb_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],

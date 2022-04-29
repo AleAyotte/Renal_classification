@@ -129,8 +129,10 @@ def build_ltb(args: argparse.Namespace,
         block_config = LTBConfig.CONFIG1
     elif args.config == 2:
         block_config = LTBConfig.CONFIG2
-    else:
+    elif args.config == 3:
         block_config = LTBConfig.CONFIG3
+    else:
+        block_config = LTBConfig.CONFIG4
 
     aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
     main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
