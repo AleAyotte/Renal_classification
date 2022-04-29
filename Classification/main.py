@@ -189,7 +189,8 @@ if __name__ == "__main__":
 
         trainer = create_trainer(args,
                                  experimentation=experimentation,
-                                 conditional_prob=conditional_prob if len(conditional_prob) > 0 else None,
+                                 # conditional_prob=conditional_prob if len(conditional_prob) > 0 else None,
+                                 conditional_prob=None,
                                  model_type=ModelType.STANDARD,
                                  num_classes=num_classes,
                                  tasks_list=tasks_list)
