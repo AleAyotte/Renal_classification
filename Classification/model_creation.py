@@ -164,11 +164,21 @@ def build_mtan(args: argparse.Namespace,
     :param tasks_list: A list of every task on which the model will be train.
     :return: a MTAN that represent the network to train.
     """
-    if args.subtype:
+    # if args.subtype:
+    #     blocks_type = [BlockType.PREACT, BlockType.PREACT,
+    #                    BlockType.POSTACT, BlockType.POSTACT]
+    # else:
+    #     blocks_type = BlockType.PREACT
+    if args.config == 0:
+        blocks_type = [BlockType.PREACT for _ in range(RESNET_NB_LEVEL)]
+    elif args.config == 1:
+        blocks_type = [BlockType.POSTACT for _ in range(RESNET_NB_LEVEL)]
+    elif args.config == 2:
+        blocks_type = [BlockType.POSTACT, BlockType.POSTACT,
+                       BlockType.PREACT, BlockType.PREACT]
+    else:
         blocks_type = [BlockType.PREACT, BlockType.PREACT,
                        BlockType.POSTACT, BlockType.POSTACT]
-    else:
-        blocks_type = BlockType.PREACT
 
     net = MTAN(act=args.activation,
                att_type=AttentionBlock[args.att_block.upper()],
@@ -259,6 +269,7 @@ def build_sharednet(args: argparse.Namespace,
     if args.malignancy:
         blocks_lists[Tasks.MALIGNANCY] = BlockType.PREACT
 
+    """
     if args.subtype:
         if config[Tasks.SUBTYPE] == 34:
             blocks_lists[Tasks.SUBTYPE] = BlockType.POSTACT
@@ -271,7 +282,9 @@ def build_sharednet(args: argparse.Namespace,
 
     for task in [Tasks.ARE, Tasks.LRF]:
         blocks_lists[task] = BlockType.PREACT
-
+    """
+    blocks_lists = {task: [BlockType.POSTACT, BlockType.POSTACT, BlockType.PREACT, BlockType.PREACT]
+                    for task in tasks_list}
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------

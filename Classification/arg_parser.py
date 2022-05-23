@@ -231,6 +231,8 @@ def argument_parser() -> argparse.Namespace:
                              help="Indicate the attention block type that will be used during training."
                                   " Options = (channel, spatialm cbam).",
                              choices=["channel", "spatial", "cbam"])
+    mtan_parser.add_argument('--config', type=int, default=2, choices=[0, 1, 2, 3],
+                             help="Block configuration of the ResNet backend.")
     mtan_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                              help="The number of layer in the ResNet.")
     mtan_parser.set_defaults(warm_up=0)
