@@ -70,7 +70,10 @@ if __name__ == "__main__":
                 measure = "mrmr" if args.aux_task_set in [12, 13] else "pb"
                 num_radio = 10 if args.aux_task_set in [12, 14] else 5
                 if args.malignancy:
-                    filepath = f"Data/mal_{measure}_{num_radio}.txt"
+                    if args.subtype and args.grade:
+                        filepath = f"Data/all_{measure}_{num_radio}.txt"
+                    else:
+                        filepath = f"Data/mal_{measure}_{num_radio}.txt"
                 elif args.subtype:
                     filepath = f"Data/sub_{measure}_{num_radio}.txt"
                 else:
