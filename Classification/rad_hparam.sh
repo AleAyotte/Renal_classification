@@ -1,50 +1,40 @@
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
-python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1
+python hparam_search.py hs --worker=8 --malignancy --subtype --grade --aux_task_set=9 --config=1

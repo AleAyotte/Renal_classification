@@ -38,7 +38,7 @@ def build_hardshared(args: argparse.Namespace,
     :param args: A Namespace that contain the main argument for the experimentation.
     :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
     :param num_classes: A dictionary that indicate the number of classes for each task.
-    :param tasks_list: A list of every task on which the model will be train.
+    :param tasks_list: A list of every task on which the model will train.
     :return: An HardSharedResNet that represent the network to train.
     """
     task_block = {}
