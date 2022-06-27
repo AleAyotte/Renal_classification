@@ -11,9 +11,10 @@
     @Reference:         1) https://pytorch.org/docs/stable/generated/torch.nn.PReLU.html
 """
 
+import argparse
 from comet_ml import Experiment
 from torchsummary import summary
-from typing import Final
+from typing import List, Final
 
 from arg_parser import argument_parser
 from constant import AuxTaskSet, DatasetName, Experimentation, ModelType, SplitName, Tasks
@@ -28,15 +29,14 @@ DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared
 MIN_NUM_EPOCH: Final = 75  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME = "june-2022-valid"  # "april-2022-holdout"
+PROJECT_NAME = "chap5-2022"  # "april-2022-holdout"
 RCC_TASKS: Final = {Tasks.GRADE, Tasks.MALIGNANCY, Tasks.SUBTYPE}
 SINGLE_TASK_EXPERIMENT: Final = [Experimentation.STL_2D, Experimentation.STL_3D]
 
 
-if __name__ == "__main__":
-    args = argument_parser()
-    experimentation = Experimentation[args.experiment.upper()]
-    dataset_name = DatasetName[args.dataset.upper()]
+def get_classification_task_list(args: argparse.Namespace,
+                                 dataset_name: DatasetName,
+                                 experimentation: Experimentation):
     classification_tasks_list = []
 
     if experimentation in SINGLE_TASK_EXPERIMENT:
@@ -51,17 +51,11 @@ if __name__ == "__main__":
     else:
         assert set(classification_tasks_list) <= BRAIN_METS_TASKS, "Incorrect task choice"
 
-    if experimentation is Experimentation.STL_2D:
-        if args.task in ["subtype", "grade"]:
-            clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis",
-                             "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
-        else:
-            clin_features = ["Age", "Sex", "size"]
-        num_clin_features = len(clin_features)
-    else:
-        clin_features = None
-        num_clin_features = 0
+    return classification_tasks_list
 
+
+def get_regression_task_list(args: argparse.Namespace,
+                             experimentation: Experimentation) -> List[str]:
     if experimentation in [Experimentation.HARD_SHARING, Experimentation.LTB, Experimentation.TAG]:
         if args.aux_task_set > -1:
             if args.aux_task_set == 0:
@@ -87,8 +81,29 @@ if __name__ == "__main__":
             regression_tasks_list = []
     else:
         regression_tasks_list = []
+    return regression_tasks_list
+
+
+def main():
+    args = argument_parser()
+    experimentation = Experimentation[args.experiment.upper()]
+    dataset_name = DatasetName[args.dataset.upper()]
+
+    classification_tasks_list = get_classification_task_list()
+    regression_tasks_list = get_regression_task_list(args, experimentation)
 
     tasks_list = classification_tasks_list + regression_tasks_list
+
+    if experimentation is Experimentation.STL_2D:
+        if args.task in ["subtype", "grade"]:
+            clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis",
+                             "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
+        else:
+            clin_features = ["Age", "Sex", "size"]
+        num_clin_features = len(clin_features)
+    else:
+        clin_features = None
+        num_clin_features = 0
 
     if experimentation not in SINGLE_TASK_EXPERIMENT:
         assert len(tasks_list) >= MIN_NUM_TASKS, "You have to select at least two task."
@@ -243,7 +258,6 @@ if __name__ == "__main__":
         experiment.log_code("trainer/multi_task_trainer.py")
         experiment.log_code("trainer/single_task_trainer.py")
 
-
         csv_path = get_predict_csv_path(experimentation.name,
                                         PROJECT_NAME, "_".join(classification_tasks_list),
                                         args.testset)
@@ -258,15 +272,15 @@ if __name__ == "__main__":
 
     elif experimentation is Experimentation.TAG:
         affinity, opt_affinity = trainer.get_task_affinity()
-        
+
         if args.num_epoch > MIN_NUM_EPOCH:
             experiment.log_dataframe_profile(affinity, "Affinity")
             experiment.log_dataframe_profile(opt_affinity, "Optimal Affinity")
         else:
             print(affinity)
-            print(opt_affinity)    
+            print(opt_affinity)
 
-    # Print the score in the terminal
+            # Print the score in the terminal
     set_list = [trainset, validset, testset]
     split_list = [SplitName.TRAIN, SplitName.VALIDATION, args.testset.upper()]
 
@@ -290,3 +304,7 @@ if __name__ == "__main__":
         hparam = vars(args)
         save_hparam_on_comet(experiment=experiment, args_dict=hparam)
         experiment.log_parameter("Task", "_".join(tasks_list))
+
+
+if __name__ == "__main__":
+    main()
