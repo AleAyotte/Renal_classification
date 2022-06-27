@@ -12,7 +12,7 @@ import torch
 from typing import Dict, Final, List, Tuple, Union
 
 from constant import AttentionBlock, BlockType, CS_CONFIG, DropType, Experimentation, Loss,\
-    LTBConfig, SharingUnits,  SubNetDepth, Tasks
+    LTBConfig, NetConfig, SharingUnits,  SubNetDepth, Tasks
 from model.hard_shared_resnet import HardSharedResNet
 from model.ltb_resnet import LTBResNet
 from model.mtan import MTAN
@@ -125,22 +125,13 @@ def build_ltb(args: argparse.Namespace,
     :param tasks_list: A list of every task on which the model will be train.
     :return: A LTBResNET that represent the network to train.
     """
-    if args.config == 1:
-        block_config = LTBConfig.CONFIG1
-    elif args.config == 2:
-        block_config = LTBConfig.CONFIG2
-    elif args.config == 3:
-        block_config = LTBConfig.CONFIG3
-    else:
-        block_config = LTBConfig.CONFIG4
-
     aux_tasks = [task for task in tasks_list if num_classes[task] is Tasks.REGRESSION]
     main_tasks = [task for task in tasks_list if num_classes[task] is Tasks.CLASSIFICATION]
 
     net = LTBResNet(act=args.activation,
                     aux_tasks=aux_tasks,
                     aux_tasks_coeff=args.aux_coeff,
-                    block_type_list=block_config,
+                    block_type_list=LTBConfig[f"CONFIG{args.config}"].value,
                     block_width=args.width,
                     drop_rate=args.drop_rate,
                     drop_type=DropType[args.drop_type.upper()],
@@ -164,25 +155,9 @@ def build_mtan(args: argparse.Namespace,
     :param tasks_list: A list of every task on which the model will be train.
     :return: a MTAN that represent the network to train.
     """
-    # if args.subtype:
-    #     blocks_type = [BlockType.PREACT, BlockType.PREACT,
-    #                    BlockType.POSTACT, BlockType.POSTACT]
-    # else:
-    #     blocks_type = BlockType.PREACT
-    if args.config == 0:
-        blocks_type = [BlockType.PREACT for _ in range(RESNET_NB_LEVEL)]
-    elif args.config == 1:
-        blocks_type = [BlockType.POSTACT for _ in range(RESNET_NB_LEVEL)]
-    elif args.config == 2:
-        blocks_type = [BlockType.POSTACT, BlockType.POSTACT,
-                       BlockType.PREACT, BlockType.PREACT]
-    else:
-        blocks_type = [BlockType.PREACT, BlockType.PREACT,
-                       BlockType.POSTACT, BlockType.POSTACT]
-
     net = MTAN(act=args.activation,
                att_type=AttentionBlock[args.att_block.upper()],
-               blocks_type=blocks_type,
+               blocks_type=NetConfig[f"CONFIG{args.config}"].value,
                depth=args.depth,
                drop_rate=args.drop_rate,
                drop_type=DropType[args.drop_type.upper()],
@@ -215,25 +190,12 @@ def build_resnet3d(args: argparse.Namespace,
     :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
     :return: A ResNet3D that represent the network to train.
     """
-    if args.config == 0:
-        blocks_type = [BlockType.PREACT for _ in range(RESNET_NB_LEVEL)]
-    elif args.config == 1:
-        blocks_type = [BlockType.POSTACT for _ in range(RESNET_NB_LEVEL)]
-    elif args.config == 2:
-        blocks_type = [BlockType.POSTACT, BlockType.POSTACT,
-                       BlockType.PREACT, BlockType.PREACT]
-    elif args.config == 3:
-        blocks_type = [BlockType.PREACT, BlockType.PREACT,
-                       BlockType.POSTACT, BlockType.POSTACT]
-    else:
-        blocks_type = [BlockType.PREACT, BlockType.PREACT,
-                       BlockType.PREACT, BlockType.POSTACT]
 
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------
     net = ResNet(act=args.activation,
-                 blocks_type=blocks_type,
+                 blocks_type=NetConfig[f"CONFIG{args.config}"].value,
                  depth=args.depth,
                  drop_rate=args.drop_rate,
                  drop_type=DropType[args.drop_type.upper()],
@@ -257,34 +219,10 @@ def build_sharednet(args: argparse.Namespace,
     :param tasks_list: A list of every task on which the model will be train.
     :return: A SharedNet that represent the network to train.
     """
-    blocks_lists = {}
 
-    if args.depth_config == 1:
-        config: Final = SubNetDepth.CONFIG1
-    elif args.depth_config == 2:
-        config: Final = SubNetDepth.CONFIG2
-    else:
-        config: Final = SubNetDepth.CONFIG3
+    config = SubNetDepth[f"CONFIG{args.depth_config}"].value
+    blocks_lists = {task: NetConfig.CONFIG2 for task in tasks_list}
 
-    if args.malignancy:
-        blocks_lists[Tasks.MALIGNANCY] = BlockType.PREACT
-
-    """
-    if args.subtype:
-        if config[Tasks.SUBTYPE] == 34:
-            blocks_lists[Tasks.SUBTYPE] = BlockType.POSTACT
-        else:
-            blocks_lists[Tasks.SUBTYPE] = [BlockType.PREACT, BlockType.PREACT,
-                                           BlockType.POSTACT, BlockType.POSTACT]
-
-    if args.grade:
-        blocks_lists[Tasks.GRADE] = BlockType.PREACT
-
-    for task in [Tasks.ARE, Tasks.LRF]:
-        blocks_lists[task] = BlockType.PREACT
-    """
-    blocks_lists = {task: [BlockType.POSTACT, BlockType.POSTACT, BlockType.PREACT, BlockType.PREACT]
-                    for task in tasks_list}
     # --------------------------------------------
     #                NEURAL NETWORK
     # --------------------------------------------

@@ -76,7 +76,8 @@ class Loss(Enum):
     UNIFORM: Final = 2
 
 
-class LTBConfig:
+@unique
+class LTBConfig(Enum):
     CONFIG1: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.PREACT, BlockType.PREACT]
     CONFIG2: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
     CONFIG3: Final = [BlockType.PREACT, BlockType.POSTACT]
@@ -88,6 +89,14 @@ class ModelType(Enum):
     STANDARD: Final = 1
     SHARED_NET: Final = 2
     LTB_NET: Final = 3
+
+
+@unique
+class NetConfig(Enum):
+    CONFIG0: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.PREACT, BlockType.PREACT]
+    CONFIG1: Final = [BlockType.POSTACT, BlockType.POSTACT, BlockType.POSTACT, BlockType.POSTACT]
+    CONFIG2: Final = [BlockType.POSTACT, BlockType.POSTACT, BlockType.PREACT, BlockType.PREACT]
+    CONFIG3: Final = [BlockType.PREACT, BlockType.PREACT, BlockType.POSTACT, BlockType.POSTACT]
 
 
 @unique
@@ -103,7 +112,8 @@ class SplitName:
     HOLDOUT: Final = "HOLD_OUT"
 
 
-class SubNetDepth:
+@unique
+class SubNetDepth(Enum):
     CONFIG1: Final = {"malignancy": 18, "subtype": 18, "grade": 18}
     CONFIG2: Final = {"malignancy": 34, "subtype": 34, "grade": 34}
     CONFIG3: Final = {"malignancy": 18, "subtype": 18, "grade": 34}
