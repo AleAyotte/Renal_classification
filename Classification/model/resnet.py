@@ -14,7 +14,7 @@ from monai.networks.blocks.convolutions import Convolution
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Final, List, Sequence, Tuple, Type, Union
+from typing import Final, List, Optional, Sequence, Tuple, Type, Union
 
 from constant import BlockType, DropType
 from model.block import PreResBlock, PreResBottleneck, ResBlock, ResBottleneck
@@ -33,13 +33,15 @@ class ResNet(NeuralNet):
     Attributes
     ----------
     conv : Convolution
-        First block of the network. If pre_act is True then, its only a convolution. Else, its combination of
+        First block of the network. If pre_act is True then, it's only a convolution. Else, it's combination of
         convolution, activation et normalisation.
+    flat_layers : nn.Sequential
+        An average pooling followed by a 'flatten layer' that will transform the image features into a vector.
     __in_channels : int
         Number of output channels of the last convolution created. Used to determine the number of input channels of
         the next convolution to create.
-    last_layers : nn.Sequential
-        A sequential that contain the average pooling and the fully connected layer.
+    last_layers : nn.Linear
+        A fully connected layer that will classify the data
     layers1 : nn.Sequential
         The first series of residual block.
     layers2 : nn.Sequential
@@ -78,6 +80,7 @@ class ResNet(NeuralNet):
                  mixup: Sequence[int] = None,
                  norm: str = "batch",
                  num_classes: int = 2,
+                 num_clin_features: int = 0,
                  num_in_chan: int = 4) -> None:
         """
         Create a pre activation or post activation 3D Residual Network.
@@ -108,6 +111,7 @@ class ResNet(NeuralNet):
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
         :param num_classes: A positive integer that represent the number of classes on which the model will be train.
+        :param num_clin_features: Number of clinical features that will be feed to the model.
         :param num_in_chan: A positive integer that represent the number of channels of the input images.
         """
         super().__init__()
@@ -208,11 +212,12 @@ class ResNet(NeuralNet):
                      int(in_shape[1] / 2**NB_LEVELS),
                      int(in_shape[2] / 2**(NB_LEVELS - 1))]
 
-        self.__num_flat_features = self.__in_channels
+        self.__num_flat_features = self.__in_channels + num_clin_features
 
-        self.last_layers = nn.Sequential(nn.AvgPool3d(kernel_size=out_shape),
-                                         nn.Flatten(start_dim=1),
-                                         torch.nn.Linear(self.__num_flat_features, num_classes))
+        self.flat_layers = nn.Sequential(nn.AvgPool3d(kernel_size=out_shape),
+                                         nn.Flatten(start_dim=1))
+
+        self.last_layers = torch.nn.Linear(self.__num_flat_features, num_classes)
 
         self.apply(init_weights)
 
@@ -252,11 +257,12 @@ class ResNet(NeuralNet):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, clin_features: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         The forward pass of the resnet3D
 
         :param x: A torch.Tensor that represent a batch of 3D images.
+        :param clin_features: A torch.Tensor that represent a vector of clinical features.
         :return: A torch.Tensor that represent the model output.
         """
         mixup_key_list = list(self.mixup.keys())
@@ -273,6 +279,11 @@ class ResNet(NeuralNet):
 
         out = self.mixup["3"](out) if "3" in mixup_key_list else out
         out = self.layers4(out)
+
+        out = self.flat_layers(out)
+
+        if clin_features is not None:
+            out = torch.cat((out, clin_features), -1)
 
         out = self.last_layers(out)
 

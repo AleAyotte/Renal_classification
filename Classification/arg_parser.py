@@ -124,6 +124,8 @@ def argument_parser() -> argparse.Namespace:
                                         help="Parser of the STL 3D experimentation",
                                         parents=[parent_parser, _3d_parser])
 
+    parent_parser.add_argument('--use_clinical_features', type=bool, default=False, nargs='?', const=True,
+                               help="If true, the clinical features will be used with the images to train the model.")
     stl3d_parser.add_argument('--config', type=int, default=0, choices=[0, 1, 2, 3, 4])
     stl3d_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
                               help="The number of layer in the ResNet.")

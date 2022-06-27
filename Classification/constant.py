@@ -35,6 +35,15 @@ class BlockType(Enum):
     POSTACT: Final = 2
 
 
+@unique
+class ClinFeatures(Enum):
+    GRADE: Final = ["sex", "size", "renal_vein_invasion", "metastasis", "no_t_stage", "low_t_stage", "high_t_stage",
+                    "pn"]
+    MALIGNANCY: Final = ["age", "sex", "size"]
+    SUBTYPE: Final = ["age", "sex", "size", "renal_vein_invasion", "metastasis", "no_t_stage", "low_t_stage",
+                      "high_t_stage", "pn"]
+
+
 # Configuration of the cross-stitch module. Should be multiply by args.num_channel
 CS_CONFIG: Final = [
     [1, 2, 4, 8],  # Config 0

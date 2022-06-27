@@ -14,10 +14,10 @@
 import argparse
 from comet_ml import Experiment
 from torchsummary import summary
-from typing import List, Final
+from typing import Final, List, Tuple
 
 from arg_parser import argument_parser
-from constant import AuxTaskSet, DatasetName, Experimentation, ModelType, SplitName, Tasks
+from constant import AuxTaskSet, ClinFeatures, DatasetName, Experimentation, ModelType, SplitName, Tasks
 from data_manager.dataset_builder import build_datasets
 from model.cross_stitch import CrossStitch
 from model_creation import create_model
@@ -36,7 +36,7 @@ SINGLE_TASK_EXPERIMENT: Final = [Experimentation.STL_2D, Experimentation.STL_3D]
 
 def get_classification_task_list(args: argparse.Namespace,
                                  dataset_name: DatasetName,
-                                 experimentation: Experimentation):
+                                 experimentation: Experimentation) -> List[str]:
     classification_tasks_list = []
 
     if experimentation in SINGLE_TASK_EXPERIMENT:
@@ -52,6 +52,19 @@ def get_classification_task_list(args: argparse.Namespace,
         assert set(classification_tasks_list) <= BRAIN_METS_TASKS, "Incorrect task choice"
 
     return classification_tasks_list
+
+
+def get_clin_features(args: argparse.Namespace,
+                      experimentation: Experimentation) -> Tuple[List[str], int]:
+    if experimentation is Experimentation.STL_2D or \
+            (experimentation is Experimentation.STL_3D and args.use_clinical_features):
+        clin_features = ClinFeatures[args.task.upper()].value
+        num_clin_features = len(clin_features)
+    else:
+        clin_features = None
+        num_clin_features = 0
+
+    return clin_features, num_clin_features
 
 
 def get_regression_task_list(args: argparse.Namespace,
@@ -89,21 +102,11 @@ def main():
     experimentation = Experimentation[args.experiment.upper()]
     dataset_name = DatasetName[args.dataset.upper()]
 
-    classification_tasks_list = get_classification_task_list()
+    classification_tasks_list = get_classification_task_list(args, dataset_name, experimentation)
     regression_tasks_list = get_regression_task_list(args, experimentation)
-
     tasks_list = classification_tasks_list + regression_tasks_list
 
-    if experimentation is Experimentation.STL_2D:
-        if args.task in ["subtype", "grade"]:
-            clin_features = ["Sex", "size", "renal_vein_invasion", "metastasis",
-                             "pt1", "pt2", "pt3", "pn1", "pn2", "pn3"]
-        else:
-            clin_features = ["Age", "Sex", "size"]
-        num_clin_features = len(clin_features)
-    else:
-        clin_features = None
-        num_clin_features = 0
+    clin_features, num_clin_features = get_clin_features(args, experimentation)
 
     if experimentation not in SINGLE_TASK_EXPERIMENT:
         assert len(tasks_list) >= MIN_NUM_TASKS, "You have to select at least two task."
