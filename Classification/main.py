@@ -143,7 +143,8 @@ def main():
                                                       tasks_list=tasks_list)
 
     if model_type is not ModelType.LTB_NET and not isinstance(net, CrossStitch):
-        summary(net, tuple(trainset[0]["sample"].size()))
+        if not (Experimentation is SINGLE_TASK_EXPERIMENT and len(clin_features) > 0):
+            summary(net, tuple(trainset[0]["sample"].size()))
 
     # --------------------------------------------
     #                SANITY CHECK

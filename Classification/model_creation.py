@@ -182,12 +182,14 @@ def build_resnet2d(args: argparse.Namespace,
 
 
 def build_resnet3d(args: argparse.Namespace,
-                   in_shape: Tuple[int, int, int]) -> ResNet:
+                   in_shape: Tuple[int, int, int],
+                   num_clin_features: int = 0) -> ResNet:
     """
     Build a ResNet 3D
 
     :param args: A Namespace that contain the main argument for the experimentation.
     :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
+    :param num_clin_features: Num of tabular variable that will be feed to the model.
     :return: A ResNet3D that represent the network to train.
     """
 
@@ -203,6 +205,7 @@ def build_resnet3d(args: argparse.Namespace,
                  groups=args.groups,
                  in_shape=in_shape,
                  mixup=args.mixup,
+                 num_clin_features=num_clin_features,
                  num_in_chan=args.num_chan_data).to(args.device)
 
     return net
@@ -327,7 +330,7 @@ def create_model(args: argparse.Namespace,
         net = build_resnet2d(args, num_clin_features)
 
     elif experimentation is Experimentation.STL_3D:
-        net = build_resnet3d(args, in_shape)
+        net = build_resnet3d(args, in_shape, num_clin_features)
 
     else:
         raise NotImplementedError
