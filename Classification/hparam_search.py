@@ -64,7 +64,7 @@ def sample_hparam(hparam_dict):
         else:
             args.aux_coeff = np.random.uniform(0.1, 0.8)
             args.split_level = np.random.randint(3, 5)
-            args.depth_config = np.random.randint(1, 3)
+            args.depth_config = np.random.randint(1, 4)
 
     elif experimentation is Experimentation.SOFT_SHARING:
         args.c = np.random.uniform(0.5, 1.0)
