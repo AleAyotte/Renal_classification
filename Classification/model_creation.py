@@ -78,17 +78,10 @@ def build_hardshared(args: argparse.Namespace,
                 task_block[task] = [BlockType.POSTACT, BlockType.PREACT, BlockType.PREACT]
 
     # Depth configuration
-    if args.depth_config == 1:
-        commun_depth = 18
-        depth_config = {main_task: SubNetDepth.CONFIG1[main_task] for main_task in main_tasks}
+    commun_depth = 34 if args.depth_config == 2 else 18
 
-    elif args.depth_config == 2:
-        commun_depth = 34
-        depth_config = {main_task: SubNetDepth.CONFIG2[main_task] for main_task in main_tasks}
-
-    else:
-        commun_depth = 18
-        depth_config = {main_task: SubNetDepth.CONFIG3[main_task] for main_task in main_tasks}
+    sub_net_config = SubNetDepth[f"CONFIG{args.depth_config}"].value
+    depth_config = {main_task: sub_net_config[main_task] for main_task in main_tasks}
 
     for task in aux_tasks:
         depth_config[task] = commun_depth
