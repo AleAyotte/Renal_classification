@@ -34,37 +34,37 @@ class MTAN(NeuralNet):
     ...
     Attributes
     ----------
-    att_layers: nn.ModuleList[nn.ModuleDict]
+    att_layers : nn.ModuleList[nn.ModuleDict]
         A list of nn.ModuleDict that contain the attention module of each task for each level.
     conv : Convolution
         First block of the network. If pre_act is True then, its only a convolution. Else, its combination of
         convolution, activation et normalisation.
-    fc_layers: nn.ModuleDict
+    fc_layers : nn.ModuleDict
         A dictionary of nn.Sequential that contain the pooling layer and the last fully connected of each task.
     loss: Union[UncertaintyLoss, UniformLoss]
         A torch.module that will be used to compute the multitask loss during the training.
     shared_layers1_base : nn.Sequentiel
         The n-1 first block of the self.layers1 sequential in the ResNet. Its output will be use as input in the first
         attention module.
-    shared_layers1_base : nn.Sequentiel
+    shared_layers1_last : nn.Sequentiel
         The last block of the self.layers1 sequential in the ResNet. The mask produced by the first attention module
         will be applied on its output.
     shared_layers2_base : nn.Sequentiel
         The n-1 first block of the self.layers2 sequential in the ResNet. Its output will be use as input in the second
         attention module.
-    shared_layers2_base : nn.Sequentiel
+    shared_layers2_last : nn.Sequentiel
         The last block of the self.layers2 sequential in the ResNet. The mask produced by the second attention module
         will be applied on its output.
     shared_layers3_base : nn.Sequentiel
         The n-1 first block of the self.layers3 sequential in the ResNet. Its output will be use as input in the third
         attention module.
-    shared_layers3_base : nn.Sequentiel
+    shared_layers3_last : nn.Sequentiel
         The last block of the self.layers3 sequential in the ResNet. The mask produced by the third attention module
         will be applied on its output.
     shared_layers4_base : nn.Sequentiel
         The n-1 first block of the self.layers4 sequential in the ResNet. Its output will be use as input in the fourth
         attention module.
-    shared_layers4_base : nn.Sequentiel
+    shared_layers4_last : nn.Sequentiel
         The last block of the self.layers4 sequential in the ResNet. The mask produced by the fourth attention module
         will be applied on its output.
     __tasks : List[str]
