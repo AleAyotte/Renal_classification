@@ -3,9 +3,9 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     12/2020
-    @Last modification: 12/2021
+    @Last modification: 07/2022
 
-    @Description:       This file contain the class ResNet that inherit from the NeuralNet class. This ResNet version
+    @Description:       This file contains the class ResNet that inherit from the NeuralNet class. This ResNet version
                         can only be use for single task trainer on 3D images.
 
     @Reference:         1) Identity Mappings in Deep Residual Networks, He, K. et al., ECCV 2016
@@ -51,7 +51,7 @@ class ResNet(NeuralNet):
     layers4 : nn.Sequential
         The last series of residual block.
     mixup : nn.ModuleDict
-        A dictionnary that contain all the mixup module.
+        A dictionary that contain all the mixup module.
     __num_flat_features : int
         Number of features at the output of the last convolution.
     Methods
@@ -64,7 +64,7 @@ class ResNet(NeuralNet):
         Choose randomly a mixup module and activate it.
     disable_mixup(key: int = -1):
         Disable a mixup module according to is key index in self.Mixup. If none is specified (key= -1), all mixup
-        modules will be disable.
+        modules will be disabled.
     """
     def __init__(self,
                  act: str = "ReLU",

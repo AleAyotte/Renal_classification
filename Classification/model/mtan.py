@@ -3,9 +3,9 @@
     @Author:            Alexandre Ayotte
 
     @Creation Date:     07/2021
-    @Last modification: 12/2021
+    @Last modification: 07/2022
 
-    @Description:       This file contain the classe MTAN that inherit from the NeuralNet class. This Multi-task
+    @Description:       This file contains the class MTAN that inherit from the NeuralNet class. This Multi-task
                         Attention Network can only be use for multitask trainer on 3D images.
 
     @Reference:         1) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
@@ -42,7 +42,7 @@ class MTAN(NeuralNet):
     fc_layers: nn.ModuleDict
         A dictionary of nn.Sequential that contain the pooling layer and the last fully connected of each task.
     loss: Union[UncertaintyLoss, UniformLoss]
-        A torch.module that will be used to compute the multi-task loss during the training.
+        A torch.module that will be used to compute the multitask loss during the training.
     shared_layers1_base : nn.Sequentiel
         The n-1 first block of the self.layers1 sequential in the ResNet. Its output will be use as input in the first
         attention module.
@@ -98,7 +98,7 @@ class MTAN(NeuralNet):
 
         :param num_classes: A dictionary that indicate the number of class for each task. For regression tasks,
                             the num_class should be equal to one.
-        :param tasks: A list of tasks on which the model will be train.
+        :param tasks: A list of tasks on which the model will train.
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param att_type: Indicate which type of attention module will be used. (Options: See AttentionBlock in
                           constant.py) (Default=AttentionBlock.SPATIAL)
