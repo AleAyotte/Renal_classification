@@ -31,7 +31,7 @@ MIN_NUM_TASKS: Final = 2
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
 PROJECT_NAME = "june-2022-valid"  # "april-2022-holdout"
 RCC_TASKS: Final = {Tasks.GRADE, Tasks.MALIGNANCY, Tasks.SUBTYPE}
-SINGLE_TASK_EXPERIMENT: Final = [Experimentation.STL_2D, Experimentation.STL_3D]
+SINGLE_TASK_EXPERIMENT: Final = [Experimentation.STAN, Experimentation.STL_2D, Experimentation.STL_3D]
 
 
 def get_classification_task_list(args: argparse.Namespace,

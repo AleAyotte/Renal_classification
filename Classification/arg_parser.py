@@ -143,6 +143,27 @@ def argument_parser() -> argparse.Namespace:
                               help="Number of epoch before activating the mixup if 'mode' == mixup")
 
     # --------------------------------------------
+    #                   STAN 3D
+    # --------------------------------------------
+    stan_parser = subparser.add_parser("STAN", aliases=["stan"],
+                                       help="Parser of the STAN experimentation",
+                                       parents=[parent_parser, _3d_parser])
+
+    stan_parser.add_argument('--att_block', type=str, default="spatial",
+                             help="Indicate the attention block type that will be used during training."
+                                  " Options = (channel, spatialm cbam).",
+                             choices=["channel", "spatial", "cbam"])
+    stan_parser.add_argument('--config', type=int, default=2, choices=[0, 1, 2, 3],
+                             help="Block configuration of the ResNet backend.")
+    stan_parser.add_argument('--depth', type=int, default=18, choices=[18, 34, 50],
+                             help="The number of layer in the ResNet.")
+    stan_parser.add_argument('--task', type=str, default="malignancy",
+                             help="The task on which the model will be train.",
+                             choices=["are", "grade", "lrf", "malignancy", "subtype"])
+    stan_parser.set_defaults(mode="standard")
+    stan_parser.set_defaults(warm_up=0)
+
+    # --------------------------------------------
     #            MTL COMMUN PARAMETERS
     # --------------------------------------------
     mtl_parser = argparse.ArgumentParser(add_help=False)

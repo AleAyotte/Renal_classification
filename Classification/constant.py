@@ -77,6 +77,7 @@ class Experimentation(Enum):
     MTAN: Final = 5
     LTB: Final = 6
     TAG: Final = 7
+    STAN: Final = 8
 
 
 @unique
