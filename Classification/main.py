@@ -291,7 +291,7 @@ def main():
     for split_set, split, csv_file in zip(set_list, split_list, csv_path):
         conf, auc = trainer.score(split_set, save_path=csv_file)
 
-        if experimentation in [Experimentation.STL_2D, Experimentation.STL_3D]:
+        if experimentation in SINGLE_TASK_EXPERIMENT:
             auc_list, conf_mat_list = [auc], [conf]
             task_list = tasks_list
         else:
