@@ -114,7 +114,7 @@ class RenalDataset(HDF5Dataset):
             self.__strat_keys_name = [] if stratification_keys is None else stratification_keys
             self._read_hdf5(to_exclude=to_exclude,
                             filepath=hdf5_filepath,
-                            split=split.lower() if split is not None else split)
+                            split=split.lower())
 
     def add_data(self,
                  data: Sequence[dict],
