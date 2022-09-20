@@ -179,8 +179,8 @@ if __name__ == "__main__":
                                                           num_clin_features=num_clin_features,
                                                           tasks_list=tasks_list)
 
-        if model_type is not ModelType.LTB_NET and not isinstance(net, CrossStitch):
-            summary(net, tuple(trainset[0]["sample"].size()))
+        # if model_type is not ModelType.LTB_NET and not isinstance(net, CrossStitch):
+        #     summary(net, tuple(trainset[0]["sample"].size()))
 
         # --------------------------------------------
         #                SANITY CHECK
