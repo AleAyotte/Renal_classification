@@ -31,7 +31,7 @@ DEFAULT_SHARED_LR_SCALE = 100  # Default rate between shared_lr and lr if shared
 MIN_NUM_EPOCH: Final = 2  # Minimum number of epoch to save the experiment with comet.ml
 MIN_NUM_TASKS: Final = 2
 PRELU_L2: Final = 0  # L2 regularization should not be used when using PRELU activation as recommended by ref 1)
-PROJECT_NAME = "may-2022-hparam"
+PROJECT_NAME = "july-2022-hparam"
 RCC_TASKS: Final = {Tasks.GRADE, Tasks.MALIGNANCY, Tasks.SUBTYPE}
 SINGLE_TASK_EXPERIMENT: Final = [Experimentation.STL_2D, Experimentation.STL_3D]
 
@@ -76,6 +76,7 @@ def sample_hparam(hparam_dict):
     elif experimentation is Experimentation.MTAN:
         args.att_block = ["channel", "spatial", "cbam"][np.random.randint(0, 3)]
         args.depth = [18, 34][np.random.randint(0, 2)]
+        args.config = np.random.randint(0, 4)
 
     elif experimentation is Experimentation.STL_3D:
         args.depth = [18, 34][np.random.randint(0, 2)]
@@ -178,8 +179,8 @@ if __name__ == "__main__":
                                                           num_clin_features=num_clin_features,
                                                           tasks_list=tasks_list)
 
-        if model_type is not ModelType.LTB_NET and not isinstance(net, CrossStitch):
-            summary(net, tuple(trainset[0]["sample"].size()))
+        # if model_type is not ModelType.LTB_NET and not isinstance(net, CrossStitch):
+        #     summary(net, tuple(trainset[0]["sample"].size()))
 
         # --------------------------------------------
         #                SANITY CHECK

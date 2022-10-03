@@ -41,7 +41,7 @@ def create_trainer(args: argparse.Namespace,
     :return: A trainer that can be use to train a model.
     """
     # Single task experimentation
-    if experimentation in [Experimentation.STL_2D, Experimentation.STL_3D]:
+    if experimentation in [Experimentation.STAN, Experimentation.STL_2D, Experimentation.STL_3D]:
 
         if args.seed is not None:
             dir_path = SAVE_PATH + experimentation.name + f"/{args.seed}"

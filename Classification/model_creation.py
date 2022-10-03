@@ -13,6 +13,7 @@ from typing import Dict, Final, List, Tuple, Union
 
 from constant import AttentionBlock, BlockType, CS_CONFIG, DropType, Experimentation, Loss,\
     LTBConfig, NetConfig, SharingUnits,  SubNetDepth, Tasks
+from model.cross_stitch import CrossStitch
 from model.hard_shared_resnet import HardSharedResNet
 from model.ltb_resnet import LTBResNet
 from model.mtan import MTAN
@@ -20,7 +21,8 @@ from model.neural_net import NeuralNet
 from model.resnet import ResNet
 from model.resnet_2d import ResNet2D
 from model.shared_net import SharedNet
-from model.cross_stitch import CrossStitch
+from model.stan import STAN
+
 
 LOAD_PATH: Final = "save/STL3D_NET/"  # Loading path of the single task model.
 MIN_NUM_TASKS: Final = 2
@@ -262,6 +264,26 @@ def build_sharednet(args: argparse.Namespace,
     return net
 
 
+def build_stan(args: argparse.Namespace,
+               in_shape: Tuple[int, int, int]) -> MTAN:
+    """
+    Build a Multi-Task Attention Network
+
+    :param args: A Namespace that contain the main argument for the experimentation.
+    :param in_shape: A tuple that indicate the shape of an image tensor without the channel dimension.
+    :return: a STAN that represent the network to train.
+    """
+    net = STAN(act=args.activation,
+               att_type=AttentionBlock[args.att_block.upper()],
+               blocks_type=NetConfig[f"CONFIG{args.config}"].value,
+               depth=args.depth,
+               drop_rate=args.drop_rate,
+               drop_type=DropType[args.drop_type.upper()],
+               first_channels=args.in_channels,
+               in_shape=in_shape).to(args.device)
+    return net
+
+
 def create_model(args: argparse.Namespace,
                  experimentation: Experimentation,
                  in_shape: Tuple[int, int, int],
@@ -283,7 +305,7 @@ def create_model(args: argparse.Namespace,
     num_classes = {}
     conditional_prob = []
 
-    if experimentation in [Experimentation.STL_2D, Experimentation.STL_3D]:
+    if experimentation in [Experimentation.STAN, Experimentation.STL_2D, Experimentation.STL_3D]:
         num_classes[args.task] = Tasks.CLASSIFICATION
     else:
         c_tasks = [Tasks.ARE, Tasks.GRADE, Tasks.LRF, Tasks.MALIGNANCY, Tasks.SUBTYPE]
@@ -298,6 +320,7 @@ def create_model(args: argparse.Namespace,
 
         for task in r_tasks:
             num_classes[task] = Tasks.REGRESSION
+
     if experimentation is Experimentation.TAG:
         if args.model == "hs":
             net = build_hardshared(args, in_shape=in_shape, num_classes=num_classes, tasks_list=tasks_list)
@@ -321,6 +344,9 @@ def create_model(args: argparse.Namespace,
 
     elif experimentation is Experimentation.STL_3D:
         net = build_resnet3d(args, in_shape, num_clin_features)
+
+    elif experimentation is Experimentation.STAN:
+        net = build_stan(args, in_shape)
 
     else:
         raise NotImplementedError

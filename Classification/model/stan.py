@@ -2,21 +2,20 @@
     @file:              mtan.py
     @Author:            Alexandre Ayotte
 
-    @Creation Date:     07/2021
+    @Creation Date:     07/2022
     @Last modification: 07/2022
 
-    @Description:       This file contains the class MTAN that inherit from the NeuralNet class. This Multi-task
-                        Attention Network can only be use for multitask trainer on 3D images.
+    @Description:       This file contains the class STAN that inherit from the NeuralNet class. This Single task
+                        Attention Network can only be use with single task trainer on 3D images.
 
     @Reference:         1) End-To-End Multi-Task Learning With Attention, Liu, S. et al, CVPR 2019
 """
 import torch
 import torch.nn as nn
-from typing import Dict, Final, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Final, List, Sequence, Tuple, Union
 
-from constant import AttentionBlock, BlockType, DropType, Loss, Tasks
+from constant import AttentionBlock, BlockType, DropType
 from model.block import CBAM, ChannelAttBlock, PreResBlock, PreResBottleneck, ResBlock, ResBottleneck, SpatialAttBlock
-from model.module import UncertaintyLoss, UniformLoss
 from model.neural_net import NeuralNet, init_weights
 from model.resnet import ResNet
 
@@ -26,23 +25,21 @@ SQUEEZE_FACTOR_LIST: Final = [4, 8, 8, 8]
 STRIDES: Final = [2, 2, 2]
 
 
-class MTAN(NeuralNet):
+class STAN(NeuralNet):
     """
-    A 3D version of the Multi-Task Attention Network adapted to classification and regression task from the
-    version describe in Ref) 1.
+    A 3D version of the SingleTask Attention Network adapted to classification and regression task and inspired from the
+    MultiTask Attention Network describe in Ref) 1.
 
     ...
     Attributes
     ----------
-    att_layers : nn.ModuleList[nn.ModuleDict]
+    att_layers : nn.ModuleList
         A list of nn.ModuleDict that contain the attention module of each task for each level.
     conv : Convolution
         First block of the network. If pre_act is True then, its only a convolution. Else, its combination of
         convolution, activation et normalisation.
-    fc_layers : nn.ModuleDict
+    fc_layers : nn.Sequential
         A dictionary of nn.Sequential that contain the pooling layer and the last fully connected of each task.
-    loss: Union[UncertaintyLoss, UniformLoss]
-        A torch.module that will be used to compute the multitask loss during the training.
     shared_layers1_base : nn.Sequentiel
         The n-1 first block of the self.layers1 sequential in the ResNet. Its output will be use as input in the first
         attention module.
@@ -67,18 +64,12 @@ class MTAN(NeuralNet):
     shared_layers4_last : nn.Sequentiel
         The last block of the self.layers4 sequential in the ResNet. The mask produced by the fourth attention module
         will be applied on its output.
-    __tasks : List[str]
-        The list of tasks on which the model will be train.
     Methods
     -------
     forward(x: torch.Tensor) -> torch.Tensor
         Execute the forward on a given torch.Tensor.
-    get_weights()
-        Get the model parameters and the loss parameters.
     """
     def __init__(self,
-                 num_classes: Dict[str, int],
-                 tasks: Sequence[str],
                  act: str = "ReLU",
                  att_type: AttentionBlock = SpatialAttBlock,
                  blocks_type: Union[BlockType, List[BlockType]] = BlockType.PREACT,
@@ -90,15 +81,12 @@ class MTAN(NeuralNet):
                  groups: int = 1,
                  in_shape: Union[Sequence[int], Tuple] = (64, 64, 16),
                  kernel: Union[Sequence[int], int] = 3,
-                 loss: Loss = Loss.UNCERTAINTY,
                  norm: str = "batch",
+                 num_classes: int = 2,
                  num_in_chan: int = 4) -> None:
         """
         Create a pre activation or post activation 3D Residual Network.
 
-        :param num_classes: A dictionary that indicate the number of class for each task. For regression tasks,
-                            the num_class should be equal to one.
-        :param tasks: A list of tasks on which the model will train.
         :param act: A string that represent the activation function that will be used in the NeuralNet. (Default=ReLU)
         :param att_type: Indicate which type of attention module will be used. (Options: See AttentionBlock in
                           constant.py) (Default=AttentionBlock.SPATIAL)
@@ -121,42 +109,12 @@ class MTAN(NeuralNet):
                        (Options=[1, 2]) (Default=1)
         :param in_shape: The image shape at the input of the neural network. (Default=(64, 64, 16))
         :param kernel: The kernel shape of all convolution layer except the first one. (Default=3)
-        :param loss: Indicate the MTL loss that will be used during the training. (Default=Loss.Uncertainty)
         :param norm: A string that represent the normalization layers that will be used in the NeuralNet.
                      (Default=batch)
+        :param num_classes: The number of features at the output of the neural network. (Default=2)
         :param num_in_chan: A positive integer that represent the number of channels of the input images.
         """
         super().__init__()
-
-        self.__tasks = tasks
-        nb_task = len(tasks)
-
-        # --------------------------------------------
-        #                NUM_CLASSES
-        # --------------------------------------------
-        # If num_classes has not been defined, then we assume that every task are binary classification.
-        if num_classes is None:
-            num_classes = {}
-            for task in self.__tasks:
-                num_classes[task] = Tasks.CLASSIFICATION
-
-        # If num_classes has been defined for some tasks but not all, we assume that the remaining are regression task
-        else:
-            key_set = set(num_classes.keys())
-            tasks_set = set(self.__tasks)
-            missing_tasks = tasks_set - key_set
-            assert missing_tasks == (tasks_set ^ key_set), f"The following tasks are present in num_classes " \
-                                                           "but not in tasks {}".format(key_set - tasks_set)
-            for task in list(missing_tasks):
-                num_classes[task] = Tasks.REGRESSION
-
-        # --------------------------------------------
-        #              UNCERTAINTY LOSS
-        # --------------------------------------------
-        if loss == Loss.UNCERTAINTY:
-            self.loss = UncertaintyLoss(num_task=nb_task)
-        else:
-            self.loss = UniformLoss()
 
         # --------------------------------------------
         #                    BLOCK
@@ -217,19 +175,20 @@ class MTAN(NeuralNet):
                               kernel=kernel, strides=STRIDES,
                               activation=act, norm=norm)
 
-            self.att_layers.append(nn.ModuleDict())
+            if att_type == AttentionBlock.CHANNEL:
+                att_block = ChannelAttBlock
+            elif att_type == AttentionBlock.SPATIAL:
+                att_block = SpatialAttBlock
+            else:
+                att_block = CBAM
 
-            for task in self.__tasks:
-                if att_type == AttentionBlock.CHANNEL:
-                    att_block = ChannelAttBlock
-                elif att_type == AttentionBlock.SPATIAL:
-                    att_block = SpatialAttBlock
-                else:
-                    att_block = CBAM
-                self.att_layers[-1][task] = att_block(fmap_in=num_in_chan * block.expansion * factor,
-                                                      fmap_out=num_in_chan*block.expansion,
-                                                      squeeze_factor=sq_fact,
-                                                      subsample=subsample if count < 3 else None)
+            self.att_layers.append(
+                att_block(fmap_in=num_in_chan * block.expansion * factor,
+                          fmap_out=num_in_chan*block.expansion,
+                          squeeze_factor=sq_fact,
+                          subsample=subsample if count < 3 else None)
+            )
+
             factor = 2
 
         # --------------------------------------------
@@ -242,20 +201,18 @@ class MTAN(NeuralNet):
 
         num_flat_features = num_out_chan*block_list[0].expansion
 
-        self.fc_layers = nn.ModuleDict()
-        for task in tasks:
-            self.fc_layers[task] = nn.Sequential(nn.AvgPool3d(kernel_size=out_shape),
-                                                 nn.Flatten(start_dim=1),
-                                                 torch.nn.Linear(num_flat_features, num_classes[task]))
+        self.fc_layers = nn.Sequential(nn.AvgPool3d(kernel_size=out_shape),
+                                       nn.Flatten(start_dim=1),
+                                       torch.nn.Linear(num_flat_features, num_classes))
 
         self.apply(init_weights)
 
-    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Define the forward pass of the Multi-Task Attention Network
+        Define the forward pass of the Single-Task Attention Network
 
         :param x: A batch of 3D images that we want to classify.
-        :return: A dictionary of torch.Tensor that represent the prediction per task for every element in the batch.
+        :return: A torch.Tensor that represent the model output.
         """
         out = self.conv(x)
 
@@ -271,34 +228,10 @@ class MTAN(NeuralNet):
         out4_base = self.shared_layers4_base(out3_last)
         out4_last = self.shared_layers4_last(out4_base)
 
-        preds = {}
-        for task in self.__tasks:
-            att_out = self.att_layers[0][task](out1_base, out1_last)
-            att_out = self.att_layers[1][task](torch.cat((out2_base, att_out), dim=1), out2_last)
-            att_out = self.att_layers[2][task](torch.cat((out3_base, att_out), dim=1), out3_last)
-            att_out = self.att_layers[3][task](torch.cat((out4_base, att_out), dim=1), out4_last)
+        att_out = self.att_layers[0](out1_base, out1_last)
+        att_out = self.att_layers[1](torch.cat((out2_base, att_out), dim=1), out2_last)
+        att_out = self.att_layers[2](torch.cat((out3_base, att_out), dim=1), out3_last)
+        att_out = self.att_layers[3](torch.cat((out4_base, att_out), dim=1), out4_last)
 
-            preds[task] = self.fc_layers[task](att_out)
-
-        return preds
-
-    def get_weights(self) -> Tuple[List[Iterator[torch.nn.Parameter]],
-                                   Optional[List[torch.nn.Parameter]]]:
-        """
-        Get the model parameters and the loss parameters.
-
-        :return: A list of parameters that represent the weights of the network and another list of parameters
-                 that represent the weights of the loss.
-        """
-        parameters = list(self.conv.parameters())
-        parameters += list(self.shared_layers1_base.parameters()) + list(self.shared_layers1_last.parameters())
-        parameters += list(self.shared_layers2_base.parameters()) + list(self.shared_layers2_last.parameters())
-        parameters += list(self.shared_layers3_base.parameters()) + list(self.shared_layers3_last.parameters())
-        parameters += list(self.shared_layers4_base.parameters()) + list(self.shared_layers4_last.parameters())
-        parameters += list(self.att_layers.parameters()) + list(self.fc_layers.parameters())
-
-        if isinstance(self.loss, UncertaintyLoss):
-            loss_parameters = self.loss.parameters()
-        else:
-            loss_parameters = None
-        return [parameters], loss_parameters
+        pred = self.fc_layers(att_out)
+        return pred

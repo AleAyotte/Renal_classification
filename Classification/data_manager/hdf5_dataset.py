@@ -86,8 +86,8 @@ class HDF5Dataset(ABC, Dataset):
         :param split: A string that indicate which subset will be load. (Default=DatasetName.TRAIN)
         :param transform: A function/transform that will be applied on the images and the ROI.
         """
-        # if split is not None:
-        #     assert split.upper() in [SplitName.TRAIN, SplitName.HOLDOUT]
+        if split is not None:
+            assert split.upper() in [SplitName.TRAIN, SplitName.HOLDOUT]
         super(ABC).__init__()
 
         self.transform = transform
@@ -212,19 +212,14 @@ class HDF5Dataset(ABC, Dataset):
     @abstractmethod
     def _read_hdf5(self,
                    to_exclude: Set[str],
-                   features_names: Sequence[str],
                    filepath: str,
-                   split: str,
-                   stratification_keys: List[str]) -> None:
+                   split: str) -> None:
         """
         Read the images and ROI from a given hdf5 filepath and store it in memory
 
         :param to_exclude: A list of patient_id that will not be load in the dataset.
-        :param features_names: A list of string that indicate which clinical features will be used
-                               to train the model.
         :param filepath: The filepath of the hdf5 file where the data has been stored.
         :param split: A string that indicate which subset will be load. (Option: train, test, test2).
-        :param stratification_keys: The names of the attributes that will be used to execute stratification sampling.
         """
         raise NotImplementedError("Must override __read_hdf5.")
 
